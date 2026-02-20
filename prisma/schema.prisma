@@ -1,0 +1,85 @@
+// ProConnect — MortgagePros Employee Portal
+// Prisma Schema for PostgreSQL
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Models ───────────────────────────────────────────────
+
+model User {
+  id          String   @id @default(cuid())
+  logtoId     String   @unique
+  email       String   @unique
+  displayName String
+  role        Role     @default(EMPLOYEE)
+  avatarUrl   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  kudosSent     KudosMessage[] @relation("KudosAuthor")
+  kudosReceived KudosMessage[] @relation("KudosRecipient")
+  alertsCreated Alert[]
+
+  @@map("users")
+}
+
+model KudosMessage {
+  id          String   @id @default(cuid())
+  content     String
+  authorId    String
+  recipientId String
+  author      User     @relation("KudosAuthor", fields: [authorId], references: [id])
+  recipient   User     @relation("KudosRecipient", fields: [recipientId], references: [id])
+  likes       Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@index([authorId])
+  @@index([recipientId])
+  @@index([createdAt])
+  @@map("kudos_messages")
+}
+
+model Alert {
+  id        String    @id @default(cuid())
+  title     String
+  content   String
+  type      AlertType @default(INFO)
+  priority  Priority  @default(LOW)
+  active    Boolean   @default(true)
+  createdBy String
+  author    User      @relation(fields: [createdBy], references: [id])
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([active, priority])
+  @@index([createdBy])
+  @@map("alerts")
+}
+
+// ─── Enums ────────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  EMPLOYEE
+}
+
+enum AlertType {
+  INFO
+  WARNING
+  BIRTHDAY
+  NEW_HIRE
+  ANNOUNCEMENT
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}

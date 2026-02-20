@@ -1,0 +1,38 @@
+[
+  {
+    "id": "p1",
+    "icon": "Shield",
+    "title": "Integrity",
+    "message": "We act with honesty and transparency in everything we do."
+  },
+  {
+    "id": "p2",
+    "icon": "Target",
+    "title": "Accountability",
+    "message": "We own our results and deliver on our commitments."
+  },
+  {
+    "id": "p3",
+    "icon": "Users",
+    "title": "Teamwork",
+    "message": "We collaborate and support each other to achieve more."
+  },
+  {
+    "id": "p4",
+    "icon": "Lightbulb",
+    "title": "Innovation",
+    "message": "We embrace new ideas and continuously improve."
+  },
+  {
+    "id": "p5",
+    "icon": "HeartHandshake",
+    "title": "Service",
+    "message": "We put our clients and community at the center of our work."
+  },
+  {
+    "id": "p6",
+    "icon": "TrendingUp",
+    "title": "Excellence",
+    "message": "We strive for the highest standard in everything we do."
+  }
+]
