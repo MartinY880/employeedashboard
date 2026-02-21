@@ -1,5 +1,5 @@
-// ProConnect — Admin Kudos Management Page
-// List all kudos with ability to delete inappropriate messages
+// ProConnect — Admin Props Management Page
+// List all props with ability to delete inappropriate messages
 
 "use client";
 
@@ -153,9 +153,9 @@ export default function AdminKudosPage() {
             <MessageCircle className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Kudos Moderation</h1>
+            <h1 className="text-xl font-bold text-gray-900">Props Moderation</h1>
             <p className="text-xs text-brand-grey">
-              {kudos.length} total kudos messages
+              {kudos.length} total props messages
             </p>
           </div>
         </div>
@@ -164,7 +164,7 @@ export default function AdminKudosPage() {
           <Input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search kudos..."
+            placeholder="Search props..."
             className="pl-9 h-9 text-sm"
           />
         </div>
@@ -182,12 +182,12 @@ export default function AdminKudosPage() {
           <div className="p-12 text-center text-brand-grey">
             <MessageCircle className="w-10 h-10 mx-auto mb-3 opacity-30" />
             <p className="font-medium">
-              {searchQuery ? "No matching kudos" : "No kudos yet"}
+              {searchQuery ? "No matching props" : "No props yet"}
             </p>
             <p className="text-sm mt-1">
               {searchQuery
                 ? "Try a different search term."
-                : "Kudos will appear here when team members send them."}
+                : "Props will appear here when team members send them."}
             </p>
           </div>
         ) : (
@@ -292,7 +292,7 @@ export default function AdminKudosPage() {
       {/* Showing count */}
       {!isLoading && filtered.length > 0 && (
         <p className="text-xs text-brand-grey text-center">
-          Showing {filtered.length} of {kudos.length} kudos messages
+          Showing {filtered.length} of {kudos.length} props messages
         </p>
       )}
 
@@ -300,11 +300,11 @@ export default function AdminKudosPage() {
       <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
         <DialogContent className="sm:max-w-[420px]">
           <DialogHeader>
-            <DialogTitle className="text-red-600">Remove Kudos</DialogTitle>
+            <DialogTitle className="text-red-600">Remove Props</DialogTitle>
           </DialogHeader>
           <div className="py-2 space-y-2">
             <p className="text-sm text-brand-grey">
-              This will permanently remove this kudos message from the feed:
+              This will permanently remove this props message from the feed:
             </p>
             {deleteTarget && (
               <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">

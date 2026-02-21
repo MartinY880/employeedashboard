@@ -27,8 +27,8 @@ import { Badge } from "@/components/ui/badge";
 interface AdminStats {
   totalAlerts: number;
   activeAlerts: number;
-  totalKudos: number;
-  kudosThisMonth: number;
+  totalProps: number;
+  propsThisMonth: number;
   teamMembers: number;
   upcomingHolidays: number;
 }
@@ -40,7 +40,7 @@ function useAdminStats() {
   useEffect(() => {
     async function fetchStats() {
       try {
-        const [alertsAll, alertsActive, kudosAll, kudosMonth, team, holidays] =
+        const [alertsAll, alertsActive, propsAll, propsMonth, team, holidays] =
           await Promise.all([
             fetch("/api/alerts?count=true&active=false").then((r) => r.json()),
             fetch("/api/alerts?count=true").then((r) => r.json()),
@@ -53,8 +53,8 @@ function useAdminStats() {
         setStats({
           totalAlerts: alertsAll.count ?? 0,
           activeAlerts: alertsActive.count ?? 0,
-          totalKudos: kudosAll.count ?? 0,
-          kudosThisMonth: kudosMonth.count ?? 0,
+          totalProps: propsAll.count ?? 0,
+          propsThisMonth: propsMonth.count ?? 0,
           teamMembers: team.count ?? 0,
           upcomingHolidays: holidays.upcomingHolidays ?? 0,
         });
@@ -62,8 +62,8 @@ function useAdminStats() {
         setStats({
           totalAlerts: 5,
           activeAlerts: 3,
-          totalKudos: 24,
-          kudosThisMonth: 8,
+          totalProps: 24,
+          propsThisMonth: 8,
           teamMembers: 42,
           upcomingHolidays: 6,
         });
@@ -79,7 +79,7 @@ function useAdminStats() {
 
 const statCards = [
   { key: "activeAlerts", label: "Active Alerts", icon: AlertTriangle, color: "bg-amber-500", href: "/admin/alerts" },
-  { key: "totalKudos", label: "Total Kudos", icon: MessageCircle, color: "bg-brand-blue", href: "/admin/kudos" },
+  { key: "totalProps", label: "Total Props", icon: MessageCircle, color: "bg-brand-blue", href: "/admin/kudos" },
   { key: "teamMembers", label: "Team Members", icon: Users, color: "bg-green-500", href: "/directory" },
   { key: "upcomingHolidays", label: "Holidays", icon: CalendarDays, color: "bg-purple-500", href: "/calendar" },
 ] as const;
@@ -95,8 +95,8 @@ const adminPages = [
     bgColor: "bg-amber-50",
   },
   {
-    title: "Kudos Moderation",
-    description: "Review all kudos messages. Remove inappropriate content and monitor engagement.",
+    title: "Props Moderation",
+    description: "Review all props messages. Remove inappropriate content and monitor engagement.",
     icon: MessageCircle,
     href: "/admin/kudos",
     badge: "Moderate",
@@ -167,7 +167,7 @@ export default function AdminPage() {
         </div>
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
-          <p className="text-sm text-brand-grey">Manage alerts, kudos, and portal settings</p>
+          <p className="text-sm text-brand-grey">Manage alerts, props, and portal settings</p>
         </div>
       </div>
 
@@ -224,7 +224,7 @@ export default function AdminPage() {
           </div>
           <div className="flex items-center gap-1.5">
             <TrendingUp className="w-3.5 h-3.5 text-green-500" />
-            <span className="text-sm font-semibold text-gray-800">{stats.kudosThisMonth} kudos</span>
+            <span className="text-sm font-semibold text-gray-800">{stats.propsThisMonth} props</span>
           </div>
           <div className="flex items-center gap-1.5">
             <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />

@@ -18,7 +18,6 @@ import {
   Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useSounds } from "@/components/shared/SoundProvider";
 import { toast } from "sonner";
 
@@ -37,7 +36,6 @@ export default function AdminBrandingPage() {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [companyName, setCompanyName] = useState("MortgagePros");
 
   // Preview states
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -56,7 +54,6 @@ export default function AdminBrandingPage() {
       if (res.ok) {
         const data = await res.json();
         setBranding(data);
-        setCompanyName(data.companyName || "MortgagePros");
       }
     } catch {
       // keep defaults
@@ -125,7 +122,6 @@ export default function AdminBrandingPage() {
 
     try {
       const formData = new FormData();
-      formData.append("companyName", companyName);
       if (logoFile) formData.append("logo", logoFile);
       if (faviconFile) formData.append("favicon", faviconFile);
       if (removeLogo) formData.append("removeLogo", "true");
@@ -176,7 +172,6 @@ export default function AdminBrandingPage() {
   const currentLogo = logoPreview ?? (removeLogo ? null : branding.logoData);
   const currentFavicon = faviconPreview ?? (removeFavicon ? null : branding.faviconData);
   const hasChanges =
-    companyName !== branding.companyName ||
     logoFile !== null ||
     faviconFile !== null ||
     removeLogo ||
@@ -223,32 +218,9 @@ export default function AdminBrandingPage() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Site Branding</h1>
             <p className="text-sm text-brand-grey">
-              Customize the portal logo, favicon, and company name
+              Customize the portal logo and favicon
             </p>
           </div>
-        </div>
-      </div>
-
-      {/* Company Name */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <Globe className="w-5 h-5 text-brand-blue" />
-          <h2 className="text-lg font-bold text-gray-900">Company Name</h2>
-        </div>
-        <p className="text-sm text-brand-grey mb-4">
-          Displayed next to the logo in the navigation bar.
-        </p>
-        <div className="max-w-md">
-          <label htmlFor="companyName" className="text-sm font-medium text-gray-700 block mb-1.5">
-            Display Name
-          </label>
-          <Input
-            id="companyName"
-            value={companyName}
-            onChange={(e) => setCompanyName(e.target.value)}
-            placeholder="MortgagePros"
-            className="mt-1"
-          />
         </div>
       </div>
 
@@ -278,12 +250,7 @@ export default function AdminBrandingPage() {
             ) : (
               <div className="flex flex-col items-center text-brand-grey">
                 <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-brand-blue text-white font-bold text-xl">
-                  {companyName
-                    .split(" ")
-                    .map((w) => w[0])
-                    .join("")
-                    .toUpperCase()
-                    .slice(0, 2)}
+                  MP
                 </div>
                 <span className="text-xs mt-2">Default text logo</span>
               </div>
@@ -411,17 +378,9 @@ export default function AdminBrandingPage() {
               />
             ) : (
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-blue text-white font-bold text-sm">
-                {companyName
-                  .split(" ")
-                  .map((w) => w[0])
-                  .join("")
-                  .toUpperCase()
-                  .slice(0, 2)}
+                MP
               </div>
             )}
-            <span className="text-lg font-bold text-brand-blue tracking-tight">
-              {companyName}
-            </span>
           </div>
           {currentFavicon && (
             <div className="mt-3 flex items-center gap-2">
@@ -436,7 +395,7 @@ export default function AdminBrandingPage() {
                   unoptimized
                 />
                 <span className="text-[11px] text-gray-500 truncate max-w-[120px]">
-                  ProConnect | {companyName}
+                  ProConnect
                 </span>
               </div>
             </div>
