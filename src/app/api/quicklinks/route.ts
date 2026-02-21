@@ -28,6 +28,12 @@ export async function GET(request: Request) {
       orderBy: { sortOrder: "asc" },
     });
 
+    // If DB is empty, show demo data
+    if (links.length === 0) {
+      const filtered = all ? demoLinks : demoLinks.filter((l) => l.active);
+      return NextResponse.json({ links: filtered, demo: true });
+    }
+
     return NextResponse.json({ links });
   } catch (error) {
     console.error("[QuickLinks API] GET error (using demo):", error);

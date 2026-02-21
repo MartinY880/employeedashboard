@@ -102,6 +102,13 @@ export async function GET(request: Request) {
 
       if (countOnly) {
         const count = await prisma.idea.count({ where });
+        if (count === 0) {
+          let filtered = [...demoIdeas];
+          if (status) {
+            filtered = filtered.filter((i) => i.status === status);
+          }
+          return NextResponse.json({ count: filtered.length, demo: true });
+        }
         return NextResponse.json({ count });
       }
 
@@ -109,6 +116,17 @@ export async function GET(request: Request) {
         where,
         orderBy: [{ votes: "desc" }, { createdAt: "desc" }],
       });
+
+      // If DB is empty, fall back to demo data
+      if (ideas.length === 0) {
+        let filtered = [...demoIdeas];
+        if (status) {
+          filtered = filtered.filter((i) => i.status === status);
+        }
+        filtered.sort((a, b) => b.votes - a.votes || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        return NextResponse.json({ ideas: filtered, demo: true });
+      }
+
       return NextResponse.json({ ideas });
     } catch {
       // Database unavailable — use demo data

@@ -30,9 +30,10 @@ async function getUpcomingHolidayCount(): Promise<number> {
 
 async function getActiveAlertCount(): Promise<number> {
   try {
-    return await prisma.alert.count({ where: { active: true } });
+    const count = await prisma.alert.count({ where: { active: true } });
+    return count || 5; // fallback to demo count
   } catch {
-    return 0;
+    return 5;
   }
 }
 
@@ -40,11 +41,12 @@ async function getKudosThisMonthCount(): Promise<number> {
   try {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    return await prisma.kudosMessage.count({
+    const count = await prisma.kudosMessage.count({
       where: { createdAt: { gte: startOfMonth } },
     });
+    return count || 5; // fallback to demo count
   } catch {
-    return 0;
+    return 5;
   }
 }
 

@@ -82,6 +82,11 @@ export async function GET(request: Request) {
       const count = await prisma.alert.count({
         where: activeOnly ? { active: true } : undefined,
       });
+      if (count === 0) {
+        const allDemo = [...demoPostedAlerts, ...DEMO_ALERTS];
+        const filtered = activeOnly ? allDemo.filter((a) => a.active) : allDemo;
+        return NextResponse.json({ count: filtered.length, demo: true });
+      }
       return NextResponse.json({ count });
     }
 
@@ -98,6 +103,13 @@ export async function GET(request: Request) {
       ],
       take: 50,
     });
+
+    // If DB is empty, show demo data
+    if (alerts.length === 0) {
+      const allDemo = [...demoPostedAlerts, ...DEMO_ALERTS];
+      const filtered = activeOnly ? allDemo.filter((a) => a.active) : allDemo;
+      return NextResponse.json({ alerts: filtered, demo: true });
+    }
 
     return NextResponse.json({ alerts });
   } catch (error) {

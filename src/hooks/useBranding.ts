@@ -61,12 +61,15 @@ export function useBranding() {
   // Update favicon link tag whenever faviconData changes
   useEffect(() => {
     if (branding.faviconData) {
-      let link = document.querySelector("link[rel='icon']") as HTMLLinkElement | null;
+      // Find or create our own managed favicon link (identified by data attribute)
+      let link = document.querySelector("link[data-dynamic-favicon]") as HTMLLinkElement | null;
       if (!link) {
         link = document.createElement("link");
+        link.setAttribute("data-dynamic-favicon", "true");
         link.rel = "icon";
         document.head.appendChild(link);
       }
+      link.type = "image/x-icon";
       link.href = branding.faviconData;
     }
   }, [branding.faviconData]);
