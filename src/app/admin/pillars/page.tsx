@@ -34,10 +34,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ICON_MAP, ICON_NAMES, type PillarData, type PillarIconName } from "@/lib/pillar-icons";
+import { ICON_MAP, ICON_NAMES, type PillarData, type PillarIconName, type PillarHeader } from "@/lib/pillar-icons";
+
+const DEFAULT_HEADER: PillarHeader = {
+  title: "OUR COMPANY PILLARS",
+  subtitle: "The core values that drive everything we do at MortgagePros",
+  maxWidth: 1100,
+};
 
 export default function AdminPillarsPage() {
   const [pillars, setPillars] = useState<PillarData[]>([]);
+  const [header, setHeader] = useState<PillarHeader>(DEFAULT_HEADER);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -48,7 +55,12 @@ export default function AdminPillarsPage() {
     try {
       const res = await fetch("/api/pillars");
       const data = await res.json();
-      if (Array.isArray(data)) setPillars(data);
+      if (data && data.pillars && Array.isArray(data.pillars)) {
+        setPillars(data.pillars);
+        if (data.header) setHeader(data.header);
+      } else if (Array.isArray(data)) {
+        setPillars(data);
+      }
     } catch {
       // Keep current state
     } finally {
@@ -63,12 +75,20 @@ export default function AdminPillarsPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const res = await fetch("/api/pillars", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(pillars),
-      });
-      if (res.ok) {
+      // Save pillars and header in parallel
+      const [pillarsRes, headerRes] = await Promise.all([
+        fetch("/api/pillars", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(pillars),
+        }),
+        fetch("/api/pillars", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(header),
+        }),
+      ]);
+      if (pillarsRes.ok && headerRes.ok) {
         setSaved(true);
         setHasChanges(false);
         setTimeout(() => setSaved(false), 2000);
@@ -172,6 +192,162 @@ export default function AdminPillarsPage() {
               </>
             )}
           </Button>
+        </div>
+      </div>
+
+      {/* Header Editor */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 space-y-3">
+        <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">Pillar Header Banner</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 block">
+              Title
+            </label>
+            <Input
+              value={header.title}
+              onChange={(e) => {
+                setHeader((prev) => ({ ...prev, title: e.target.value }));
+                setHasChanges(true);
+              }}
+              placeholder="Header title"
+              className="h-9"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 block">
+              Subtitle
+            </label>
+            <Input
+              value={header.subtitle}
+              onChange={(e) => {
+                setHeader((prev) => ({ ...prev, subtitle: e.target.value }));
+                setHasChanges(true);
+              }}
+              placeholder="Header subtitle"
+              className="h-9"
+            />
+          </div>
+        </div>
+
+        {/* Max Width Slider */}
+        <div>
+          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 block">
+            Container Width — {header.maxWidth ?? 1100}px
+          </label>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-gray-400 w-10">600</span>
+            <input
+              type="range"
+              min={600}
+              max={1400}
+              step={10}
+              value={header.maxWidth ?? 1100}
+              onChange={(e) => {
+                setHeader((prev) => ({ ...prev, maxWidth: Number(e.target.value) }));
+                setHasChanges(true);
+              }}
+              className="flex-1 h-2 accent-brand-blue cursor-pointer"
+            />
+            <span className="text-xs text-gray-400 w-10 text-right">1400</span>
+          </div>
+        </div>
+
+        {/* Font Size Controls */}
+        <div className="border-t border-gray-100 pt-3 mt-1">
+          <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Font Sizes</h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Banner Title Size */}
+            <div>
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 block">
+                Banner Title — {header.bannerTitleSize ?? 14}px
+              </label>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-gray-400 w-6">8</span>
+                <input
+                  type="range"
+                  min={8}
+                  max={28}
+                  step={1}
+                  value={header.bannerTitleSize ?? 14}
+                  onChange={(e) => {
+                    setHeader((prev) => ({ ...prev, bannerTitleSize: Number(e.target.value) }));
+                    setHasChanges(true);
+                  }}
+                  className="flex-1 h-2 accent-brand-blue cursor-pointer"
+                />
+                <span className="text-xs text-gray-400 w-6 text-right">28</span>
+              </div>
+            </div>
+
+            {/* Banner Subtitle Size */}
+            <div>
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 block">
+                Banner Subtitle — {header.bannerSubtitleSize ?? 11}px
+              </label>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-gray-400 w-6">8</span>
+                <input
+                  type="range"
+                  min={8}
+                  max={24}
+                  step={1}
+                  value={header.bannerSubtitleSize ?? 11}
+                  onChange={(e) => {
+                    setHeader((prev) => ({ ...prev, bannerSubtitleSize: Number(e.target.value) }));
+                    setHasChanges(true);
+                  }}
+                  className="flex-1 h-2 accent-brand-blue cursor-pointer"
+                />
+                <span className="text-xs text-gray-400 w-6 text-right">24</span>
+              </div>
+            </div>
+
+            {/* Card Title Size */}
+            <div>
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 block">
+                Card Titles — {header.cardTitleSize ?? 14}px
+              </label>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-gray-400 w-6">8</span>
+                <input
+                  type="range"
+                  min={8}
+                  max={24}
+                  step={1}
+                  value={header.cardTitleSize ?? 14}
+                  onChange={(e) => {
+                    setHeader((prev) => ({ ...prev, cardTitleSize: Number(e.target.value) }));
+                    setHasChanges(true);
+                  }}
+                  className="flex-1 h-2 accent-brand-blue cursor-pointer"
+                />
+                <span className="text-xs text-gray-400 w-6 text-right">24</span>
+              </div>
+            </div>
+
+            {/* Card Message Size */}
+            <div>
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 block">
+                Card Messages — {header.cardMessageSize ?? 11}px
+              </label>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-gray-400 w-6">8</span>
+                <input
+                  type="range"
+                  min={8}
+                  max={20}
+                  step={1}
+                  value={header.cardMessageSize ?? 11}
+                  onChange={(e) => {
+                    setHeader((prev) => ({ ...prev, cardMessageSize: Number(e.target.value) }));
+                    setHasChanges(true);
+                  }}
+                  className="flex-1 h-2 accent-brand-blue cursor-pointer"
+                />
+                <span className="text-xs text-gray-400 w-6 text-right">20</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

@@ -16,6 +16,9 @@ import {
   TrendingUp,
   Activity,
   Columns3,
+  Lightbulb,
+  Link2,
+  Star,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -107,6 +110,33 @@ const adminPages = [
     badge: "Edit",
     color: "text-purple-500",
     bgColor: "bg-purple-50",
+  },
+  {
+    title: "Be Brilliant Moderation",
+    description: "Review employee ideas, select top ideas for implementation, archive or remove inappropriate ones.",
+    icon: Lightbulb,
+    href: "/admin/ideas",
+    badge: "Moderate",
+    color: "text-amber-500",
+    bgColor: "bg-amber-50",
+  },
+  {
+    title: "Quick Links",
+    description: "Add, edit, reorder, and toggle quick links shown on the employee dashboard.",
+    icon: Link2,
+    href: "/admin/quicklinks",
+    badge: "CRUD",
+    color: "text-teal-500",
+    bgColor: "bg-teal-50",
+  },
+  {
+    title: "Employee Highlights",
+    description: "Spotlight employees on the dashboard — highlight achievements, milestones, and recognition.",
+    icon: Star,
+    href: "/admin/highlights",
+    badge: "CRUD",
+    color: "text-amber-500",
+    bgColor: "bg-amber-50",
   },
 ];
 

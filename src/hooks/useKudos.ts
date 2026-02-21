@@ -27,11 +27,11 @@ export function useKudos() {
   }, [fetchKudos]);
 
   const sendKudos = useCallback(
-    async (recipientId: string, content: string, recipientName?: string) => {
+    async (recipientId: string, content: string, recipientName?: string, badge?: string) => {
       const res = await fetch("/api/kudos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ recipientId, content, recipientName }),
+        body: JSON.stringify({ recipientId, content, recipientName, badge }),
       });
 
       if (!res.ok) {

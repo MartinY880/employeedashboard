@@ -1,38 +1,32 @@
 [
   {
     "id": "p1",
-    "icon": "Shield",
-    "title": "Integrity",
-    "message": "We act with honesty and transparency in everything we do."
+    "icon": "Zap",
+    "title": "URGENCY IS EVERYTHING",
+    "message": "We don’t believe in tomorrow.\nEvery call, email, and text gets answered.\nFiles move same day.\nProblems are handled immediately.\nSpeed builds trust.\nSpeed shows professionalism.\nHesitation costs deals."
   },
   {
     "id": "p2",
-    "icon": "Target",
-    "title": "Accountability",
-    "message": "We own our results and deliver on our commitments."
+    "icon": "Crown",
+    "title": "OWN THE OUTCOME",
+    "message": "We take accountability for our actions.\nNo excuses.\nNo blaming underwriting.\nNo blaming processing.\nNo blaming the client.\nIf your name is on it, you own it.\nYou fix it.\nYou protect the deal.\nOwnership builds leaders."
   },
   {
     "id": "p3",
-    "icon": "Users",
-    "title": "Teamwork",
-    "message": "We collaborate and support each other to achieve more."
+    "icon": "TrendingUp",
+    "title": "GROW OR GET LEFT BEHIND",
+    "message": "Growth is not optional.\nKeep learning.\nBuild new skills.\nLevel up constantly.\nWe don’t live in the past.\n“I did this” doesn’t matter.\nWhat you do today is what counts.\nIf you aren’t performing, you’re falling behind."
   },
   {
     "id": "p4",
-    "icon": "Lightbulb",
-    "title": "Innovation",
-    "message": "We embrace new ideas and continuously improve."
+    "icon": "Megaphone",
+    "title": "SPEAK UP. DON'T RUN.",
+    "message": "We confront problems head-on.\nWe communicate openly.\nWe fix what’s off.\nStrong teams speak up.\nThey don’t gossip.\nThey don’t quit quietly.\nThey don’t just complain.\nIf you bring a problem, bring a solution.\nThat’s how we get better."
   },
   {
     "id": "p5",
-    "icon": "HeartHandshake",
-    "title": "Service",
-    "message": "We put our clients and community at the center of our work."
-  },
-  {
-    "id": "p6",
-    "icon": "TrendingUp",
-    "title": "Excellence",
-    "message": "We strive for the highest standard in everything we do."
+    "icon": "Handshake",
+    "title": "I GOT YOUR BACK",
+    "message": "We win together.\nWe support each other.\nWe step in when someone is overwhelmed.\nNo one gets thrown under the bus here.\nWe respect every teammate.\nWe speak professionally.\nWe protect the standard.\nWe are one team."
   }
 ]

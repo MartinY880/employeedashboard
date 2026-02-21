@@ -66,3 +66,13 @@ export interface PillarData {
   title: string;
   message: string;
 }
+
+export interface PillarHeader {
+  title: string;
+  subtitle: string;
+  maxWidth?: number;           // px — controls pillar grid container width (default 1100)
+  bannerTitleSize?: number;    // px — header banner title font size (default 14)
+  bannerSubtitleSize?: number; // px — header banner subtitle font size (default 11)
+  cardTitleSize?: number;      // px — all pillar card titles font size (default 14)
+  cardMessageSize?: number;    // px — all pillar card messages font size (default 11)
+}

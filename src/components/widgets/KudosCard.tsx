@@ -1,12 +1,96 @@
-// ProConnect — KudosCard Widget
-// Single kudos card: avatar, author, recipient, message, likes, timestamp
+// ProConnect — Props Card Widget (Gamified)
+// Award-style praise card: badge ribbon, author → recipient, message, reactions
+// Each praise feels like a collectible achievement
 
 "use client";
 
 import { useState } from "react";
-import { Heart } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useSounds } from "@/components/shared/SoundProvider";
+import { motion } from "framer-motion";
+
+/* ─── Badge Definitions ────────────────────────────────── */
+
+export const PRAISE_BADGES = [
+  {
+    key: "mvp",
+    label: "MVP",
+    emoji: "🏆",
+    gradient: "from-amber-400 to-yellow-500",
+    bg: "bg-amber-50",
+    border: "border-amber-200",
+    glow: "shadow-amber-200/40",
+    desc: "Most Valuable Player",
+  },
+  {
+    key: "rockstar",
+    label: "Rockstar",
+    emoji: "🎸",
+    gradient: "from-purple-500 to-pink-500",
+    bg: "bg-purple-50",
+    border: "border-purple-200",
+    glow: "shadow-purple-200/40",
+    desc: "Absolute legend",
+  },
+  {
+    key: "brainiac",
+    label: "Brainiac",
+    emoji: "🧠",
+    gradient: "from-blue-500 to-cyan-400",
+    bg: "bg-blue-50",
+    border: "border-blue-200",
+    glow: "shadow-blue-200/40",
+    desc: "Big brain energy",
+  },
+  {
+    key: "heart",
+    label: "Big Heart",
+    emoji: "💖",
+    gradient: "from-pink-400 to-rose-500",
+    bg: "bg-pink-50",
+    border: "border-pink-200",
+    glow: "shadow-pink-200/40",
+    desc: "Goes above & beyond",
+  },
+  {
+    key: "fire",
+    label: "On Fire",
+    emoji: "🔥",
+    gradient: "from-orange-500 to-red-500",
+    bg: "bg-orange-50",
+    border: "border-orange-200",
+    glow: "shadow-orange-200/40",
+    desc: "Unstoppable streak",
+  },
+  {
+    key: "teamplayer",
+    label: "Team Player",
+    emoji: "🤝",
+    gradient: "from-emerald-400 to-teal-500",
+    bg: "bg-emerald-50",
+    border: "border-emerald-200",
+    glow: "shadow-emerald-200/40",
+    desc: "Strongest together",
+  },
+] as const;
+
+export type PraiseBadgeKey = (typeof PRAISE_BADGES)[number]["key"];
+
+export function getBadge(key: string | undefined) {
+  return PRAISE_BADGES.find((b) => b.key === key) || PRAISE_BADGES[0];
+}
+
+/* ─── Reactions ────────────────────────────────────────── */
+
+const REACTIONS = [
+  { key: "highfive", emoji: "🙌", label: "High Five", bg: "bg-amber-50 hover:bg-amber-100", activeBg: "bg-amber-200", ring: "ring-amber-300" },
+  { key: "uplift", emoji: "🚀", label: "Uplift", bg: "bg-blue-50 hover:bg-blue-100", activeBg: "bg-blue-200", ring: "ring-blue-300" },
+  { key: "bomb", emoji: "💣", label: "Bomb", bg: "bg-red-50 hover:bg-red-100", activeBg: "bg-red-200", ring: "ring-red-300" },
+] as const;
+
+type ReactionKey = (typeof REACTIONS)[number]["key"];
+
+/* ─── Props Interface ──────────────────────────────────── */
 
 interface KudosCardProps {
   id?: string;
@@ -17,7 +101,10 @@ interface KudosCardProps {
   message: string;
   likes: number;
   createdAt: string;
+  badge?: string;
 }
+
+/* ─── Component ────────────────────────────────────────── */
 
 export function KudosCard({
   authorName,
@@ -27,59 +114,121 @@ export function KudosCard({
   message,
   likes,
   createdAt,
+  badge: badgeKey,
 }: KudosCardProps) {
   const { playPop } = useSounds();
-  const [liked, setLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(likes);
-  const timeAgo = getRelativeTime(createdAt);
+  const badge = getBadge(badgeKey);
 
-  const handleLike = () => {
-    setLiked((prev) => !prev);
-    setLikeCount((prev) => (liked ? prev - 1 : prev + 1));
+  const [reactions, setReactions] = useState<Record<ReactionKey, number>>({
+    highfive: likes,
+    uplift: Math.floor(likes * 0.6),
+    bomb: Math.floor(likes * 0.3),
+  });
+  const [myReactions, setMyReactions] = useState<Set<ReactionKey>>(new Set());
+  const [poppedReaction, setPoppedReaction] = useState<ReactionKey | null>(null);
+  const timeAgo = getRelativeTime(createdAt);
+  const totalReactions = Object.values(reactions).reduce((a, b) => a + b, 0);
+
+  const handleReaction = (key: ReactionKey) => {
     playPop();
+    const isActive = myReactions.has(key);
+    setMyReactions((prev) => {
+      const next = new Set(prev);
+      if (isActive) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+    setReactions((prev) => ({
+      ...prev,
+      [key]: isActive ? prev[key] - 1 : prev[key] + 1,
+    }));
+    setPoppedReaction(key);
+    setTimeout(() => setPoppedReaction(null), 400);
   };
 
   return (
-    <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex items-start gap-3">
-        <Avatar className="h-8 w-8 shrink-0 mt-0.5">
-          {authorPhotoUrl && (
-            <AvatarImage src={authorPhotoUrl} alt={authorName} />
-          )}
-          <AvatarFallback className="bg-brand-blue/10 text-brand-blue text-[10px] font-bold">
-            {authorInitials}
-          </AvatarFallback>
-        </Avatar>
+    <motion.div
+      initial={{ opacity: 0, y: 10, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      className={`relative overflow-hidden rounded-xl border ${badge.border} shadow-sm hover:shadow-md ${badge.glow} transition-all duration-300`}
+    >
+      {/* Badge Header Ribbon */}
+      <div className={`bg-gradient-to-r ${badge.gradient} px-3.5 py-2 flex items-center gap-2`}>
+        <span className="text-lg leading-none drop-shadow-sm">{badge.emoji}</span>
         <div className="flex-1 min-w-0">
-          <div className="text-sm">
-            <span className="font-semibold text-gray-800">{authorName}</span>
-            <span className="text-brand-grey"> → </span>
-            <span className="font-semibold text-brand-blue">@{recipientName}</span>
+          <div className="text-white font-bold text-[11px] uppercase tracking-wider leading-none">
+            {badge.label}
           </div>
-          <p className="text-sm text-gray-600 mt-1.5 leading-relaxed">
-            {message}
-          </p>
-          <div className="flex items-center gap-4 mt-3 text-xs text-brand-grey">
-            <button
-              onClick={handleLike}
-              className={`flex items-center gap-1 transition-colors group ${
-                liked ? "text-red-500" : "hover:text-red-500"
-              }`}
-            >
-              <Heart
-                className={`w-3.5 h-3.5 transition-colors ${
-                  liked ? "fill-red-500 text-red-500" : "group-hover:fill-red-500"
+          <div className="text-white/70 text-[9px] leading-tight mt-0.5">{badge.desc}</div>
+        </div>
+        {totalReactions > 0 && (
+          <div className="flex items-center gap-1 bg-white/20 backdrop-blur-sm rounded-full px-2 py-0.5">
+            <span className="text-white text-[10px] font-bold tabular-nums">{totalReactions}</span>
+            <span className="text-white/80 text-[9px]">✦</span>
+          </div>
+        )}
+      </div>
+
+      {/* Card Body */}
+      <div className={`${badge.bg} p-3.5`}>
+        {/* Author → Recipient */}
+        <div className="flex items-center gap-2 mb-2.5">
+          <Avatar className="h-7 w-7 shrink-0 ring-2 ring-white shadow-sm">
+            {authorPhotoUrl && (
+              <AvatarImage src={authorPhotoUrl} alt={authorName} />
+            )}
+            <AvatarFallback className="bg-brand-blue/10 text-brand-blue text-[9px] font-bold">
+              {authorInitials}
+            </AvatarFallback>
+          </Avatar>
+          <div className="text-xs min-w-0 flex-1">
+            <span className="font-bold text-gray-800">{authorName}</span>
+            <span className="text-gray-400 mx-1">→</span>
+            <span className="font-bold text-brand-blue">@{recipientName}</span>
+          </div>
+          <span className="text-[10px] text-gray-400 shrink-0">{timeAgo}</span>
+        </div>
+
+        {/* Message */}
+        <p className="text-[13px] text-gray-700 leading-relaxed mb-3 pl-9 italic">
+          &ldquo;{message}&rdquo;
+        </p>
+
+        {/* Reactions Row */}
+        <div className="flex items-center gap-1.5 pl-9">
+          {REACTIONS.map((r) => {
+            const isActive = myReactions.has(r.key);
+            const count = reactions[r.key];
+            const isPopping = poppedReaction === r.key;
+            return (
+              <motion.button
+                key={r.key}
+                onClick={() => handleReaction(r.key)}
+                animate={isPopping ? { scale: [1, 1.35, 1] } : {}}
+                transition={{ duration: 0.3 }}
+                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
+                  isActive
+                    ? `${r.activeBg} ring-1 ${r.ring} shadow-sm`
+                    : `bg-white/80 ${r.bg}`
                 }`}
-              />
-              {likeCount}
-            </button>
-            <span className="ml-auto">{timeAgo}</span>
-          </div>
+                title={r.label}
+              >
+                <span className="text-sm leading-none">{r.emoji}</span>
+                {count > 0 && (
+                  <span className={`tabular-nums text-[11px] ${isActive ? "font-bold" : "text-gray-500"}`}>
+                    {count}
+                  </span>
+                )}
+              </motion.button>
+            );
+          })}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
+
+/* ─── Helper ───────────────────────────────────────────── */
 
 function getRelativeTime(dateStr: string): string {
   const now = Date.now();

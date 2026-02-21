@@ -33,6 +33,7 @@ export interface KudosMessage {
   author: Pick<User, "id" | "displayName" | "avatarUrl"> & { photoUrl?: string };
   recipient: Pick<User, "id" | "displayName" | "avatarUrl"> & { photoUrl?: string };
   likes: number;
+  badge?: string;
   createdAt: string;
 }
 
@@ -90,6 +91,22 @@ export interface Holiday {
   source: string;
   visible: boolean;
   recurring: boolean;
+}
+
+// ─── Ideas ────────────────────────────────────────────────
+
+export type IdeaStatus = "ACTIVE" | "SELECTED" | "ARCHIVED";
+
+export interface Idea {
+  id: string;
+  title: string;
+  description: string;
+  authorId: string;
+  authorName: string;
+  votes: number;
+  status: IdeaStatus;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ─── Stats ────────────────────────────────────────────────

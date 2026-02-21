@@ -23,6 +23,7 @@ const DEMO_KUDOS = [
     author: { id: "d1", displayName: "Maria Garcia", avatarUrl: null, photoUrl: authorPhotoUrl("demo-5", "Maria Garcia") },
     recipient: { id: "d2", displayName: "John Doe", avatarUrl: null, photoUrl: authorPhotoUrl("demo-4", "John Doe") },
     likes: 5,
+    badge: "mvp",
     createdAt: new Date(Date.now() - 2 * 3600000).toISOString(),
   },
   {
@@ -33,6 +34,7 @@ const DEMO_KUDOS = [
     author: { id: "d3", displayName: "Tom Wilson", avatarUrl: null, photoUrl: authorPhotoUrl("demo-6", "Tom Wilson") },
     recipient: { id: "d4", displayName: "Lisa Park", avatarUrl: null, photoUrl: authorPhotoUrl("demo-3", "Lisa Park") },
     likes: 8,
+    badge: "teamplayer",
     createdAt: new Date(Date.now() - 26 * 3600000).toISOString(),
   },
   {
@@ -43,6 +45,7 @@ const DEMO_KUDOS = [
     author: { id: "d5", displayName: "James Chen", avatarUrl: null, photoUrl: authorPhotoUrl("demo-2", "James Chen") },
     recipient: { id: "d1", displayName: "Maria Garcia", avatarUrl: null, photoUrl: authorPhotoUrl("demo-5", "Maria Garcia") },
     likes: 12,
+    badge: "heart",
     createdAt: new Date(Date.now() - 50 * 3600000).toISOString(),
   },
   {
@@ -53,6 +56,7 @@ const DEMO_KUDOS = [
     author: { id: "d2", displayName: "John Doe", avatarUrl: null, photoUrl: authorPhotoUrl("demo-4", "John Doe") },
     recipient: { id: "d3", displayName: "Tom Wilson", avatarUrl: null, photoUrl: authorPhotoUrl("demo-6", "Tom Wilson") },
     likes: 3,
+    badge: "rockstar",
     createdAt: new Date(Date.now() - 72 * 3600000).toISOString(),
   },
   {
@@ -63,6 +67,7 @@ const DEMO_KUDOS = [
     author: { id: "d4", displayName: "Lisa Park", avatarUrl: null, photoUrl: authorPhotoUrl("demo-3", "Lisa Park") },
     recipient: { id: "d5", displayName: "James Chen", avatarUrl: null, photoUrl: authorPhotoUrl("demo-2", "James Chen") },
     likes: 6,
+    badge: "fire",
     createdAt: new Date(Date.now() - 96 * 3600000).toISOString(),
   },
 ];
@@ -115,7 +120,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   // Parse body early so it's available in both try and catch
-  let body: { content?: string; recipientId?: string; recipientName?: string } = {};
+  let body: { content?: string; recipientId?: string; recipientName?: string; badge?: string } = {};
   let authResult: { isAuthenticated: boolean; user: { sub: string; email: string; name: string; role: "ADMIN" | "EMPLOYEE" } | null } = { isAuthenticated: false, user: null };
 
   try {
@@ -201,6 +206,7 @@ export async function POST(request: Request) {
         avatarUrl: null,
       },
       likes: 0,
+      badge: body.badge || "mvp",
       createdAt: new Date().toISOString(),
     };
     // Persist in memory for GET demo fallback
