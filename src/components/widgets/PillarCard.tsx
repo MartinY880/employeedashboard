@@ -13,9 +13,11 @@ interface PillarCardProps {
   title: string;
   message: string;
   index?: number;
+  titleSize?: number;
+  messageSize?: number;
 }
 
-export function PillarCard({ iconName, title, message, index = 0 }: PillarCardProps) {
+export function PillarCard({ iconName, title, message, index = 0, titleSize = 14, messageSize = 11 }: PillarCardProps) {
   const { playPop } = useSounds();
   const Icon = ICON_MAP[iconName] ?? ICON_MAP.Shield;
 
@@ -44,7 +46,10 @@ export function PillarCard({ iconName, title, message, index = 0 }: PillarCardPr
       <Icon className="w-5 h-5 opacity-60 mb-2 relative z-10 shrink-0" />
 
       {/* Title */}
-      <div className="text-sm font-bold uppercase tracking-[0.10em] relative z-10 leading-tight shrink-0">
+      <div
+        className="font-bold uppercase tracking-[0.10em] relative z-10 leading-tight shrink-0 whitespace-pre-line"
+        style={{ fontSize: `${titleSize}px` }}
+      >
         {title}
       </div>
 
@@ -52,7 +57,10 @@ export function PillarCard({ iconName, title, message, index = 0 }: PillarCardPr
       <div className="w-8 h-[2px] bg-white/30 rounded-full mt-2 mb-2 relative z-10 shrink-0" />
 
       {/* Message */}
-      <div className="text-[11px] font-medium opacity-80 leading-relaxed relative z-10 max-w-[200px]">
+      <div
+        className="font-medium opacity-80 leading-relaxed relative z-10 max-w-[200px] whitespace-pre-line"
+        style={{ fontSize: `${messageSize}px` }}
+      >
         {message}
       </div>
     </motion.div>

@@ -1,15 +1,15 @@
-// ProConnect — KudosFeed Widget
-// Scrollable list of kudos cards + input to send new kudos (right column tab)
+// ProConnect — Props Feed Widget (Gamified)
+// Badge-style praise feed + compose form with badge picker
 
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { motion } from "framer-motion";
-import { KudosCard } from "./KudosCard";
+import { motion, AnimatePresence } from "framer-motion";
+import { KudosCard, PRAISE_BADGES, type PraiseBadgeKey } from "./KudosCard";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Send, Loader2, Sparkles } from "lucide-react";
+import { Send, Loader2, Zap } from "lucide-react";
 import { useKudos } from "@/hooks/useKudos";
 import { useSounds } from "@/components/shared/SoundProvider";
 import { PeoplePicker } from "@/components/shared/PeoplePicker";
@@ -25,10 +25,11 @@ function getInitials(name: string): string {
 
 export function KudosFeed() {
   const { kudos, isLoading, sendKudos } = useKudos();
-  const { playNotify, playSuccess, playClick } = useSounds();
+  const { playNotify, playSuccess, playClick, playPop } = useSounds();
   const [message, setMessage] = useState("");
   const [recipientEmail, setRecipientEmail] = useState("");
   const [recipientName, setRecipientName] = useState("");
+  const [selectedBadge, setSelectedBadge] = useState<PraiseBadgeKey>("mvp");
   const [isSending, setIsSending] = useState(false);
   const [showCompose, setShowCompose] = useState(false);
   const prevCountRef = useRef(kudos.length);
@@ -46,14 +47,14 @@ export function KudosFeed() {
     if (!message.trim() || !recipientEmail) return;
     setIsSending(true);
     try {
-      await sendKudos(recipientEmail, message.trim(), recipientName);
+      await sendKudos(recipientEmail, message.trim(), recipientName, selectedBadge);
       playSuccess();
       setMessage("");
       setRecipientEmail("");
       setRecipientName("");
+      setSelectedBadge("mvp");
       setShowCompose(false);
     } catch {
-      // Show inline error feedback
       playNotify();
     } finally {
       setIsSending(false);
@@ -63,15 +64,16 @@ export function KudosFeed() {
   if (isLoading) {
     return (
       <div className="space-y-3">
-        {[...Array(4)].map((_, i) => (
-          <div key={i} className="bg-white p-4 rounded-xl border border-gray-100">
-            <div className="flex items-start gap-3">
-              <Skeleton className="h-8 w-8 rounded-full shrink-0" />
-              <div className="flex-1 space-y-2">
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="rounded-xl border border-gray-100 overflow-hidden">
+            <Skeleton className="h-10 w-full" />
+            <div className="p-3.5 space-y-2">
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-7 w-7 rounded-full" />
                 <Skeleton className="h-3.5 w-3/4" />
-                <Skeleton className="h-3 w-full" />
-                <Skeleton className="h-3 w-1/2" />
               </div>
+              <Skeleton className="h-3 w-full ml-9" />
+              <Skeleton className="h-3 w-1/2 ml-9" />
             </div>
           </div>
         ))}
@@ -91,8 +93,8 @@ export function KudosFeed() {
           className="w-full bg-brand-blue/5 hover:bg-brand-blue/10 text-brand-blue border border-brand-blue/20 text-xs font-medium"
           variant="ghost"
         >
-          <Sparkles className="w-3.5 h-3.5 mr-1.5" />
-          Send Kudos to a Teammate
+          <Zap className="w-3.5 h-3.5 mr-1.5" />
+          Award Props to a Teammate
         </Button>
       ) : (
         <motion.div
@@ -100,11 +102,46 @@ export function KudosFeed() {
           animate={{ opacity: 1, height: "auto" }}
           exit={{ opacity: 0, height: 0 }}
           transition={{ duration: 0.25 }}
-          className="bg-white rounded-xl border border-brand-blue/20 shadow-sm p-3 space-y-2.5"
+          className="bg-white rounded-xl border border-brand-blue/20 shadow-sm overflow-hidden"
         >
-            <div className="text-[11px] font-semibold text-brand-blue uppercase tracking-wide flex items-center gap-1.5">
-              <Sparkles className="w-3 h-3" />
-              New Kudos
+          <div className="bg-brand-blue px-3.5 py-2">
+            <div className="text-[11px] font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+              <Zap className="w-3 h-3" />
+              Award Props
+            </div>
+          </div>
+
+          <div className="p-3 space-y-2.5">
+            {/* Badge Picker */}
+            <div>
+              <label className="text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-1.5 block">
+                Choose Award
+              </label>
+              <div className="grid grid-cols-3 gap-1.5">
+                {PRAISE_BADGES.map((b) => {
+                  const isSelected = selectedBadge === b.key;
+                  return (
+                    <motion.button
+                      key={b.key}
+                      onClick={() => {
+                        setSelectedBadge(b.key as PraiseBadgeKey);
+                        playPop();
+                      }}
+                      whileTap={{ scale: 0.95 }}
+                      className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-left transition-all ${
+                        isSelected
+                          ? `bg-gradient-to-r ${b.gradient} text-white shadow-sm ring-2 ring-offset-1 ring-brand-blue/30`
+                          : `${b.bg} ${b.border} border hover:shadow-sm`
+                      }`}
+                    >
+                      <span className="text-sm leading-none">{b.emoji}</span>
+                      <span className={`text-[10px] font-bold leading-tight ${isSelected ? "text-white" : "text-gray-700"}`}>
+                        {b.label}
+                      </span>
+                    </motion.button>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Recipient Picker */}
@@ -130,10 +167,10 @@ export function KudosFeed() {
             {/* Message */}
             <Textarea
               ref={textareaRef}
-              placeholder="What did they do that was awesome?"
+              placeholder="Why do they deserve this award? 🎉"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              className="text-xs min-h-[60px] resize-none"
+              className="text-xs min-h-[56px] resize-none"
               rows={2}
             />
 
@@ -163,11 +200,12 @@ export function KudosFeed() {
                 ) : (
                   <Send className="w-3.5 h-3.5 mr-1" />
                 )}
-                {isSending ? "Sending..." : "Send Kudos"}
+                {isSending ? "Awarding..." : "Send Award"}
               </Button>
             </div>
-          </motion.div>
-        )}
+          </div>
+        </motion.div>
+      )}
 
       {/* Feed */}
       {kudos.length === 0 ? (
@@ -176,8 +214,8 @@ export function KudosFeed() {
           animate={{ opacity: 1 }}
           className="text-center py-8 text-sm text-brand-grey"
         >
-          <Sparkles className="w-8 h-8 mx-auto mb-2 text-brand-blue/30" />
-          <p>No kudos yet. Be the first to recognize a teammate!</p>
+          <span className="text-3xl block mb-2">🏆</span>
+          <p>No awards yet. Be the first to recognize a teammate!</p>
         </motion.div>
       ) : (
         kudos.map((k, i) => (
@@ -195,6 +233,7 @@ export function KudosFeed() {
               message={k.content}
               likes={k.likes}
               createdAt={k.createdAt}
+              badge={k.badge}
             />
           </motion.div>
         ))

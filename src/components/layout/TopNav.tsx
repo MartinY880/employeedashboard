@@ -5,10 +5,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Search, Bell, LayoutDashboard, Users, CalendarDays, BookOpen, LogOut, Settings, ShieldCheck, Volume2, VolumeX } from "lucide-react";
+import { LayoutDashboard, Users, CalendarDays, BookOpen, LogOut, Settings, ShieldCheck, Volume2, VolumeX } from "lucide-react";
 import { motion } from "framer-motion";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
   TooltipContent,
@@ -98,27 +97,6 @@ export function TopNav({ user }: TopNavProps) {
 
       {/* Right Controls */}
       <div className="flex items-center gap-2">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button className="flex h-9 w-9 items-center justify-center rounded-lg text-brand-grey hover:text-brand-blue hover:bg-gray-100 transition-all">
-              <Search className="w-[18px] h-[18px]" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>Search</TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button className="relative flex h-9 w-9 items-center justify-center rounded-lg text-brand-grey hover:text-brand-blue hover:bg-gray-100 transition-all">
-              <Bell className="w-[18px] h-[18px]" />
-              <Badge className="absolute -top-0.5 -right-0.5 h-4 min-w-4 px-1 text-[10px] bg-alert-red text-white border-2 border-white rounded-full flex items-center justify-center">
-                3
-              </Badge>
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>Notifications</TooltipContent>
-        </Tooltip>
-
         <Tooltip>
           <TooltipTrigger asChild>
             <button

@@ -1,13 +1,15 @@
 // ProConnect — Pillars API Route
-// GET: Fetch all pillars | PUT: Replace all pillars (admin)
+// GET: Fetch all pillars + header | PUT: Replace all pillars (admin)
+// PATCH: Update pillar header only
 
 import { NextResponse } from "next/server";
 import { readFile, writeFile, mkdir } from "fs/promises";
 import { join } from "path";
-import type { PillarData } from "@/lib/pillar-icons";
+import type { PillarData, PillarHeader } from "@/lib/pillar-icons";
 
 const DATA_DIR = join(process.cwd(), "src", "data");
 const PILLARS_FILE = join(DATA_DIR, "pillars.json");
+const HEADER_FILE = join(DATA_DIR, "pillar-header.json");
 
 const DEFAULT_PILLARS: PillarData[] = [
   { id: "p1", icon: "Shield", title: "Integrity", message: "We act with honesty and transparency in everything we do." },
@@ -18,6 +20,12 @@ const DEFAULT_PILLARS: PillarData[] = [
   { id: "p6", icon: "TrendingUp", title: "Excellence", message: "We strive for the highest standard in everything we do." },
 ];
 
+const DEFAULT_HEADER: PillarHeader = {
+  title: "OUR COMPANY PILLARS",
+  subtitle: "The core values that drive everything we do at MortgagePros",
+  maxWidth: 1100,
+};
+
 async function loadPillars(): Promise<PillarData[]> {
   try {
     const raw = await readFile(PILLARS_FILE, "utf-8");
@@ -27,14 +35,28 @@ async function loadPillars(): Promise<PillarData[]> {
   }
 }
 
+async function loadHeader(): Promise<PillarHeader> {
+  try {
+    const raw = await readFile(HEADER_FILE, "utf-8");
+    return JSON.parse(raw);
+  } catch {
+    return DEFAULT_HEADER;
+  }
+}
+
 async function savePillars(pillars: PillarData[]): Promise<void> {
   await mkdir(DATA_DIR, { recursive: true });
   await writeFile(PILLARS_FILE, JSON.stringify(pillars, null, 2), "utf-8");
 }
 
+async function saveHeader(header: PillarHeader): Promise<void> {
+  await mkdir(DATA_DIR, { recursive: true });
+  await writeFile(HEADER_FILE, JSON.stringify(header, null, 2), "utf-8");
+}
+
 export async function GET() {
-  const pillars = await loadPillars();
-  return NextResponse.json(pillars);
+  const [pillars, header] = await Promise.all([loadPillars(), loadHeader()]);
+  return NextResponse.json({ pillars, header });
 }
 
 export async function PUT(request: Request) {
@@ -59,5 +81,30 @@ export async function PUT(request: Request) {
     return NextResponse.json(body);
   } catch {
     return NextResponse.json({ error: "Failed to save pillars" }, { status: 500 });
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const body = await request.json();
+    const { title, subtitle, maxWidth } = body;
+
+    if (!title || !subtitle) {
+      return NextResponse.json({ error: "title and subtitle are required" }, { status: 400 });
+    }
+
+    const header: PillarHeader = {
+      title,
+      subtitle,
+      maxWidth: body.maxWidth ?? 1100,
+      bannerTitleSize: body.bannerTitleSize ?? 14,
+      bannerSubtitleSize: body.bannerSubtitleSize ?? 11,
+      cardTitleSize: body.cardTitleSize ?? 14,
+      cardMessageSize: body.cardMessageSize ?? 11,
+    };
+    await saveHeader(header);
+    return NextResponse.json(header);
+  } catch {
+    return NextResponse.json({ error: "Failed to save header" }, { status: 500 });
   }
 }
