@@ -59,6 +59,13 @@ export async function GET(req: NextRequest) {
       where: all ? {} : { active: true },
       orderBy: { startDate: "desc" },
     });
+
+    // If DB is empty, show demo data
+    if (highlights.length === 0) {
+      if (all) return NextResponse.json(demoHighlights);
+      return NextResponse.json(demoHighlights.filter((h) => h.active));
+    }
+
     return NextResponse.json(highlights);
   } catch {
     // Demo fallback

@@ -6,7 +6,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard, Users, CalendarDays, BookOpen, LogOut, Settings, ShieldCheck, Volume2, VolumeX } from "lucide-react";
-import { motion } from "framer-motion";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Tooltip,
@@ -48,23 +47,21 @@ function getInitials(name: string): string {
 
 export function TopNav({ user }: TopNavProps) {
   const pathname = usePathname();
-  const { playClick, muted, toggleMute } = useSounds();
+  const { muted, toggleMute } = useSounds();
   const { branding } = useBranding();
 
   return (
-    <motion.header
-      initial={{ y: -20, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.3, ease: "easeOut" }}
-      className="sticky top-0 z-50 flex h-[56px] sm:h-[64px] items-center border-b border-gray-200 bg-white/95 backdrop-blur-sm px-3 sm:px-6 shadow-sm"
+    <header
+      className="sticky top-0 z-50 flex items-center border-b border-gray-200 bg-white/95 backdrop-blur-sm px-3 sm:px-6 shadow-sm"
     >
       {/* Logo */}
-      <Link href="/dashboard" className="mr-4 sm:mr-10 flex items-center gap-2.5 group shrink-0">
+      <Link href="/dashboard" className="mr-4 sm:mr-10 flex items-center group shrink-0">
         {branding.logoData ? (
           <img
             src={branding.logoData}
             alt="Logo"
-            className="h-9 w-9 rounded-lg object-contain transition-transform group-hover:scale-105"
+            className="w-auto object-contain transition-transform group-hover:scale-105"
+            style={{ height: 'clamp(48px, 8vw, 72px)', maxWidth: 'clamp(240px, 28vw, 420px)' }}
           />
         ) : (
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-blue text-white font-bold text-sm transition-transform group-hover:scale-105">
@@ -81,7 +78,6 @@ export function TopNav({ user }: TopNavProps) {
             <Link
               key={href}
               href={href}
-              onClick={playClick}
               className={`relative flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
                 isActive
                   ? "text-brand-blue bg-blue-50"
@@ -91,11 +87,7 @@ export function TopNav({ user }: TopNavProps) {
               <Icon className="w-4 h-4" />
               <span className="hidden md:inline">{label}</span>
               {isActive && (
-                <motion.div
-                  layoutId="nav-indicator"
-                  className="absolute bottom-0 left-3 right-3 h-0.5 bg-brand-blue rounded-full"
-                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                />
+                <div className="absolute bottom-0 left-3 right-3 h-0.5 bg-brand-blue rounded-full" />
               )}
             </Link>
           );
@@ -169,6 +161,6 @@ export function TopNav({ user }: TopNavProps) {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-    </motion.header>
+    </header>
   );
 }

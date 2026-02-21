@@ -91,6 +91,9 @@ export async function GET(request: Request) {
           }
         : undefined;
       const count = await prisma.kudosMessage.count({ where });
+      if (count === 0) {
+        return NextResponse.json({ count: DEMO_KUDOS.length + demoPostedKudos.length, demo: true });
+      }
       return NextResponse.json({ count });
     }
 
@@ -106,6 +109,11 @@ export async function GET(request: Request) {
       orderBy: { createdAt: "desc" },
       take: 30,
     });
+
+    // If DB is empty, show demo data
+    if (kudos.length === 0) {
+      return NextResponse.json({ kudos: [...demoPostedKudos, ...DEMO_KUDOS], demo: true });
+    }
 
     return NextResponse.json({ kudos });
   } catch (error) {
