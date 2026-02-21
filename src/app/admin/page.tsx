@@ -19,6 +19,7 @@ import {
   Lightbulb,
   Link2,
   Star,
+  Paintbrush,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -137,6 +138,15 @@ const adminPages = [
     badge: "CRUD",
     color: "text-amber-500",
     bgColor: "bg-amber-50",
+  },
+  {
+    title: "Site Branding",
+    description: "Upload a custom logo, favicon, and set the company name displayed across the portal.",
+    icon: Paintbrush,
+    href: "/admin/branding",
+    badge: "Upload",
+    color: "text-brand-blue",
+    bgColor: "bg-blue-50",
   },
 ];
 

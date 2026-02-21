@@ -111,6 +111,16 @@ model EmployeeHighlight {
   @@map("employee_highlights")
 }
 
+model SiteBranding {
+  id          String   @id @default("singleton")
+  companyName String   @default("MortgagePros")
+  logoData    String?  @db.Text // base64 data URL for logo image
+  faviconData String?  @db.Text // base64 data URL for favicon
+  updatedAt   DateTime @updatedAt
+
+  @@map("site_branding")
+}
+
 // ─── Enums ────────────────────────────────────────────────
 
 enum Role {

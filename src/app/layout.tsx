@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SoundProvider } from "@/components/shared/SoundProvider";
+import { DynamicFavicon } from "@/components/shared/DynamicFavicon";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -34,6 +35,7 @@ export default function RootLayout({
       >
         <TooltipProvider delayDuration={300}>
           <SoundProvider>
+            <DynamicFavicon />
             {children}
             <Toaster position="bottom-right" richColors />
           </SoundProvider>
