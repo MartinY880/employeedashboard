@@ -99,24 +99,34 @@ export function StatsRow() {
         </p>
       </motion.div>
 
-      {/* Pillar Cards — dynamic columns based on count */}
-      <div
-        className="grid gap-4 mx-auto"
-        style={{
-          gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-        }}
-      >
-        {pillars.map((pillar, i) => (
-          <PillarCard
-            key={pillar.id}
-            iconName={pillar.icon}
-            title={pillar.title}
-            message={pillar.message}
-            index={i}
-            titleSize={header.cardTitleSize}
-            messageSize={header.cardMessageSize}
-          />
-        ))}
+      {/* Pillar Cards — 2-col on mobile, auto-fit on sm+ */}
+      <style>{`
+        @media (min-width: 640px) {
+          .pillar-grid {
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)) !important;
+          }
+        }
+      `}</style>
+      <div className="pillar-grid grid grid-cols-2 gap-4 mx-auto">
+        {pillars.map((pillar, i) => {
+          const isLast = i === pillars.length - 1;
+          const isOddCount = pillars.length % 2 !== 0;
+          return (
+            <div
+              key={pillar.id}
+              className={isLast && isOddCount ? "col-span-2 sm:col-span-1" : ""}
+            >
+              <PillarCard
+                iconName={pillar.icon}
+                title={pillar.title}
+                message={pillar.message}
+                index={i}
+                titleSize={header.cardTitleSize}
+                messageSize={header.cardMessageSize}
+              />
+            </div>
+          );
+        })}
       </div>
     </div>
   );

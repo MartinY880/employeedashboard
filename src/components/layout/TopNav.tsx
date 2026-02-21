@@ -22,6 +22,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useSounds } from "@/components/shared/SoundProvider";
+import { useBranding } from "@/hooks/useBranding";
 import type { AuthUser } from "@/types";
 import { signOutAction } from "@/app/(auth)/sign-in/actions";
 
@@ -48,6 +49,7 @@ function getInitials(name: string): string {
 export function TopNav({ user }: TopNavProps) {
   const pathname = usePathname();
   const { playClick, muted, toggleMute } = useSounds();
+  const { branding } = useBranding();
 
   return (
     <motion.header
@@ -58,11 +60,24 @@ export function TopNav({ user }: TopNavProps) {
     >
       {/* Logo */}
       <Link href="/dashboard" className="mr-4 sm:mr-10 flex items-center gap-2.5 group shrink-0">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-blue text-white font-bold text-sm transition-transform group-hover:scale-105">
-          MP
-        </div>
+        {branding.logoData ? (
+          <img
+            src={branding.logoData}
+            alt={branding.companyName}
+            className="h-9 w-9 rounded-lg object-contain transition-transform group-hover:scale-105"
+          />
+        ) : (
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-blue text-white font-bold text-sm transition-transform group-hover:scale-105">
+            {branding.companyName
+              .split(" ")
+              .map((w) => w[0])
+              .join("")
+              .toUpperCase()
+              .slice(0, 2)}
+          </div>
+        )}
         <span className="text-lg font-bold text-brand-blue tracking-tight hidden sm:block">
-          MortgagePros
+          {branding.companyName}
         </span>
       </Link>
 
