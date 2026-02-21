@@ -36,7 +36,7 @@ export function PillarCard({ iconName, title, message, index = 0, titleSize = 14
         transition: { duration: 0.2 },
       }}
       onHoverStart={playPop}
-      className="relative bg-gradient-to-br from-brand-blue to-[#084f96] text-white p-5 min-h-[170px] rounded-xl shadow-lg flex flex-col justify-start items-center text-center cursor-default overflow-hidden group"
+      className="relative bg-gradient-to-br from-brand-blue to-[#084f96] text-white p-5 min-h-[170px] h-full rounded-xl shadow-lg flex flex-col justify-start items-center text-center cursor-default overflow-hidden group"
     >
       {/* Decorative circles */}
       <div className="absolute -top-6 -right-6 w-24 h-24 bg-white/[0.06] rounded-full transition-transform duration-500 group-hover:scale-125" />

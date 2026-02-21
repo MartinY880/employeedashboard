@@ -63,22 +63,14 @@ export function TopNav({ user }: TopNavProps) {
         {branding.logoData ? (
           <img
             src={branding.logoData}
-            alt={branding.companyName}
+            alt="Logo"
             className="h-9 w-9 rounded-lg object-contain transition-transform group-hover:scale-105"
           />
         ) : (
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-blue text-white font-bold text-sm transition-transform group-hover:scale-105">
-            {branding.companyName
-              .split(" ")
-              .map((w) => w[0])
-              .join("")
-              .toUpperCase()
-              .slice(0, 2)}
+            MP
           </div>
         )}
-        <span className="text-lg font-bold text-brand-blue tracking-tight hidden sm:block">
-          {branding.companyName}
-        </span>
       </Link>
 
       {/* Nav Links */}
