@@ -117,3 +117,50 @@ export interface DashboardStats {
   activeAlerts: number;
   kudosThisMonth: number;
 }
+
+// ─── Tournament Bracket ───────────────────────────────────
+
+export type TournamentStatus = "SETUP" | "IN_PROGRESS" | "COMPLETED";
+export type MatchStatus = "PENDING" | "IN_PROGRESS" | "COMPLETED";
+export type Division = "Region 1" | "Region 2" | "Region 3" | "Region 4";
+
+export interface Tournament {
+  id: string;
+  name: string;
+  description: string | null;
+  status: TournamentStatus;
+  createdAt: string;
+  updatedAt: string;
+  teams?: TournamentTeam[];
+  matches?: TournamentMatch[];
+}
+
+export interface TournamentTeam {
+  id: string;
+  tournamentId: string;
+  player1Name: string;
+  player2Name: string;
+  seed: number;
+  division: string;
+  createdAt: string;
+}
+
+export interface TournamentMatch {
+  id: string;
+  tournamentId: string;
+  round: number;
+  matchNumber: number;
+  division: string;
+  team1Id: string | null;
+  team1: TournamentTeam | null;
+  team2Id: string | null;
+  team2: TournamentTeam | null;
+  winnerId: string | null;
+  winner: TournamentTeam | null;
+  team1Score: number | null;
+  team2Score: number | null;
+  status: MatchStatus;
+  nextMatchId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}

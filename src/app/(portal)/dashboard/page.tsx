@@ -11,10 +11,12 @@ import { OooWidget } from "@/components/widgets/OooWidget";
 import { FeedPanel } from "@/components/widgets/FeedPanel";
 import { EmployeeHighlight } from "@/components/widgets/EmployeeHighlight";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
+import Link from "next/link";
+import { Trophy, ArrowRight } from "lucide-react";
 
 export default function DashboardPage() {
   return (
-    <div className="max-w-[1440px] mx-auto px-4 sm:px-6 py-4 sm:py-6">
+    <div className="max-w-[1920px] mx-auto px-6 sm:px-10 lg:px-14 py-4 sm:py-6">
       {/* Stats Row */}
       <section className="mb-6">
         <ErrorBoundary label="Stats" compact>
@@ -29,6 +31,34 @@ export default function DashboardPage() {
         </ErrorBoundary>
       </section>
 
+      {/* Tournament Banner */}
+      <section className="mb-5">
+        <Link
+          href="/tournament"
+          className="group block rounded-xl border border-brand-blue/20 bg-gradient-to-r from-brand-blue to-blue-700 p-5 shadow-sm transition-all hover:shadow-md hover:scale-[1.01]"
+        >
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-white/20 text-white">
+                <Trophy className="h-6 w-6" />
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-base sm:text-lg font-bold text-white tracking-wide uppercase">
+                  Tournament Bracket Live
+                </h2>
+                <p className="text-xs sm:text-sm text-blue-100 truncate">
+                  Follow matchups, check winners, and jump into the full bracket now.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1 text-white text-sm font-semibold whitespace-nowrap">
+              View Bracket
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+            </div>
+          </div>
+        </Link>
+      </section>
+
       {/* Directory Search + Alerts Bar */}
       <section className="mb-5 grid grid-cols-1 lg:grid-cols-2 gap-4">
         <ErrorBoundary label="Directory Search" compact>
@@ -40,7 +70,7 @@ export default function DashboardPage() {
       </section>
 
       {/* 3-Column Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr_340px] gap-5 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr_380px] gap-5 items-start">
         {/* Left: OOO + Upcoming Holidays */}
         <div className="space-y-5">
           {/* OOO Widget */}

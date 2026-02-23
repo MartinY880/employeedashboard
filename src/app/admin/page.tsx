@@ -20,6 +20,7 @@ import {
   Link2,
   Star,
   Paintbrush,
+  Trophy,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -147,6 +148,15 @@ const adminPages = [
     badge: "Upload",
     color: "text-brand-blue",
     bgColor: "bg-blue-50",
+  },
+  {
+    title: "Tournament Bracket",
+    description: "Manage tournament brackets — create tournaments, add 2-person teams, set divisions, and record match results.",
+    icon: Trophy,
+    href: "/admin/tournament",
+    badge: "CRUD",
+    color: "text-orange-500",
+    bgColor: "bg-orange-50",
   },
 ];
 
