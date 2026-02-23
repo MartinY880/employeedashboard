@@ -5,6 +5,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/logto";
+import { hasPermission, PERMISSIONS } from "@/lib/rbac";
 
 // In-memory store for demo-mode ideas (survives refresh, not server restart)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -192,6 +193,7 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
+    const { isAuthenticated, user } = await getAuthUser();
     const body = await request.json();
     const { id, vote, status } = body;
 
@@ -210,6 +212,10 @@ export async function PATCH(request: Request) {
       }
 
       if (status) {
+        if (!isAuthenticated || !user || !hasPermission(user, PERMISSIONS.MANAGE_IDEAS)) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+
         const idea = await prisma.idea.update({
           where: { id },
           data: { status },
@@ -239,6 +245,11 @@ export async function PATCH(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
+    const { isAuthenticated, user } = await getAuthUser();
+    if (!isAuthenticated || !user || !hasPermission(user, PERMISSIONS.MANAGE_IDEAS)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
 

@@ -4,6 +4,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/logto";
+import { hasPermission, PERMISSIONS } from "@/lib/rbac";
 
 // In-memory branding for demo mode
 const demoBranding = {
@@ -35,7 +36,7 @@ export async function POST(request: Request) {
   try {
     // Auth check
     const { isAuthenticated, user } = await getAuthUser();
-    if (!isAuthenticated || !user || user.role !== "ADMIN") {
+    if (!isAuthenticated || !user || !hasPermission(user, PERMISSIONS.MANAGE_BRANDING)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 

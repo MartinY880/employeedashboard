@@ -4,6 +4,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/logto";
+import { hasPermission, PERMISSIONS } from "@/lib/rbac";
 
 // Demo quick links for when DB is unavailable
 const DEMO_QUICK_LINKS = [
@@ -49,7 +50,7 @@ export async function POST(request: Request) {
 
   try {
     const { isAuthenticated, user } = await getAuthUser();
-    if (!isAuthenticated || !user || user.role !== "ADMIN") {
+    if (!isAuthenticated || !user || !hasPermission(user, PERMISSIONS.MANAGE_QUICKLINKS)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -90,7 +91,7 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const { isAuthenticated, user } = await getAuthUser();
-    if (!isAuthenticated || !user || user.role !== "ADMIN") {
+    if (!isAuthenticated || !user || !hasPermission(user, PERMISSIONS.MANAGE_QUICKLINKS)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -136,7 +137,7 @@ export async function PUT(request: Request) {
 export async function DELETE(request: Request) {
   try {
     const { isAuthenticated, user } = await getAuthUser();
-    if (!isAuthenticated || !user || user.role !== "ADMIN") {
+    if (!isAuthenticated || !user || !hasPermission(user, PERMISSIONS.MANAGE_QUICKLINKS)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

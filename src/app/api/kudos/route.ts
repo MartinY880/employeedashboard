@@ -4,6 +4,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/logto";
+import { hasPermission, PERMISSIONS, toDbRole } from "@/lib/rbac";
 
 // In-memory store for demo-mode posted kudos (survives refresh, not server restart)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -129,7 +130,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   // Parse body early so it's available in both try and catch
   let body: { content?: string; recipientId?: string; recipientName?: string; badge?: string } = {};
-  let authResult: { isAuthenticated: boolean; user: { sub: string; email: string; name: string; role: "ADMIN" | "EMPLOYEE" } | null } = { isAuthenticated: false, user: null };
+  let authResult: { isAuthenticated: boolean; user: { sub: string; email: string; name: string; role: "SUPER_ADMIN" | "ADMIN" | "EMPLOYEE" } | null } = { isAuthenticated: false, user: null };
 
   try {
     authResult = await getAuthUser();
@@ -154,7 +155,7 @@ export async function POST(request: Request) {
         logtoId: authResult.user.sub,
         email: authResult.user.email,
         displayName: authResult.user.name,
-        role: authResult.user.role,
+        role: toDbRole(authResult.user.role),
       },
       update: { displayName: authResult.user.name },
     });
@@ -226,7 +227,7 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
   try {
     const { isAuthenticated, user } = await getAuthUser();
-    if (!isAuthenticated || !user || user.role !== "ADMIN") {
+    if (!isAuthenticated || !user || !hasPermission(user, PERMISSIONS.MANAGE_KUDOS)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

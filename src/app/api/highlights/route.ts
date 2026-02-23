@@ -3,6 +3,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getAuthUser } from "@/lib/logto";
+import { hasPermission, PERMISSIONS } from "@/lib/rbac";
 
 /* ------------------------------------------------------------------ */
 /*  Demo data (used when DB table doesn't exist yet)                  */
@@ -79,6 +81,11 @@ export async function GET(req: NextRequest) {
 /* ------------------------------------------------------------------ */
 
 export async function POST(req: NextRequest) {
+  const { isAuthenticated, user } = await getAuthUser();
+  if (!isAuthenticated || !user || !hasPermission(user, PERMISSIONS.MANAGE_HIGHLIGHTS)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const body = await req.json();
   const { employeeId, employeeName, jobTitle, department, title, subtitle, startDate, endDate } = body;
 
@@ -130,6 +137,11 @@ export async function POST(req: NextRequest) {
 /* ------------------------------------------------------------------ */
 
 export async function PUT(req: NextRequest) {
+  const { isAuthenticated, user } = await getAuthUser();
+  if (!isAuthenticated || !user || !hasPermission(user, PERMISSIONS.MANAGE_HIGHLIGHTS)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const body = await req.json();
   const { id, ...fields } = body;
 
@@ -173,6 +185,11 @@ export async function PUT(req: NextRequest) {
 /* ------------------------------------------------------------------ */
 
 export async function DELETE(req: NextRequest) {
+  const { isAuthenticated, user } = await getAuthUser();
+  if (!isAuthenticated || !user || !hasPermission(user, PERMISSIONS.MANAGE_HIGHLIGHTS)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
 

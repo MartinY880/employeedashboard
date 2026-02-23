@@ -5,6 +5,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/logto";
+import { hasPermission, PERMISSIONS } from "@/lib/rbac";
 
 // ─── Demo Data ─────────────────────────────────────────────
 
@@ -597,7 +598,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const { isAuthenticated, user } = await getAuthUser();
-    if (!isAuthenticated || !user || user.role !== "ADMIN") {
+    if (!isAuthenticated || !user || !hasPermission(user, PERMISSIONS.MANAGE_TOURNAMENT)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
@@ -754,7 +755,7 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   try {
     const { isAuthenticated, user } = await getAuthUser();
-    if (!isAuthenticated || !user || user.role !== "ADMIN") {
+    if (!isAuthenticated || !user || !hasPermission(user, PERMISSIONS.MANAGE_TOURNAMENT)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
@@ -1113,7 +1114,7 @@ export async function PATCH(request: Request) {
 export async function DELETE(request: Request) {
   try {
     const { isAuthenticated, user } = await getAuthUser();
-    if (!isAuthenticated || !user || user.role !== "ADMIN") {
+    if (!isAuthenticated || !user || !hasPermission(user, PERMISSIONS.MANAGE_TOURNAMENT)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 

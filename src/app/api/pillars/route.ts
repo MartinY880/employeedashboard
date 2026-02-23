@@ -6,6 +6,8 @@ import { NextResponse } from "next/server";
 import { readFile, writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import type { PillarData, PillarHeader } from "@/lib/pillar-icons";
+import { getAuthUser } from "@/lib/logto";
+import { hasPermission, PERMISSIONS } from "@/lib/rbac";
 
 const DATA_DIR = join(process.cwd(), "src", "data");
 const PILLARS_FILE = join(DATA_DIR, "pillars.json");
@@ -61,6 +63,11 @@ export async function GET() {
 
 export async function PUT(request: Request) {
   try {
+    const { isAuthenticated, user } = await getAuthUser();
+    if (!isAuthenticated || !user || !hasPermission(user, PERMISSIONS.MANAGE_PILLARS)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const body = await request.json();
 
     if (!Array.isArray(body)) {
@@ -86,6 +93,11 @@ export async function PUT(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
+    const { isAuthenticated, user } = await getAuthUser();
+    if (!isAuthenticated || !user || !hasPermission(user, PERMISSIONS.MANAGE_PILLARS)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const body = await request.json();
     const { title, subtitle, maxWidth } = body;
 
