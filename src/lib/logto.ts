@@ -4,6 +4,43 @@
 import type { LogtoNextConfig } from "@logto/next";
 import type { AuthUser } from "@/types";
 
+function getNormalizedRoles(claims: Record<string, unknown>): string[] {
+  const roleKeys = [
+    "roles",
+    "role",
+    "urn:logto:roles",
+    "urn:logto:organization_roles",
+    "organization_roles",
+  ];
+
+  const values: unknown[] = [];
+
+  for (const key of roleKeys) {
+    const value = claims[key];
+    if (Array.isArray(value)) {
+      values.push(...value);
+    } else if (typeof value === "string") {
+      values.push(value);
+    }
+  }
+
+  return values
+    .filter((value): value is string => typeof value === "string")
+    .map((role) => role.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function hasAdminRole(roles: string[]): boolean {
+  return roles.some((role) => {
+    return (
+      role === "admin" ||
+      role === "administrator" ||
+      role.endsWith(":admin") ||
+      role.endsWith("/admin")
+    );
+  });
+}
+
 // ─── Feature flag: is Logto configured? ───────────────────
 export const isLogtoConfigured =
   !!process.env.LOGTO_ENDPOINT && !!process.env.LOGTO_APP_ID;
@@ -50,9 +87,9 @@ export async function getAuthUser(): Promise<{
 
   const claims = context.claims;
 
-  // Extract role from custom claim or default to EMPLOYEE
-  const roles = (claims as Record<string, unknown>)["roles"] as string[] | undefined;
-  const isAdmin = roles?.includes("admin") ?? false;
+  // Extract role from Logto claims and map it to app role
+  const normalizedRoles = getNormalizedRoles(claims as Record<string, unknown>);
+  const isAdmin = hasAdminRole(normalizedRoles);
 
   return {
     isAuthenticated: true,
