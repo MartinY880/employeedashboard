@@ -1,9 +1,10 @@
 // ProConnect — Admin Layout
-// RBAC guard: only users with "ADMIN" role can access
+// RBAC guard: users with any admin permission can access admin area
 
 import { type ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { getAuthUser } from "@/lib/logto";
+import { hasAnyAdminPermission } from "@/lib/rbac";
 import { PortalShell } from "@/components/layout/PortalShell";
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
@@ -13,7 +14,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     redirect("/sign-in");
   }
 
-  if (user.role !== "ADMIN") {
+  if (!hasAnyAdminPermission(user)) {
     // Non-admin users get a 403-style page
     return (
       <PortalShell user={user}>

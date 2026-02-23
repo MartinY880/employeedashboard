@@ -24,6 +24,8 @@ import {
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import type { AuthUser } from "@/types";
+import { PERMISSIONS, ROUTE_PERMISSION, type Permission } from "@/lib/rbac";
 
 interface AdminStats {
   totalAlerts: number;
@@ -94,6 +96,7 @@ const adminPages = [
     badge: "CRUD",
     color: "text-amber-500",
     bgColor: "bg-amber-50",
+    permission: PERMISSIONS.MANAGE_ALERTS,
   },
   {
     title: "Props Moderation",
@@ -103,6 +106,7 @@ const adminPages = [
     badge: "Moderate",
     color: "text-brand-blue",
     bgColor: "bg-blue-50",
+    permission: PERMISSIONS.MANAGE_KUDOS,
   },
   {
     title: "Company Pillars",
@@ -112,6 +116,7 @@ const adminPages = [
     badge: "Edit",
     color: "text-purple-500",
     bgColor: "bg-purple-50",
+    permission: PERMISSIONS.MANAGE_PILLARS,
   },
   {
     title: "Be Brilliant Moderation",
@@ -121,6 +126,7 @@ const adminPages = [
     badge: "Moderate",
     color: "text-amber-500",
     bgColor: "bg-amber-50",
+    permission: PERMISSIONS.MANAGE_IDEAS,
   },
   {
     title: "Quick Links",
@@ -130,6 +136,7 @@ const adminPages = [
     badge: "CRUD",
     color: "text-teal-500",
     bgColor: "bg-teal-50",
+    permission: PERMISSIONS.MANAGE_QUICKLINKS,
   },
   {
     title: "Employee Highlights",
@@ -139,6 +146,7 @@ const adminPages = [
     badge: "CRUD",
     color: "text-amber-500",
     bgColor: "bg-amber-50",
+    permission: PERMISSIONS.MANAGE_HIGHLIGHTS,
   },
   {
     title: "Site Branding",
@@ -148,6 +156,7 @@ const adminPages = [
     badge: "Upload",
     color: "text-brand-blue",
     bgColor: "bg-blue-50",
+    permission: PERMISSIONS.MANAGE_BRANDING,
   },
   {
     title: "Tournament Bracket",
@@ -157,11 +166,35 @@ const adminPages = [
     badge: "CRUD",
     color: "text-orange-500",
     bgColor: "bg-orange-50",
+    permission: PERMISSIONS.MANAGE_TOURNAMENT,
   },
 ];
 
 export default function AdminPage() {
+  const [permissions, setPermissions] = useState<string[]>([]);
   const { stats, isLoading } = useAdminStats();
+
+  useEffect(() => {
+    async function fetchAuth() {
+      try {
+        const response = await fetch("/api/auth/logto", { cache: "no-store" });
+        const data = await response.json();
+        if (data?.user?.permissions) {
+          setPermissions(data.user.permissions as string[]);
+        }
+      } catch {
+        // Keep safe default
+      }
+    }
+    fetchAuth();
+  }, []);
+
+  const userPerms = new Set(permissions);
+  const visibleAdminPages = adminPages.filter((page) => userPerms.has(page.permission));
+  const visibleStatCards = statCards.filter((card) => {
+    const perm = ROUTE_PERMISSION[card.href];
+    return !perm || userPerms.has(perm);
+  });
 
   return (
     <motion.div
@@ -183,7 +216,7 @@ export default function AdminPage() {
 
       {/* Stats Row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {statCards.map((card, i) => {
+        {visibleStatCards.map((card, i) => {
           const Icon = card.icon;
           const value = stats ? stats[card.key as keyof AdminStats] : 0;
 
@@ -249,7 +282,7 @@ export default function AdminPage() {
 
       {/* Admin Sections */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {adminPages.map((page, i) => {
+        {visibleAdminPages.map((page, i) => {
           const Icon = page.icon;
           return (
             <motion.div

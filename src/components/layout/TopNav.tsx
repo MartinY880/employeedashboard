@@ -23,6 +23,7 @@ import {
 import { useSounds } from "@/components/shared/SoundProvider";
 import { useBranding } from "@/hooks/useBranding";
 import type { AuthUser } from "@/types";
+import { hasAnyAdminPermission } from "@/lib/rbac";
 import { signOutAction } from "@/app/(auth)/sign-in/actions";
 
 const navLinks = [
@@ -136,7 +137,7 @@ export function TopNav({ user }: TopNavProps) {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            {user.role === "ADMIN" && (
+            {hasAnyAdminPermission(user) && (
               <DropdownMenuItem asChild>
                 <Link href="/admin" className="cursor-pointer">
                   <ShieldCheck className="w-4 h-4 mr-2" />

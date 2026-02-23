@@ -7,7 +7,8 @@ export interface AuthUser {
   name: string;
   email: string;
   avatar?: string;
-  role: "ADMIN" | "EMPLOYEE";
+  role: "SUPER_ADMIN" | "ADMIN" | "EMPLOYEE";
+  permissions: string[];
 }
 
 // ─── User ─────────────────────────────────────────────────
@@ -17,7 +18,7 @@ export interface User {
   logtoId: string;
   email: string;
   displayName: string;
-  role: "ADMIN" | "EMPLOYEE";
+  role: "SUPER_ADMIN" | "ADMIN" | "EMPLOYEE";
   avatarUrl: string | null;
   createdAt: string;
   updatedAt: string;

@@ -4,6 +4,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/logto";
+import { hasPermission, PERMISSIONS, toDbRole } from "@/lib/rbac";
+import type { AuthUser } from "@/types";
 
 // In-memory store for demo-mode posted alerts (survives refresh, not server restart)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -131,14 +133,14 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   // Parse body and auth early so they're available in catch
   let body: { title?: string; content?: string; type?: string; priority?: string } = {};
-  let authResult: { isAuthenticated: boolean; user: { sub: string; email: string; name: string; role: "ADMIN" | "EMPLOYEE" } | null } = { isAuthenticated: false, user: null };
+  let authResult: { isAuthenticated: boolean; user: AuthUser | null } = { isAuthenticated: false, user: null };
 
   try {
     authResult = await getAuthUser();
     if (!authResult.isAuthenticated || !authResult.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    if (authResult.user.role !== "ADMIN") {
+    if (!hasPermission(authResult.user, PERMISSIONS.MANAGE_ALERTS)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -162,7 +164,7 @@ export async function POST(request: Request) {
         logtoId: user.sub,
         email: user.email,
         displayName: user.name,
-        role: user.role,
+        role: toDbRole(user.role),
       },
       update: { displayName: user.name },
     });
@@ -209,7 +211,7 @@ export async function PATCH(request: Request) {
 
   try {
     const { isAuthenticated, user } = await getAuthUser();
-    if (!isAuthenticated || !user || user.role !== "ADMIN") {
+    if (!isAuthenticated || !user || !hasPermission(user, PERMISSIONS.MANAGE_ALERTS)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -263,7 +265,7 @@ export async function PATCH(request: Request) {
 export async function DELETE(request: Request) {
   try {
     const { isAuthenticated, user } = await getAuthUser();
-    if (!isAuthenticated || !user || user.role !== "ADMIN") {
+    if (!isAuthenticated || !user || !hasPermission(user, PERMISSIONS.MANAGE_ALERTS)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
