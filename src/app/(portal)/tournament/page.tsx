@@ -3,7 +3,7 @@
 
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Trophy, Users, Medal, Crown, Swords } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,10 +15,10 @@ import type { Tournament, TournamentMatch, TournamentTeam } from "@/types";
 /* Layout constants                                                    */
 /* ------------------------------------------------------------------ */
 
-const CARD_W = 210;
-const CARD_H = 52;
-const R1_GAP = 10;
-const ROUND_GAP = 48;
+const CARD_W = 164;
+const CARD_H = 48;
+const R1_GAP = 8;
+const ROUND_GAP = 26;
 const ROUND_STEP = CARD_W + ROUND_GAP;
 
 const DIVISIONS = ["Region 1", "Region 2", "Region 3", "Region 4"] as const;
@@ -159,13 +159,32 @@ function buildBracketLayout(matches: TournamentMatch[]) {
   return { roundSlots, allConnectors, totalH, totalW, numRounds };
 }
 
-function getRoundLabel(round: number, totalRounds: number): string {
-  const fromEnd = totalRounds - round;
-  if (fromEnd === 0) return "Division Final";
-  if (fromEnd === 1) return "Semifinals";
-  if (fromEnd === 2) return "Quarterfinals";
-  if (round === 1) return "Round 1";
-  return `Round ${round}`;
+function buildConnectorsFromSlots(roundSlots: BracketSlot[][]): ConnectorLine[] {
+  const connectors: ConnectorLine[] = [];
+
+  for (let roundIndex = 1; roundIndex < roundSlots.length; roundIndex++) {
+    const prev = roundSlots[roundIndex - 1];
+    const cur = roundSlots[roundIndex];
+
+    for (let j = 0; j < cur.length; j++) {
+      const top = prev[j * 2];
+      const bottom = prev[j * 2 + 1];
+      const next = cur[j];
+      if (!top || !bottom || !next) continue;
+
+      const midX = top.x + CARD_W + ROUND_GAP / 2;
+      connectors.push({
+        topY: top.centerY,
+        bottomY: bottom.centerY,
+        nextY: next.centerY,
+        midX,
+        fromX: top.x + CARD_W,
+        toX: next.x,
+      });
+    }
+  }
+
+  return connectors;
 }
 
 /* ------------------------------------------------------------------ */
@@ -210,7 +229,7 @@ function BracketCard({ slot, lineColor }: { slot: BracketSlot; lineColor: string
         <div className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden">
           {t1Winner && <Crown className="w-3 h-3 text-amber-500 shrink-0" />}
           <span
-            className={`text-[11px] leading-tight truncate ${
+            className={`text-[10px] leading-tight truncate ${
               t1Winner
                 ? "font-bold text-gray-900"
                 : m?.team1
@@ -223,7 +242,7 @@ function BracketCard({ slot, lineColor }: { slot: BracketSlot; lineColor: string
         </div>
         {m?.team1Score !== null && m?.team1Score !== undefined && (
           <span
-            className={`text-[11px] font-bold tabular-nums ml-1 shrink-0 ${
+            className={`text-[10px] font-bold tabular-nums ml-1 shrink-0 ${
               t1Winner ? "text-emerald-600" : "text-gray-400"
             }`}
           >
@@ -240,7 +259,7 @@ function BracketCard({ slot, lineColor }: { slot: BracketSlot; lineColor: string
         <div className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden">
           {t2Winner && <Crown className="w-3 h-3 text-amber-500 shrink-0" />}
           <span
-            className={`text-[11px] leading-tight truncate ${
+            className={`text-[10px] leading-tight truncate ${
               isBye
                 ? "text-gray-400 italic"
                 : t2Winner
@@ -255,7 +274,7 @@ function BracketCard({ slot, lineColor }: { slot: BracketSlot; lineColor: string
         </div>
         {m?.team2Score !== null && m?.team2Score !== undefined && (
           <span
-            className={`text-[11px] font-bold tabular-nums ml-1 shrink-0 ${
+            className={`text-[10px] font-bold tabular-nums ml-1 shrink-0 ${
               t2Winner ? "text-emerald-600" : "text-gray-400"
             }`}
           >
@@ -302,28 +321,49 @@ function BracketConnectors({
 /* Unified Four-Region Bracket                                         */
 /* ------------------------------------------------------------------ */
 
-function buildRegionLayout(matches: TournamentMatch[], reverse = false) {
+function buildRegionLayout(matches: TournamentMatch[], reverse = false, minVisibleRound = 1) {
   const layout = buildBracketLayout(matches);
-  if (!reverse) return layout;
+  const startIndex = Math.max(0, minVisibleRound - 1);
+  const xShift = startIndex * ROUND_STEP;
 
-  const mirroredSlots = layout.roundSlots.map((round) =>
+  const visibleSlots = layout.roundSlots
+    .slice(startIndex)
+    .map((round) => round.map((slot) => ({ ...slot, x: slot.x - xShift })));
+
+  const visibleRoundCount = Math.max(1, visibleSlots.length);
+  const visibleTotalW = visibleRoundCount * CARD_W + (visibleRoundCount - 1) * ROUND_GAP;
+  const visibleConnectors = buildConnectorsFromSlots(visibleSlots);
+
+  if (!reverse) {
+    return {
+      ...layout,
+      roundSlots: visibleSlots,
+      allConnectors: visibleConnectors,
+      totalW: visibleTotalW,
+      numRounds: visibleRoundCount,
+    };
+  }
+
+  const mirroredSlots = visibleSlots.map((round) =>
     round.map((slot) => ({
       ...slot,
-      x: layout.totalW - CARD_W - slot.x,
+      x: visibleTotalW - CARD_W - slot.x,
     }))
   );
 
-  const mirroredConnectors = layout.allConnectors.map((connector) => ({
+  const mirroredConnectors = visibleConnectors.map((connector) => ({
     ...connector,
-    fromX: layout.totalW - connector.fromX,
-    toX: layout.totalW - connector.toX,
-    midX: layout.totalW - connector.midX,
+    fromX: visibleTotalW - connector.fromX,
+    toX: visibleTotalW - connector.toX,
+    midX: visibleTotalW - connector.midX,
   }));
 
   return {
     ...layout,
     roundSlots: mirroredSlots,
     allConnectors: mirroredConnectors,
+    totalW: visibleTotalW,
+    numRounds: visibleRoundCount,
   };
 }
 
@@ -337,22 +377,40 @@ function UnifiedTournamentBracket({
   matchesByDivision,
   teamsByDivision,
   allMatches,
+  showEarlyRounds,
 }: {
   matchesByDivision: Record<string, TournamentMatch[]>;
   teamsByDivision: Record<string, TournamentTeam[]>;
   allMatches: TournamentMatch[];
+  showEarlyRounds: boolean;
 }) {
-  const regionOrderLeft = ["Region 1", "Region 2"];
+  const boardHostRef = useRef<HTMLDivElement | null>(null);
+  const dragStateRef = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(null);
+  const [fitScale, setFitScale] = useState(1);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [panX, setPanX] = useState(0);
+  const [panY, setPanY] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+
   const regionOrderRight = ["Region 3", "Region 4"];
+  const maxDivisionRound = Math.max(
+    1,
+    ...allMatches.filter((m) => DIVISIONS.includes(m.division as (typeof DIVISIONS)[number])).map((m) => m.round)
+  );
 
   const regionLayouts = useMemo(() => {
     const out: Record<string, ReturnType<typeof buildRegionLayout>> = {};
+    const effectiveMinVisibleRound = showEarlyRounds ? 1 : Math.min(3, maxDivisionRound);
     for (const region of DIVISIONS) {
       const reverse = regionOrderRight.includes(region);
-      out[region] = buildRegionLayout(matchesByDivision[region] || [], reverse);
+      out[region] = buildRegionLayout(
+        matchesByDivision[region] || [],
+        reverse,
+        effectiveMinVisibleRound
+      );
     }
     return out;
-  }, [matchesByDivision]);
+  }, [matchesByDivision, showEarlyRounds, maxDivisionRound]);
 
   const sideW = Math.max(...DIVISIONS.map((d) => regionLayouts[d].totalW), CARD_W);
   const regionGapY = 56;
@@ -368,11 +426,6 @@ function UnifiedTournamentBracket({
   const rightBaseX = totalW - sideW;
   const topBaseY = 0;
   const bottomBaseY = topH + regionGapY;
-
-  const maxDivisionRound = Math.max(
-    1,
-    ...allMatches.filter((m) => DIVISIONS.includes(m.division as (typeof DIVISIONS)[number])).map((m) => m.round)
-  );
   const semifinalRound = maxDivisionRound + 1;
   const finalRound = maxDivisionRound + 2;
 
@@ -402,8 +455,10 @@ function UnifiedTournamentBracket({
   const rightSemiX = totalW - sideW - CARD_W - 24;
   const finalX = Math.round((totalW - CARD_W) / 2);
 
-  const leftRoundLabels = ["First Round", "Second Round", "Sweet 16", "Elite Eight"];
-  const rightRoundLabels = ["Elite Eight", "Sweet 16", "Second Round", "First Round"];
+  const allRoundLabels = ["First Round", "Second Round", "Sweet 16", "Elite Eight"];
+  const labelStartIndex = showEarlyRounds ? 0 : Math.min(2, Math.max(0, maxDivisionRound - 1));
+  const leftRoundLabels = allRoundLabels.slice(labelStartIndex);
+  const rightRoundLabels = [...leftRoundLabels].reverse();
 
   const leftSemiSlot: BracketSlot = {
     round: semifinalRound,
@@ -445,7 +500,7 @@ function UnifiedTournamentBracket({
       bottomY: (region2Final?.centerY || CARD_H / 2) + bottomBaseY,
       nextY: leftSemiCenterY,
       midX: leftSemiX - ROUND_GAP / 2,
-      fromX: leftBaseX + sideW - ROUND_STEP + CARD_W,
+      fromX: leftBaseX + ((region1Final?.x ?? (sideW - CARD_W)) + CARD_W),
       toX: leftSemiX,
       line: "#3b82f6",
       dim: "#93c5fd",
@@ -455,17 +510,131 @@ function UnifiedTournamentBracket({
       bottomY: (region4Final?.centerY || CARD_H / 2) + bottomBaseY,
       nextY: rightSemiCenterY,
       midX: rightSemiX + CARD_W + ROUND_GAP / 2,
-      fromX: rightBaseX + ROUND_STEP - ROUND_GAP,
+      fromX: rightBaseX + (region3Final?.x ?? 0),
       toX: rightSemiX + CARD_W,
       line: "#8b5cf6",
       dim: "#c4b5fd",
     },
   ];
 
+  const boardInnerWidth = totalW + 40;
+  const boardContentHeight = 24 + 16 + totalH;
+  const displayScale = fitScale * zoomLevel;
+  const viewportHeight = boardContentHeight * fitScale;
+
+  const clampPan = (x: number, y: number) => {
+    const host = boardHostRef.current;
+    if (!host) return { x, y };
+
+    const viewportWidth = host.clientWidth;
+    const scaledWidth = boardInnerWidth * displayScale;
+    const scaledHeight = boardContentHeight * displayScale;
+
+    const minX = Math.min(0, viewportWidth - scaledWidth);
+    const minY = Math.min(0, viewportHeight - scaledHeight);
+
+    return {
+      x: Math.max(minX, Math.min(0, x)),
+      y: Math.max(minY, Math.min(0, y)),
+    };
+  };
+
+  useEffect(() => {
+    const host = boardHostRef.current;
+    if (!host) return;
+
+    const computeScale = () => {
+      const available = host.clientWidth;
+      if (!available) return;
+      const nextScale = Math.min(1, available / boardInnerWidth);
+      setFitScale(nextScale > 0 ? nextScale : 1);
+    };
+
+    computeScale();
+    const observer = new ResizeObserver(computeScale);
+    observer.observe(host);
+    return () => observer.disconnect();
+  }, [boardInnerWidth]);
+
+  useEffect(() => {
+    const clamped = clampPan(panX, panY);
+    if (clamped.x !== panX) setPanX(clamped.x);
+    if (clamped.y !== panY) setPanY(clamped.y);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fitScale, zoomLevel, boardInnerWidth, boardContentHeight]);
+
+  const handleDragStart = (event: React.MouseEvent<HTMLDivElement>) => {
+    dragStateRef.current = {
+      startX: event.clientX,
+      startY: event.clientY,
+      originX: panX,
+      originY: panY,
+    };
+    setIsDragging(true);
+  };
+
+  const handleDragMove = (event: React.MouseEvent<HTMLDivElement>) => {
+    const state = dragStateRef.current;
+    if (!state) return;
+
+    const deltaX = event.clientX - state.startX;
+    const deltaY = event.clientY - state.startY;
+    const clamped = clampPan(state.originX + deltaX, state.originY + deltaY);
+    setPanX(clamped.x);
+    setPanY(clamped.y);
+  };
+
+  const handleDragEnd = () => {
+    dragStateRef.current = null;
+    setIsDragging(false);
+  };
+
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
-      <div className="p-5" style={{ minWidth: totalW + 40 }}>
-        <div className="relative mb-4" style={{ width: totalW, height: 24 }}>
+    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="px-5 pt-4 pb-2 flex items-center justify-end gap-1.5 border-b border-gray-100 bg-gray-50">
+        <button
+          onClick={() => setZoomLevel((z) => Math.max(0.8, Number((z - 0.1).toFixed(2))))}
+          className="px-2 py-1 text-xs font-semibold rounded-md bg-white border border-gray-200 text-gray-700 hover:bg-gray-100"
+        >
+          Zoom -
+        </button>
+        <button
+          onClick={() => {
+            setZoomLevel(1);
+            setPanX(0);
+            setPanY(0);
+          }}
+          className="px-2 py-1 text-xs font-semibold rounded-md bg-white border border-gray-200 text-gray-700 hover:bg-gray-100"
+        >
+          Reset
+        </button>
+        <button
+          onClick={() => setZoomLevel((z) => Math.min(1.5, Number((z + 0.1).toFixed(2))))}
+          className="px-2 py-1 text-xs font-semibold rounded-md bg-white border border-gray-200 text-gray-700 hover:bg-gray-100"
+        >
+          Zoom +
+        </button>
+        <span className="ml-1 text-[11px] font-semibold text-gray-500 w-11 text-right">{Math.round(zoomLevel * 100)}%</span>
+      </div>
+
+      <div
+        ref={boardHostRef}
+        className={`p-5 overflow-hidden ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
+        style={{ height: viewportHeight, userSelect: "none" }}
+        onMouseDown={handleDragStart}
+        onMouseMove={handleDragMove}
+        onMouseUp={handleDragEnd}
+        onMouseLeave={handleDragEnd}
+      >
+        <div>
+          <div
+            style={{
+              width: boardInnerWidth,
+              transform: `translate(${panX}px, ${panY}px) scale(${displayScale})`,
+              transformOrigin: "top left",
+            }}
+          >
+            <div className="relative mb-4" style={{ width: totalW, height: 24 }}>
           {leftRoundLabels.map((label, index) => (
             <div
               key={`left-${label}`}
@@ -496,9 +665,9 @@ function UnifiedTournamentBracket({
           >
             Championship
           </div>
-        </div>
+            </div>
 
-        <div className="relative" style={{ width: totalW, height: totalH }}>
+            <div className="relative" style={{ width: totalW, height: totalH }}>
           <svg className="absolute inset-0 pointer-events-none" width={totalW} height={totalH} style={{ overflow: "visible" }}>
             <g transform={`translate(${leftBaseX},${topBaseY})`}>
               <BracketConnectors
@@ -572,6 +741,8 @@ function UnifiedTournamentBracket({
           <BracketCard slot={leftSemiSlot} lineColor="#1e40af" />
           <BracketCard slot={rightSemiSlot} lineColor="#6d28d9" />
           <BracketCard slot={finalSlot} lineColor="#334155" />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -623,6 +794,7 @@ function TournamentContent({
 
   const tournament = fullTournament || listTournament;
   const isLoading = listLoading || detailLoading;
+  const [showEarlyRounds, setShowEarlyRounds] = useState(true);
 
   const matchesByDivision = useMemo(() => {
     if (!tournament?.matches) return {};
@@ -643,6 +815,22 @@ function TournamentContent({
     }
     return g;
   }, [tournament?.teams]);
+
+  const maxDivisionRound = useMemo(() => {
+    if (!tournament?.matches?.length) return 1;
+    return Math.max(
+      1,
+      ...tournament.matches
+        .filter((m) => DIVISIONS.includes(m.division as (typeof DIVISIONS)[number]))
+        .map((m) => m.round)
+    );
+  }, [tournament?.matches]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const smallScreen = window.matchMedia("(max-width: 1440px)").matches;
+    setShowEarlyRounds(!smallScreen);
+  }, [tournament?.id, maxDivisionRound]);
 
   if (isLoading) {
     return (
@@ -735,11 +923,33 @@ function TournamentContent({
         </div>
       )}
 
+      <div className="flex items-center justify-end">
+        <div className="inline-flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+          <button
+            onClick={() => setShowEarlyRounds(true)}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
+              showEarlyRounds ? "bg-white text-gray-900 shadow-sm" : "text-gray-600 hover:text-gray-800"
+            }`}
+          >
+            All Rounds
+          </button>
+          <button
+            onClick={() => setShowEarlyRounds(false)}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
+              !showEarlyRounds ? "bg-white text-gray-900 shadow-sm" : "text-gray-600 hover:text-gray-800"
+            }`}
+          >
+            Sweet 16+
+          </button>
+        </div>
+      </div>
+
       <motion.div initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.25 }}>
         <UnifiedTournamentBracket
           matchesByDivision={matchesByDivision}
           teamsByDivision={teamsByDivision}
           allMatches={tournament.matches || []}
+          showEarlyRounds={showEarlyRounds}
         />
       </motion.div>
     </motion.div>

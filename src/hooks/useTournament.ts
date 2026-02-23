@@ -47,7 +47,7 @@ export function useTournament(tournamentId?: string) {
   const updateMatch = useCallback(
     async (
       matchId: string,
-      winnerId: string,
+      winnerId: string | null,
       team1Score?: number,
       team2Score?: number
     ): Promise<TournamentMatch | null> => {
