@@ -14,7 +14,7 @@ export const logtoConfig: LogtoNextConfig = {
   appId: process.env.LOGTO_APP_ID || "placeholder",
   appSecret: process.env.LOGTO_APP_SECRET || "",
   cookieSecret: process.env.LOGTO_COOKIE_SECRET || "dev-cookie-secret-at-least-32-characters-long!!",
-  cookieSecure: process.env.NODE_ENV === "production",
+  cookieSecure: (process.env.LOGTO_BASE_URL || "").startsWith("https://"),
   baseUrl: process.env.LOGTO_BASE_URL || "http://localhost:3000",
   scopes: ["openid", "profile", "email", "roles"],
 };
