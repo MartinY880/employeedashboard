@@ -5,7 +5,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, CalendarDays, BookOpen, LogOut, Settings, ShieldCheck, Volume2, VolumeX } from "lucide-react";
+import { LayoutDashboard, Users, CalendarDays, BookOpen, LogOut, Settings, ShieldCheck, Volume2, VolumeX, Trophy } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Tooltip,
@@ -29,6 +29,7 @@ const navLinks = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/directory", label: "Directory", icon: Users },
   { href: "/calendar", label: "Calendar", icon: CalendarDays },
+  { href: "/tournament", label: "Tournament", icon: Trophy },
   { href: "/resources", label: "Resources", icon: BookOpen },
 ];
 

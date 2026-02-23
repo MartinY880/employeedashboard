@@ -148,3 +148,75 @@ enum IdeaStatus {
   SELECTED
   ARCHIVED
 }
+
+enum TournamentStatus {
+  SETUP
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum MatchStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+// ─── Tournament Bracket Models ────────────────────────────
+
+model Tournament {
+  id          String           @id @default(cuid())
+  name        String
+  description String?
+  status      TournamentStatus @default(SETUP)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  teams   TournamentTeam[]
+  matches TournamentMatch[]
+
+  @@index([status])
+  @@map("tournaments")
+}
+
+model TournamentTeam {
+  id           String @id @default(cuid())
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  player1Name  String
+  player2Name  String
+  seed         Int       @default(0)
+  division     String    // "West", "East", "South", "Mid-West"
+  createdAt    DateTime  @default(now())
+
+  matchesAsTeam1 TournamentMatch[] @relation("MatchTeam1")
+  matchesAsTeam2 TournamentMatch[] @relation("MatchTeam2")
+  matchesWon     TournamentMatch[] @relation("MatchWinner")
+
+  @@index([tournamentId, division])
+  @@map("tournament_teams")
+}
+
+model TournamentMatch {
+  id           String      @id @default(cuid())
+  tournamentId String
+  tournament   Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  round        Int         // 1 = first round, 2 = second round, etc.
+  matchNumber  Int         // position within the round
+  division     String      // "West", "East", "South", "Mid-West", "SemiFinal", "Final"
+  team1Id      String?
+  team1        TournamentTeam? @relation("MatchTeam1", fields: [team1Id], references: [id], onDelete: SetNull)
+  team2Id      String?
+  team2        TournamentTeam? @relation("MatchTeam2", fields: [team2Id], references: [id], onDelete: SetNull)
+  winnerId     String?
+  winner       TournamentTeam? @relation("MatchWinner", fields: [winnerId], references: [id], onDelete: SetNull)
+  team1Score   Int?
+  team2Score   Int?
+  status       MatchStatus @default(PENDING)
+  nextMatchId  String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([tournamentId, round, division])
+  @@index([nextMatchId])
+  @@map("tournament_matches")
+}
