@@ -73,6 +73,8 @@ const STATUS_STYLES: Record<string, string> = {
   COMPLETED: "bg-emerald-100 text-emerald-700",
 };
 
+const NO_WINNER = "__NONE__";
+
 /* ------------------------------------------------------------------ */
 /* Main Admin Page                                                     */
 /* ------------------------------------------------------------------ */
@@ -347,10 +349,11 @@ function TournamentDetail({
   const [newDivision, setNewDivision] = useState<string>("Region 1");
   const [addingTeam, setAddingTeam] = useState(false);
   const [editingMatch, setEditingMatch] = useState<TournamentMatch | null>(null);
-  const [matchWinner, setMatchWinner] = useState<string>("");
+  const [matchWinner, setMatchWinner] = useState<string>(NO_WINNER);
   const [score1, setScore1] = useState("");
   const [score2, setScore2] = useState("");
   const [savingMatch, setSavingMatch] = useState(false);
+  const [quickSavingMatchId, setQuickSavingMatchId] = useState<string | null>(null);
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
   const filteredTeams = useMemo(() => {
@@ -398,18 +401,19 @@ function TournamentDetail({
   }, [removeTeam, playNotify, refetch]);
 
   const handleSaveMatch = useCallback(async () => {
-    if (!editingMatch || !matchWinner) return;
+    if (!editingMatch) return;
     setSavingMatch(true);
     try {
+      const winnerId = matchWinner === NO_WINNER ? null : matchWinner;
       await updateMatch(
         editingMatch.id,
-        matchWinner,
+        winnerId,
         score1 ? parseInt(score1) : undefined,
         score2 ? parseInt(score2) : undefined
       );
       playSuccess();
       setEditingMatch(null);
-      setMatchWinner("");
+      setMatchWinner(NO_WINNER);
       setScore1("");
       setScore2("");
       refetch();
@@ -419,6 +423,20 @@ function TournamentDetail({
       setSavingMatch(false);
     }
   }, [editingMatch, matchWinner, score1, score2, updateMatch, playSuccess, playNotify, refetch]);
+
+  const handleQuickPickWinner = useCallback(async (match: TournamentMatch, winnerId: string) => {
+    setQuickSavingMatchId(match.id);
+    try {
+      const nextWinnerId = match.winnerId === winnerId ? null : winnerId;
+      await updateMatch(match.id, nextWinnerId);
+      playSuccess();
+      refetch();
+    } catch {
+      playNotify();
+    } finally {
+      setQuickSavingMatchId(null);
+    }
+  }, [updateMatch, playSuccess, playNotify, refetch]);
 
   const handleStatusChange = useCallback(async (newStatus: string) => {
     setUpdatingStatus(true);
@@ -644,20 +662,60 @@ function TournamentDetail({
                     <TableRow key={match.id} className="group">
                       <TableCell className="text-xs text-gray-400 font-mono">{match.matchNumber}</TableCell>
                       <TableCell className="text-sm">
-                        <div className={`flex items-center gap-1 ${match.winnerId === match.team1Id ? "font-bold text-emerald-700" : ""}`}>
-                          {match.winnerId === match.team1Id && <Crown className="w-3 h-3 text-amber-500" />}
-                          {match.team1 ? `${match.team1.player1Name} / ${match.team1.player2Name}` : "TBD"}
-                        </div>
+                        {match.team1 ? (
+                          <button
+                            onClick={() => {
+                              if (!isBye && match.team2) {
+                                playClick();
+                                handleQuickPickWinner(match, match.team1!.id);
+                              }
+                            }}
+                            disabled={!match.team2 || isBye || quickSavingMatchId === match.id || savingMatch}
+                            className={`w-full text-left rounded-md px-1.5 py-1 transition-colors ${
+                              !match.team2 || isBye
+                                ? "cursor-not-allowed"
+                                : "hover:bg-emerald-50"
+                            }`}
+                            title={!match.team2 || isBye ? "No opponent yet" : "Set Team 1 as winner"}
+                          >
+                            <div className={`flex items-center gap-1 ${match.winnerId === match.team1Id ? "font-bold text-emerald-700" : ""}`}>
+                              {quickSavingMatchId === match.id && match.winnerId !== match.team1Id ? (
+                                <Loader2 className="w-3 h-3 text-gray-400 animate-spin" />
+                              ) : match.winnerId === match.team1Id ? (
+                                <Crown className="w-3 h-3 text-amber-500" />
+                              ) : null}
+                              {`${match.team1.player1Name} / ${match.team1.player2Name}`}
+                            </div>
+                          </button>
+                        ) : (
+                          <span className="text-gray-400">TBD</span>
+                        )}
                       </TableCell>
                       <TableCell className="text-center text-xs text-gray-400">vs</TableCell>
                       <TableCell className="text-sm">
                         {isBye ? (
                           <span className="text-gray-400 italic">BYE</span>
+                        ) : match.team2 ? (
+                          <button
+                            onClick={() => {
+                              playClick();
+                              handleQuickPickWinner(match, match.team2!.id);
+                            }}
+                            disabled={quickSavingMatchId === match.id || savingMatch}
+                            className="w-full text-left rounded-md px-1.5 py-1 transition-colors hover:bg-emerald-50"
+                            title="Set Team 2 as winner"
+                          >
+                            <div className={`flex items-center gap-1 ${match.winnerId === match.team2Id ? "font-bold text-emerald-700" : ""}`}>
+                              {quickSavingMatchId === match.id && match.winnerId !== match.team2Id ? (
+                                <Loader2 className="w-3 h-3 text-gray-400 animate-spin" />
+                              ) : match.winnerId === match.team2Id ? (
+                                <Crown className="w-3 h-3 text-amber-500" />
+                              ) : null}
+                              {`${match.team2.player1Name} / ${match.team2.player2Name}`}
+                            </div>
+                          </button>
                         ) : (
-                          <div className={`flex items-center gap-1 ${match.winnerId === match.team2Id ? "font-bold text-emerald-700" : ""}`}>
-                            {match.winnerId === match.team2Id && <Crown className="w-3 h-3 text-amber-500" />}
-                            {match.team2 ? `${match.team2.player1Name} / ${match.team2.player2Name}` : "TBD"}
-                          </div>
+                          <span className="text-gray-400 italic">TBD</span>
                         )}
                       </TableCell>
                       <TableCell>
@@ -688,7 +746,7 @@ function TournamentDetail({
                             onClick={() => {
                               playClick();
                               setEditingMatch(match);
-                              setMatchWinner(match.winnerId || "");
+                              setMatchWinner(match.winnerId || NO_WINNER);
                               setScore1(match.team1Score?.toString() || "");
                               setScore2(match.team2Score?.toString() || "");
                             }}
@@ -790,6 +848,7 @@ function TournamentDetail({
                     <SelectValue placeholder="Select winner..." />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value={NO_WINNER}>Unselect winner</SelectItem>
                     {editingMatch.team1 && (
                       <SelectItem value={editingMatch.team1.id}>
                         {editingMatch.team1.player1Name} / {editingMatch.team1.player2Name}
@@ -838,7 +897,7 @@ function TournamentDetail({
             </Button>
             <Button
               onClick={handleSaveMatch}
-              disabled={!matchWinner || savingMatch}
+              disabled={savingMatch}
               className="bg-brand-blue hover:bg-brand-blue/90"
             >
               {savingMatch && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
