@@ -20,7 +20,6 @@ export const metadata: Metadata = {
   title: "ProConnect | MortgagePros Employee Portal",
   description:
     "Secure, unified internal employee portal for MortgagePros — directory, kudos, alerts, calendar & more.",
-  icons: { icon: "/favicon.ico" },
 };
 
 export default function RootLayout({

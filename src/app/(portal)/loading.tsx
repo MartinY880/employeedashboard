@@ -5,7 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function PortalLoading() {
   return (
-    <div className="max-w-[1440px] mx-auto px-4 sm:px-6 py-4 sm:py-6 animate-pulse">
+    <div className="max-w-[1920px] mx-auto px-6 sm:px-10 lg:px-14 py-4 sm:py-6 animate-pulse">
       {/* Stats Row skeleton */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         {Array.from({ length: 4 }).map((_, i) => (

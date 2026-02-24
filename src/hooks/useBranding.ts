@@ -61,16 +61,18 @@ export function useBranding() {
   // Update favicon link tag whenever faviconData changes
   useEffect(() => {
     if (branding.faviconData) {
-      // Find or create our own managed favicon link (identified by data attribute)
-      let link = document.querySelector("link[data-dynamic-favicon]") as HTMLLinkElement | null;
-      if (!link) {
-        link = document.createElement("link");
-        link.setAttribute("data-dynamic-favicon", "true");
+      // Update any existing icon link, or create one if none exists
+      const existing = document.querySelector("link[rel='icon']") as HTMLLinkElement | null;
+      if (existing) {
+        existing.href = branding.faviconData;
+        existing.type = branding.faviconData.startsWith('data:image/png') ? 'image/png' : 'image/x-icon';
+      } else {
+        const link = document.createElement("link");
         link.rel = "icon";
+        link.type = branding.faviconData.startsWith('data:image/png') ? 'image/png' : 'image/x-icon';
+        link.href = branding.faviconData;
         document.head.appendChild(link);
       }
-      link.type = "image/x-icon";
-      link.href = branding.faviconData;
     }
   }, [branding.faviconData]);
 

@@ -3,7 +3,7 @@
 
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
@@ -16,6 +16,7 @@ import {
   Briefcase,
   ChevronRight,
   X,
+  RefreshCw,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +30,7 @@ import {
 } from "@/components/ui/dialog";
 import { useDirectory, type DirectoryNode } from "@/hooks/useDirectory";
 import { useSounds } from "@/components/shared/SoundProvider";
+import { DirectoryOrgChart } from "@/components/widgets/DirectoryOrgChart";
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
@@ -103,6 +105,8 @@ function ProfileDialog({
             <AvatarImage
               src={getPhotoUrl(user, 240)}
               alt={user.displayName}
+              loading="lazy"
+              decoding="async"
             />
             <AvatarFallback className="bg-brand-blue text-white text-xl font-bold">
               {getInitials(user.displayName)}
@@ -202,7 +206,30 @@ function OrgChartNode({
   depth?: number;
 }) {
   const [collapsed, setCollapsed] = useState(depth >= 3);
-  const hasChildren = (node.directReports?.length ?? 0) > 0;
+  const directReports = node.directReports ?? [];
+  const hasChildren = directReports.length > 0;
+  const reportCount = directReports.length;
+  const useWrappedRows = reportCount > 3;
+  const useEmployeeTypeGroups = directReports.some(
+    (report) => (report.employeeType ?? "").trim().length > 0
+  );
+  const groupedDirectReports = useMemo(() => {
+    const groups = new Map<string, DirectoryNode[]>();
+
+    for (const report of directReports) {
+      const key = (report.employeeType ?? "").trim() || "Other";
+      const existing = groups.get(key);
+      if (existing) {
+        existing.push(report);
+      } else {
+        groups.set(key, [report]);
+      }
+    }
+
+    return Array.from(groups.entries()).sort(([a], [b]) =>
+      a.localeCompare(b)
+    );
+  }, [directReports]);
 
   return (
     <div className="flex flex-col items-center">
@@ -218,7 +245,12 @@ function OrgChartNode({
           className="group flex flex-col items-center bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-brand-blue/30 transition-all px-4 py-3 w-[160px] text-center"
         >
           <Avatar className="h-12 w-12 mb-1.5 ring-2 ring-white shadow-sm">
-            <AvatarImage src={getPhotoUrl(node, 96)} alt={node.displayName} />
+            <AvatarImage
+              src={getPhotoUrl(node, 64)}
+              alt={node.displayName}
+              loading="lazy"
+              decoding="async"
+            />
             <AvatarFallback className="bg-brand-blue text-white text-sm font-bold">
               {getInitials(node.displayName)}
             </AvatarFallback>
@@ -252,7 +284,7 @@ function OrgChartNode({
               <ChevronRight className="w-3 h-3" />
             </motion.div>
             {collapsed
-              ? `${node.directReports!.length} report${node.directReports!.length > 1 ? "s" : ""}`
+              ? `${directReports.length} report${directReports.length > 1 ? "s" : ""}`
               : "collapse"}
           </button>
         )}
@@ -271,43 +303,79 @@ function OrgChartNode({
             {/* Vertical line down from parent */}
             <div className="w-px h-6 bg-gray-300" />
 
-            {/* Children row — each column owns its rail segment + tick + subtree
-                so it naturally grows when the subtree is wider than 180px */}
-            <div className="flex items-start">
-              {node.directReports!.map((child, i) => (
-                <div
-                  key={child.id}
-                  className="flex flex-col items-center"
-                  style={{ minWidth: 180 }}
-                >
-                  {/* Horizontal rail segment (drawn as two halves so we can
-                      hide the outer half on the first / last child) */}
-                  {node.directReports!.length > 1 && (
-                    <div className="flex w-full">
-                      <div
-                        className={`h-px flex-1 ${
-                          i === 0 ? "bg-transparent" : "bg-gray-300"
-                        }`}
-                      />
-                      <div
-                        className={`h-px flex-1 ${
-                          i === node.directReports!.length - 1
-                            ? "bg-transparent"
-                            : "bg-gray-300"
-                        }`}
-                      />
+            {/* Children layout */}
+            {useEmployeeTypeGroups ? (
+              <div className="flex flex-wrap justify-center gap-6 max-w-[1200px]">
+                {groupedDirectReports.map(([groupName, reports]) => (
+                  <div
+                    key={`${node.id}-${groupName}`}
+                    className="border border-gray-200 rounded-lg bg-gray-50/70 px-4 py-3"
+                  >
+                    <p className="text-[11px] font-semibold text-gray-700 uppercase tracking-wide text-center mb-3">
+                      {groupName}
+                    </p>
+                    <div className="grid grid-cols-3 gap-x-6 gap-y-8 items-start">
+                      {reports.map((child) => (
+                        <div
+                          key={child.id}
+                          className="flex flex-col items-center"
+                          style={{ minWidth: 180 }}
+                        >
+                          <div className="w-px h-5 bg-gray-300" />
+                          <OrgChartNode
+                            node={child}
+                            onSelect={onSelect}
+                            depth={depth + 1}
+                          />
+                        </div>
+                      ))}
                     </div>
-                  )}
-                  {/* Vertical tick down to child */}
-                  <div className="w-px h-5 bg-gray-300" />
-                  <OrgChartNode
-                    node={child}
-                    onSelect={onSelect}
-                    depth={depth + 1}
-                  />
-                </div>
-              ))}
-            </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div
+                className={
+                  useWrappedRows
+                    ? "grid grid-cols-3 gap-x-6 gap-y-8 items-start"
+                    : "flex items-start"
+                }
+              >
+                {directReports.map((child, i) => (
+                  <div
+                    key={child.id}
+                    className="flex flex-col items-center"
+                    style={{ minWidth: 180 }}
+                  >
+                    {/* Horizontal rail segment (drawn as two halves so we can
+                        hide the outer half on the first / last child) */}
+                    {!useWrappedRows && directReports.length > 1 && (
+                      <div className="flex w-full">
+                        <div
+                          className={`h-px flex-1 ${
+                            i === 0 ? "bg-transparent" : "bg-gray-300"
+                          }`}
+                        />
+                        <div
+                          className={`h-px flex-1 ${
+                            i === directReports.length - 1
+                              ? "bg-transparent"
+                              : "bg-gray-300"
+                          }`}
+                        />
+                      </div>
+                    )}
+                    {/* Vertical tick down to child */}
+                    <div className="w-px h-5 bg-gray-300" />
+                    <OrgChartNode
+                      node={child}
+                      onSelect={onSelect}
+                      depth={depth + 1}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -321,24 +389,55 @@ function OrgChartNode({
 
 export default function DirectoryPage() {
   const { playClick } = useSounds();
-  const { users: treeUsers, isLoading } = useDirectory("tree");
+  const { users: treeUsers, isLoading, refetch } = useDirectory("tree");
   const [viewMode, setViewMode] = useState<"grid" | "list" | "tree">("tree");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedDept, setSelectedDept] = useState<string | null>(null);
+  const [selectedEmployeeType, setSelectedEmployeeType] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<DirectoryNode | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [syncBusy, setSyncBusy] = useState(false);
+  const [syncAvailable, setSyncAvailable] = useState(true);
+  const [syncStatus, setSyncStatus] = useState<string>("");
+
+  useEffect(() => {
+    let active = true;
+    const loadSyncStatus = async () => {
+      try {
+        const res = await fetch("/api/directory/sync", { cache: "no-store" });
+        if (!active) return;
+        if (res.status === 403 || res.status === 401) {
+          setSyncAvailable(false);
+          return;
+        }
+
+        if (!res.ok) {
+          setSyncStatus("Sync status unavailable");
+          return;
+        }
+
+        const data = await res.json();
+        if (data?.lastSyncedAt) {
+          const ts = new Date(data.lastSyncedAt).toLocaleString();
+          setSyncStatus(`Last sync: ${ts}`);
+        }
+      } catch {
+        if (active) setSyncStatus("Sync status unavailable");
+      }
+    };
+
+    void loadSyncStatus();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // Flatten the tree for grid/list views and filtering
   const flatUsers = useMemo(() => flattenTree(treeUsers), [treeUsers]);
 
-  // Extract unique departments
-  const departments = useMemo(() => {
-    const depts = new Set<string>();
-    flatUsers.forEach((u) => {
-      if (u.department) depts.add(u.department);
-    });
-    return Array.from(depts).sort();
-  }, [flatUsers]);
+  const employeeTypeOptions = useMemo(
+    () => ["North", "South", "East", "Operations", "IT"],
+    []
+  );
 
   // Filter
   const filteredUsers = useMemo(() => {
@@ -353,11 +452,11 @@ export default function DirectoryPage() {
           (u.department && u.department.toLowerCase().includes(q))
       );
     }
-    if (selectedDept) {
-      result = result.filter((u) => u.department === selectedDept);
+    if (selectedEmployeeType) {
+      result = result.filter((u) => (u.employeeType ?? "") === selectedEmployeeType);
     }
     return result;
-  }, [flatUsers, searchQuery, selectedDept]);
+  }, [flatUsers, searchQuery, selectedEmployeeType]);
 
   function handleSelectUser(user: DirectoryNode) {
     playClick();
@@ -365,8 +464,36 @@ export default function DirectoryPage() {
     setProfileOpen(true);
   }
 
+  async function handleSyncNow() {
+    setSyncBusy(true);
+    setSyncStatus("Syncing directory…");
+    try {
+      const res = await fetch("/api/directory/sync", { method: "POST" });
+      if (res.status === 403 || res.status === 401) {
+        setSyncAvailable(false);
+        setSyncStatus("No permission to sync");
+        return;
+      }
+      if (!res.ok) {
+        setSyncStatus("Directory sync failed");
+        return;
+      }
+
+      const data = await res.json();
+      const ts = data?.lastSyncedAt
+        ? new Date(data.lastSyncedAt).toLocaleString()
+        : "just now";
+      setSyncStatus(`Synced ${data?.count ?? ""} users at ${ts}`.trim());
+      await refetch();
+    } catch {
+      setSyncStatus("Directory sync failed");
+    } finally {
+      setSyncBusy(false);
+    }
+  }
+
   return (
-    <div className="max-w-[1400px] mx-auto px-5 py-8">
+    <div className="max-w-[1920px] mx-auto px-5 py-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
@@ -378,31 +505,47 @@ export default function DirectoryPage() {
           </p>
         </div>
 
-        {/* View Mode Toggle */}
-        <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-          {[
-            { id: "tree" as const, icon: Users, label: "Org Chart" },
-            { id: "grid" as const, icon: LayoutGrid, label: "Grid" },
-            { id: "list" as const, icon: List, label: "List" },
-          ].map((v) => (
+        <div className="flex items-center gap-2">
+          {syncAvailable && (
             <button
-              key={v.id}
-              onClick={() => {
-                playClick();
-                setViewMode(v.id);
-              }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                viewMode === v.id
-                  ? "bg-white text-brand-blue shadow-sm"
-                  : "text-brand-grey hover:text-gray-700"
-              }`}
+              onClick={handleSyncNow}
+              disabled={syncBusy}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-60"
             >
-              <v.icon className="w-3.5 h-3.5" />
-              {v.label}
+              <RefreshCw className={`w-3.5 h-3.5 ${syncBusy ? "animate-spin" : ""}`} />
+              {syncBusy ? "Syncing" : "Sync Directory"}
             </button>
-          ))}
+          )}
+
+          {/* View Mode Toggle */}
+          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+            {[
+              { id: "tree" as const, icon: Users, label: "Org Chart" },
+              { id: "grid" as const, icon: LayoutGrid, label: "Grid" },
+              { id: "list" as const, icon: List, label: "List" },
+            ].map((v) => (
+              <button
+                key={v.id}
+                onClick={() => {
+                  playClick();
+                  setViewMode(v.id);
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                  viewMode === v.id
+                    ? "bg-white text-brand-blue shadow-sm"
+                    : "text-brand-grey hover:text-gray-700"
+                }`}
+              >
+                <v.icon className="w-3.5 h-3.5" />
+                {v.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
+      {syncStatus && (
+        <p className="text-xs text-brand-grey mb-4">{syncStatus}</p>
+      )}
 
       {/* Search & Filter Bar */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
@@ -424,35 +567,37 @@ export default function DirectoryPage() {
           )}
         </div>
 
-        {/* Department filter chips */}
+        {/* Employee type filter chips */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
           <button
             onClick={() => {
               playClick();
-              setSelectedDept(null);
+              setSelectedEmployeeType(null);
             }}
             className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-              !selectedDept
+              !selectedEmployeeType
                 ? "bg-brand-blue text-white"
                 : "bg-gray-100 text-brand-grey hover:bg-gray-200"
             }`}
           >
             All
           </button>
-          {departments.map((dept) => (
+          {employeeTypeOptions.map((employeeType) => (
             <button
-              key={dept}
+              key={employeeType}
               onClick={() => {
                 playClick();
-                setSelectedDept(selectedDept === dept ? null : dept);
+                setSelectedEmployeeType(
+                  selectedEmployeeType === employeeType ? null : employeeType
+                );
               }}
               className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                selectedDept === dept
+                selectedEmployeeType === employeeType
                   ? "bg-brand-blue text-white"
                   : "bg-gray-100 text-brand-grey hover:bg-gray-200"
               }`}
             >
-              {dept}
+              {employeeType}
             </button>
           ))}
         </div>
@@ -512,6 +657,8 @@ export default function DirectoryPage() {
                 <AvatarImage
                   src={getPhotoUrl(user, 120)}
                   alt={user.displayName}
+                  loading="lazy"
+                  decoding="async"
                 />
                 <AvatarFallback className="bg-brand-blue text-white text-lg font-bold">
                   {getInitials(user.displayName)}
@@ -569,6 +716,8 @@ export default function DirectoryPage() {
                 <AvatarImage
                   src={getPhotoUrl(user, 48)}
                   alt={user.displayName}
+                  loading="lazy"
+                  decoding="async"
                 />
                 <AvatarFallback className="bg-brand-blue/10 text-brand-blue text-xs font-semibold">
                   {getInitials(user.displayName)}
@@ -612,7 +761,7 @@ export default function DirectoryPage() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="bg-white rounded-xl border border-gray-200 shadow-sm p-8 overflow-auto"
+          className="bg-white rounded-xl border border-gray-200 shadow-sm p-4"
         >
           {treeUsers.length === 0 ? (
             <div className="text-center py-16">
@@ -622,15 +771,7 @@ export default function DirectoryPage() {
               </p>
             </div>
           ) : (
-            <div className="flex flex-col items-center min-w-max">
-              {treeUsers.map((node) => (
-                <OrgChartNode
-                  key={node.id}
-                  node={node}
-                  onSelect={handleSelectUser}
-                />
-              ))}
-            </div>
+            <DirectoryOrgChart users={treeUsers} onSelect={handleSelectUser} />
           )}
         </motion.div>
       )}

@@ -51,6 +51,10 @@ export function TopNav({ user }: TopNavProps) {
   const pathname = usePathname();
   const { muted, toggleMute } = useSounds();
   const { branding } = useBranding();
+  const shouldUseProxyAvatar = !user.avatar || user.avatar.includes("graph.microsoft.com");
+  const avatarSrc = shouldUseProxyAvatar
+    ? `/api/directory/photo?userId=${encodeURIComponent(user.sub)}&email=${encodeURIComponent(user.email)}&name=${encodeURIComponent(user.name)}&size=48x48`
+    : user.avatar;
 
   return (
     <header
@@ -117,7 +121,7 @@ export function TopNav({ user }: TopNavProps) {
             <button className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-gray-50 transition-colors outline-none">
               <Avatar className="h-8 w-8 border-2 border-brand-blue/20">
                 <AvatarImage
-                  src={user.avatar || `/api/directory/photo?userId=${encodeURIComponent(user.sub)}&name=${encodeURIComponent(user.name)}&size=48x48`}
+                  src={avatarSrc}
                   alt={user.name}
                 />
                 <AvatarFallback className="bg-brand-blue text-white text-xs font-semibold">
