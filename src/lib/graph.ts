@@ -439,6 +439,30 @@ export interface OofSettings {
 }
 
 /**
+ * Full mailbox settings shape (auto-reply + forwarding)
+ */
+export interface MailboxSettings {
+  automaticRepliesSetting: OofSettings;
+  forwardingSmtpAddress?: string | null;
+}
+
+/**
+ * Get a user's full mailbox settings (auto-reply + forwarding)
+ */
+export async function getMailboxSettings(
+  userPrincipalName: string
+): Promise<MailboxSettings> {
+  const client = await getGraphClient();
+
+  const result = await client
+    .api(`/users/${userPrincipalName}/mailboxSettings`)
+    .select("automaticRepliesSetting,forwardingSmtpAddress")
+    .get();
+
+  return result;
+}
+
+/**
  * Get a user's OOF (Out of Office) automatic reply settings
  */
 export async function getOofStatus(
@@ -454,7 +478,8 @@ export async function getOofStatus(
 }
 
 /**
- * Set a user's OOF automatic reply settings
+ * Set a user's OOF automatic reply settings (auto-reply ONLY).
+ * Forwarding is managed separately via ForwardingSchedule + inbox rules.
  */
 export async function setOofStatus(
   userPrincipalName: string,
@@ -480,6 +505,10 @@ export interface ForwardingRule {
   forwardTo: Array<{
     emailAddress: { name: string; address: string };
   }>;
+  conditions?: {
+    sentAfterDateTime?: string | { dateTime?: string; timeZone?: string };
+    sentBeforeDateTime?: string | { dateTime?: string; timeZone?: string };
+  };
 }
 
 const FORWARDING_RULE_NAME = "ProConnect OOO Forwarding";
@@ -498,41 +527,56 @@ export async function getForwardingRule(
       .get();
 
     const rules = result.value || [];
+    console.log(`[Graph] getForwardingRule: found ${rules.length} total rules for ${userPrincipalName}`);
     const forwardingRule = rules.find(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (r: any) => r.displayName === FORWARDING_RULE_NAME
     );
 
-    if (!forwardingRule) return null;
+    if (!forwardingRule) {
+      console.log(`[Graph] getForwardingRule: no rule named "${FORWARDING_RULE_NAME}" found`);
+      return null;
+    }
 
+    console.log(`[Graph] getForwardingRule: found rule id=${forwardingRule.id}, isEnabled=${forwardingRule.isEnabled}`);
     return {
       id: forwardingRule.id,
       displayName: forwardingRule.displayName,
       isEnabled: forwardingRule.isEnabled,
       forwardTo: forwardingRule.actions?.forwardTo || [],
+      conditions: forwardingRule.conditions || {},
     };
-  } catch {
+  } catch (err) {
+    console.error(`[Graph] getForwardingRule FAILED for ${userPrincipalName}:`, err);
     return null;
   }
 }
 
 /**
- * Create or update an email forwarding rule
+ * Create or update an email forwarding rule.
+ * By default the rule is created DISABLED (isEnabled: false) so it is
+ * visible in Outlook but does not forward anything yet.  Pass
+ * `enabled: true` to activate it immediately (e.g. when the start date
+ * is already in the past).
  */
 export async function setForwardingRule(
   userPrincipalName: string,
   forwardToEmail: string,
-  forwardToName: string
+  forwardToName: string,
+  enabled = false
 ): Promise<ForwardingRule> {
   const client = await getGraphClient();
 
+  console.log(`[Graph] setForwardingRule called: upn=${userPrincipalName}, forward=${forwardToEmail}, enabled=${enabled}`);
+
   // Check if rule already exists
   const existing = await getForwardingRule(userPrincipalName);
+  console.log(`[Graph] Existing rule:`, existing ? `id=${existing.id}, isEnabled=${existing.isEnabled}` : "none");
 
   const ruleBody = {
     displayName: FORWARDING_RULE_NAME,
     sequence: 1,
-    isEnabled: true,
+    isEnabled: enabled,
     conditions: {},
     actions: {
       forwardTo: [
@@ -547,25 +591,81 @@ export async function setForwardingRule(
     },
   };
 
-  if (existing) {
-    // Update existing rule
-    const result = await client
-      .api(
-        `/users/${userPrincipalName}/mailFolders/inbox/messageRules/${existing.id}`
-      )
-      .patch(ruleBody);
-    return result;
-  } else {
-    // Create new rule
-    const result = await client
-      .api(`/users/${userPrincipalName}/mailFolders/inbox/messageRules`)
-      .post(ruleBody);
-    return result;
+  console.log(`[Graph] Rule body:`, JSON.stringify(ruleBody));
+
+  try {
+    if (existing) {
+      // Update existing rule
+      console.log(`[Graph] PATCH existing rule ${existing.id}`);
+      await client
+        .api(
+          `/users/${userPrincipalName}/mailFolders/inbox/messageRules/${existing.id}`
+        )
+        .patch(ruleBody);
+      console.log(`[Graph] PATCH succeeded`);
+    } else {
+      // Create new rule
+      console.log(`[Graph] POST new rule`);
+      const created = await client
+        .api(`/users/${userPrincipalName}/mailFolders/inbox/messageRules`)
+        .post(ruleBody);
+      console.log(`[Graph] POST succeeded, created rule id=${created?.id}, isEnabled=${created?.isEnabled}`);
+    }
+  } catch (err) {
+    console.error(`[Graph] Rule creation/update FAILED:`, err);
+    throw err;
   }
+
+  const latest = await getForwardingRule(userPrincipalName);
+  console.log(`[Graph] Verification read:`, latest ? `id=${latest.id}, isEnabled=${latest.isEnabled}` : "MISSING");
+  if (!latest) {
+    throw new Error("Forwarding rule update did not persist");
+  }
+  return latest;
 }
 
 /**
- * Disable (delete) the email forwarding rule
+ * Enable an existing forwarding rule (flip isEnabled → true).
+ * Used by the cron job when the scheduled start time arrives.
+ */
+export async function enableForwardingRule(
+  userPrincipalName: string
+): Promise<ForwardingRule | null> {
+  const client = await getGraphClient();
+  const existing = await getForwardingRule(userPrincipalName);
+  if (!existing) return null;
+
+  await client
+    .api(
+      `/users/${userPrincipalName}/mailFolders/inbox/messageRules/${existing.id}`
+    )
+    .patch({ isEnabled: true });
+
+  return getForwardingRule(userPrincipalName);
+}
+
+/**
+ * Disable an existing forwarding rule (flip isEnabled → false).
+ * Used by the cron job when the scheduled end time arrives.
+ */
+export async function disableForwardingRule(
+  userPrincipalName: string
+): Promise<boolean> {
+  const client = await getGraphClient();
+  const existing = await getForwardingRule(userPrincipalName);
+  if (!existing) return true;
+
+  await client
+    .api(
+      `/users/${userPrincipalName}/mailFolders/inbox/messageRules/${existing.id}`
+    )
+    .patch({ isEnabled: false });
+
+  return true;
+}
+
+/**
+ * Delete the email forwarding rule entirely.
  */
 export async function removeForwardingRule(
   userPrincipalName: string

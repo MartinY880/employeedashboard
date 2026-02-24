@@ -148,6 +148,13 @@ model DirectorySnapshotState {
 
 // ─── Enums ────────────────────────────────────────────────
 
+enum ForwardingStatus {
+  PENDING    // Saved but not yet active (future start date)
+  ACTIVE     // Forwarding rule currently enabled in Graph
+  EXPIRED    // End date passed, rule removed
+  CANCELLED  // User manually disabled
+}
+
 enum Role {
   ADMIN
   EMPLOYEE
@@ -184,6 +191,26 @@ enum MatchStatus {
   PENDING
   IN_PROGRESS
   COMPLETED
+}
+
+// ─── OOO Email Forwarding Schedule ────────────────────────
+
+model ForwardingSchedule {
+  id              String           @id @default(cuid())
+  userEmail       String           // UPN / email of the mailbox owner
+  forwardToEmail  String           // Where to forward
+  forwardToName   String?          // Display name of recipient
+  startsAt        DateTime         // When forwarding should activate
+  endsAt          DateTime         // When forwarding should deactivate
+  status          ForwardingStatus @default(PENDING)
+  graphRuleId     String?          // ID of the Graph inbox rule (if created)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([status, startsAt])
+  @@index([status, endsAt])
+  @@index([userEmail, status])
+  @@map("forwarding_schedules")
 }
 
 // ─── Tournament Bracket Models ────────────────────────────
