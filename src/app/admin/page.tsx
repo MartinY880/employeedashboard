@@ -24,7 +24,6 @@ import {
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import type { AuthUser } from "@/types";
 import { PERMISSIONS, ROUTE_PERMISSION, type Permission } from "@/lib/rbac";
 
 interface AdminStats {
@@ -190,10 +189,19 @@ export default function AdminPage() {
   }, []);
 
   const userPerms = new Set(permissions);
-  const visibleAdminPages = adminPages.filter((page) => userPerms.has(page.permission));
+  const canViewByManagePermission = (managePermission: Permission) => {
+    const viewPermission = managePermission.replace("manage:", "view:") as Permission;
+    return userPerms.has(managePermission) || userPerms.has(viewPermission);
+  };
+
+  const visibleAdminPages = adminPages.filter((page) =>
+    canViewByManagePermission(page.permission)
+  );
   const visibleStatCards = statCards.filter((card) => {
     const perm = ROUTE_PERMISSION[card.href];
-    return !perm || userPerms.has(perm);
+    if (!perm) return true;
+    const managePermission = perm.replace("view:", "manage:") as Permission;
+    return userPerms.has(perm) || userPerms.has(managePermission);
   });
 
   return (

@@ -60,6 +60,149 @@ function flattenTree(nodes: DirectoryNode[]): DirectoryNode[] {
   return flat;
 }
 
+function normalizeEmployeeType(value: string | null | undefined): string {
+  return (value ?? "").trim().toLowerCase();
+}
+
+/**
+ * Filter the tree for a given Employee Type.
+ *
+ * 1. Find every node whose employeeType matches the filter.
+ * 2. Include the full subtree under each matched node.
+ * 3. Include the ancestor chain from each matched node up to the root.
+ * 4. Prune branches that don't lead to a matched node or its descendants.
+ */
+function filterTreeByEmployeeType(
+  roots: DirectoryNode[],
+  employeeType: string
+): DirectoryNode[] {
+  const selectedType = normalizeEmployeeType(employeeType);
+  // Collect IDs of matched nodes + all their descendants
+  const keepIds = new Set<string>();
+
+  function collectSubtree(node: DirectoryNode) {
+    keepIds.add(node.id);
+    for (const child of node.directReports ?? []) {
+      collectSubtree(child);
+    }
+  }
+
+  // Walk the whole tree to find nodes with matching employeeType
+  function findMatches(node: DirectoryNode) {
+    if (normalizeEmployeeType(node.employeeType) === selectedType) {
+      collectSubtree(node);
+    } else {
+      // Keep looking in children even if this node doesn't match
+      for (const child of node.directReports ?? []) {
+        findMatches(child);
+      }
+    }
+  }
+
+  for (const root of roots) {
+    findMatches(root);
+  }
+
+  // Now mark ancestor chains: walk down from each root, keeping nodes
+  // that are ancestors of any keepId node.
+  function pruneTree(node: DirectoryNode): DirectoryNode | null {
+    // If this node or any descendant is in keepIds, include it
+    if (keepIds.has(node.id)) {
+      // This node is in the matched subtree — include it with full descendants
+      // that are also in keepIds
+      return {
+        ...node,
+        directReports: (node.directReports ?? []).filter((c) => keepIds.has(c.id)),
+      };
+    }
+
+    // Check if any children lead to a kept node
+    const prunedChildren: DirectoryNode[] = [];
+    for (const child of node.directReports ?? []) {
+      const pruned = pruneTree(child);
+      if (pruned) prunedChildren.push(pruned);
+    }
+
+    if (prunedChildren.length > 0) {
+      // This node is an ancestor — include it but only with relevant children
+      return { ...node, directReports: prunedChildren };
+    }
+
+    return null; // Not relevant
+  }
+
+  const filtered: DirectoryNode[] = [];
+  for (const root of roots) {
+    const pruned = pruneTree(root);
+    if (pruned) filtered.push(pruned);
+  }
+  return filtered;
+}
+
+function filterTreeBySearch(
+  roots: DirectoryNode[],
+  query: string
+): DirectoryNode[] {
+  const q = query.toLowerCase();
+  const keepIds = new Set<string>();
+
+  const matches = (node: DirectoryNode) =>
+    node.displayName.toLowerCase().includes(q) ||
+    (node.mail && node.mail.toLowerCase().includes(q)) ||
+    (node.jobTitle && node.jobTitle.toLowerCase().includes(q)) ||
+    (node.department && node.department.toLowerCase().includes(q)) ||
+    ((node.employeeType ?? "").toLowerCase().includes(q));
+
+  function collectSubtree(node: DirectoryNode) {
+    keepIds.add(node.id);
+    for (const child of node.directReports ?? []) {
+      collectSubtree(child);
+    }
+  }
+
+  function findMatches(node: DirectoryNode) {
+    if (matches(node)) {
+      collectSubtree(node);
+    } else {
+      for (const child of node.directReports ?? []) {
+        findMatches(child);
+      }
+    }
+  }
+
+  for (const root of roots) {
+    findMatches(root);
+  }
+
+  function pruneTree(node: DirectoryNode): DirectoryNode | null {
+    if (keepIds.has(node.id)) {
+      return {
+        ...node,
+        directReports: (node.directReports ?? []).filter((c) => keepIds.has(c.id)),
+      };
+    }
+
+    const prunedChildren: DirectoryNode[] = [];
+    for (const child of node.directReports ?? []) {
+      const pruned = pruneTree(child);
+      if (pruned) prunedChildren.push(pruned);
+    }
+
+    if (prunedChildren.length > 0) {
+      return { ...node, directReports: prunedChildren };
+    }
+
+    return null;
+  }
+
+  const filtered: DirectoryNode[] = [];
+  for (const root of roots) {
+    const pruned = pruneTree(root);
+    if (pruned) filtered.push(pruned);
+  }
+  return filtered;
+}
+
 /* ------------------------------------------------------------------ */
 /* Department Colors                                                   */
 /* ------------------------------------------------------------------ */
@@ -439,6 +582,20 @@ export default function DirectoryPage() {
     []
   );
 
+  const filteredTreeUsers = useMemo(() => {
+    let result = treeUsers;
+
+    if (selectedEmployeeType) {
+      result = filterTreeByEmployeeType(result, selectedEmployeeType);
+    }
+
+    if (searchQuery.trim()) {
+      result = filterTreeBySearch(result, searchQuery.trim());
+    }
+
+    return result;
+  }, [treeUsers, selectedEmployeeType, searchQuery]);
+
   // Filter
   const filteredUsers = useMemo(() => {
     let result = flatUsers;
@@ -449,11 +606,15 @@ export default function DirectoryPage() {
           u.displayName.toLowerCase().includes(q) ||
           (u.mail && u.mail.toLowerCase().includes(q)) ||
           (u.jobTitle && u.jobTitle.toLowerCase().includes(q)) ||
-          (u.department && u.department.toLowerCase().includes(q))
+          (u.department && u.department.toLowerCase().includes(q)) ||
+          ((u.employeeType ?? "").toLowerCase().includes(q))
       );
     }
     if (selectedEmployeeType) {
-      result = result.filter((u) => (u.employeeType ?? "") === selectedEmployeeType);
+      const selectedType = normalizeEmployeeType(selectedEmployeeType);
+      result = result.filter(
+        (u) => normalizeEmployeeType(u.employeeType) === selectedType
+      );
     }
     return result;
   }, [flatUsers, searchQuery, selectedEmployeeType]);
@@ -763,15 +924,18 @@ export default function DirectoryPage() {
           animate={{ opacity: 1 }}
           className="bg-white rounded-xl border border-gray-200 shadow-sm p-4"
         >
-          {treeUsers.length === 0 ? (
+          {filteredTreeUsers.length === 0 ? (
             <div className="text-center py-16">
               <Users className="w-12 h-12 text-brand-grey/30 mx-auto mb-3" />
               <p className="text-brand-grey text-sm">
-                No directory data available
+                No matching directory data
               </p>
             </div>
           ) : (
-            <DirectoryOrgChart users={treeUsers} onSelect={handleSelectUser} />
+            <DirectoryOrgChart
+              users={filteredTreeUsers}
+              onSelect={handleSelectUser}
+            />
           )}
         </motion.div>
       )}

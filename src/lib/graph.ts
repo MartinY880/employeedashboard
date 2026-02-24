@@ -129,8 +129,11 @@ async function fetchAllUsersFromGraph(): Promise<GraphUser[]> {
   return users.filter((user) => {
     const isActive = user.accountEnabled !== false;
     const hasLicense = (user.assignedLicenses?.length ?? 0) > 0;
-    const hasDepartment = typeof user.department === "string" && user.department.trim().length > 0;
-    return isActive && hasLicense && hasDepartment;
+    const hasDepartment =
+      typeof user.department === "string" && user.department.trim().length > 0;
+    const hasEmployeeType =
+      typeof user.employeeType === "string" && user.employeeType.trim().length > 0;
+    return isActive && hasLicense && (hasDepartment || hasEmployeeType);
   });
 }
 
@@ -322,6 +325,8 @@ export async function getOrgHierarchy(): Promise<GraphUser[]> {
         "nathan shamo",
         "andrew shamo",
         "anthony karana",
+        "kevin kajy",
+        "donovan shaow",
       ]);
       const partners: GraphUser[] = [];
       const others: GraphUser[] = [];
@@ -406,9 +411,19 @@ export async function getUserPhoto(
       data: Buffer.from(response),
       contentType: "image/jpeg",
     };
-  } catch {
-    // User has no photo set, or other error
-    return null;
+  } catch (error: unknown) {
+    const statusCode =
+      typeof error === "object" && error !== null && "statusCode" in error
+        ? Number((error as { statusCode?: number }).statusCode)
+        : undefined;
+
+    if (statusCode === 404) {
+      // User has no photo set
+      return null;
+    }
+
+    // Transient/permission/throttling/etc. should not be treated as permanent "no photo"
+    throw error;
   }
 }
 
