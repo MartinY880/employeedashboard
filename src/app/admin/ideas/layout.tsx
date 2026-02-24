@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { getAuthUser } from "@/lib/logto";
-import { hasPermission, PERMISSIONS } from "@/lib/rbac";
+import { hasViewOrManagePermission, PERMISSIONS } from "@/lib/rbac";
 import { PortalShell } from "@/components/layout/PortalShell";
 
 export default async function IdeasAdminLayout({ children }: { children: ReactNode }) {
@@ -11,12 +11,12 @@ export default async function IdeasAdminLayout({ children }: { children: ReactNo
     redirect("/sign-in");
   }
 
-  if (!hasPermission(user, PERMISSIONS.MANAGE_IDEAS)) {
+  if (!hasViewOrManagePermission(user, PERMISSIONS.VIEW_IDEAS)) {
     return (
       <PortalShell user={user}>
         <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
           <h2 className="text-xl font-bold text-gray-900 mb-2">Access Denied</h2>
-          <p className="text-brand-grey text-sm">You don&apos;t have permission to manage ideas.</p>
+          <p className="text-brand-grey text-sm">You don&apos;t have permission to view ideas.</p>
         </div>
       </PortalShell>
     );

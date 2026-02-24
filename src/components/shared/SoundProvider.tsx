@@ -41,14 +41,26 @@ interface SoundProviderProps {
 }
 
 export function SoundProvider({ children }: SoundProviderProps) {
-  const [muted, setMuted] = useState(() => {
+  const readMutedPreference = () => {
     if (typeof window === "undefined") return false;
-    return localStorage.getItem("proconnect-sound-muted") === "true";
+    try {
+      return localStorage.getItem("proconnect-sound-muted") === "true";
+    } catch {
+      return false;
+    }
+  };
+
+  const [muted, setMuted] = useState(() => {
+    return readMutedPreference();
   });
 
   // Persist mute preference
   useEffect(() => {
-    localStorage.setItem("proconnect-sound-muted", String(muted));
+    try {
+      localStorage.setItem("proconnect-sound-muted", String(muted));
+    } catch {
+      // Ignore storage errors (private mode / disabled storage)
+    }
   }, [muted]);
 
   const soundOptions = { volume: 0.4, soundEnabled: !muted };

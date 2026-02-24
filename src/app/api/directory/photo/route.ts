@@ -30,7 +30,9 @@ export async function GET(request: Request) {
   // No usable identifier or Graph not configured — redirect to ui-avatars
   if ((!userId && !email) || userId?.startsWith("demo-") || !isGraphConfigured) {
     const fallbackUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=06427F&color=fff&size=${parseInt(size)}&bold=true`;
-    return NextResponse.redirect(fallbackUrl, 302);
+    const response = NextResponse.redirect(fallbackUrl, 302);
+    response.headers.set("Cache-Control", "no-store");
+    return response;
   }
 
   const candidates = [userId, email].filter((value): value is string => !!value);
@@ -52,7 +54,7 @@ export async function GET(request: Request) {
           });
         }
 
-        break;
+        continue;
       }
     }
 
@@ -72,6 +74,8 @@ export async function GET(request: Request) {
       }
     } catch (err) {
       console.error("[Photo API] Error fetching photo for", candidate, err);
+      // Do not cache misses on transient errors (timeouts/throttling/etc.)
+      continue;
     }
 
     photoCache.set(cacheKey, { data: null, contentType: null, ts: Date.now() });
@@ -80,5 +84,7 @@ export async function GET(request: Request) {
 
   // No photo found — redirect to ui-avatars fallback
   const fallbackUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=06427F&color=fff&size=${parseInt(size)}&bold=true`;
-  return NextResponse.redirect(fallbackUrl, 302);
+  const response = NextResponse.redirect(fallbackUrl, 302);
+  response.headers.set("Cache-Control", "no-store");
+  return response;
 }

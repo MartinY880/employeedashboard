@@ -173,11 +173,13 @@ export async function getAuthUser(): Promise<{
   const accessToken = (context as Record<string, unknown>).accessToken as string | undefined;
   if (accessToken && LOGTO_API_RESOURCE) {
     const tokenPerms = extractPermissionsFromToken(accessToken);
-    // Only use token permissions if they contain manage:* scopes
-    // Otherwise fall back to role defaults (Logto permissions may not be configured yet)
-    const managePerms = tokenPerms.filter((p) => p.startsWith("manage:"));
-    if (managePerms.length > 0) {
-      permissions = managePerms;
+    // Only use token permissions if they contain admin scopes
+    // (view:* or manage:*). Otherwise fall back to role defaults.
+    const adminPerms = tokenPerms.filter(
+      (p) => p.startsWith("manage:") || p.startsWith("view:")
+    );
+    if (adminPerms.length > 0) {
+      permissions = adminPerms;
     } else {
       // Token exists but has no manage:* scopes — fall back to role
       permissions = [...ROLE_DEFAULT_PERMISSIONS[role]];

@@ -22,18 +22,16 @@ let cachedBranding: Branding | null = null;
 let fetchPromise: Promise<Branding> | null = null;
 
 async function fetchBranding(): Promise<Branding> {
-  try {
-    const res = await fetch("/api/branding", { cache: "no-store" });
-    if (!res.ok) return DEFAULT_BRANDING;
-    const data = await res.json();
-    return {
-      companyName: data.companyName || DEFAULT_BRANDING.companyName,
-      logoData: data.logoData || null,
-      faviconData: data.faviconData || null,
-    };
-  } catch {
-    return DEFAULT_BRANDING;
+  const res = await fetch("/api/branding", { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error(`Branding fetch failed: ${res.status}`);
   }
+  const data = await res.json();
+  return {
+    companyName: data.companyName || DEFAULT_BRANDING.companyName,
+    logoData: data.logoData || null,
+    faviconData: data.faviconData || null,
+  };
 }
 
 export function useBranding() {
@@ -51,11 +49,18 @@ export function useBranding() {
       fetchPromise = fetchBranding();
     }
 
-    fetchPromise.then((data) => {
-      cachedBranding = data;
-      setBranding(data);
-      setIsLoading(false);
-    });
+    fetchPromise
+      .then((data) => {
+        cachedBranding = data;
+        setBranding(data);
+      })
+      .catch(() => {
+        // Keep current value (cached or default) on transient failure
+      })
+      .finally(() => {
+        setIsLoading(false);
+        fetchPromise = null;
+      });
   }, []);
 
   // Update favicon link tag whenever faviconData changes
@@ -78,13 +83,16 @@ export function useBranding() {
 
   const refresh = useCallback(async () => {
     setIsLoading(true);
-    fetchPromise = null;
-    cachedBranding = null;
-    const data = await fetchBranding();
-    cachedBranding = data;
-    fetchPromise = null;
-    setBranding(data);
-    setIsLoading(false);
+    try {
+      const data = await fetchBranding();
+      cachedBranding = data;
+      setBranding(data);
+    } catch {
+      // Preserve previous branding on refresh failure
+    } finally {
+      fetchPromise = null;
+      setIsLoading(false);
+    }
   }, []);
 
   return { branding, isLoading, refresh };
