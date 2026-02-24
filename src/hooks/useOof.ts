@@ -9,6 +9,10 @@ export interface OofForwarding {
   enabled: boolean;
   forwardTo: string | null;
   forwardToName: string | null;
+  startsAt: string | null;
+  endsAt: string | null;
+  status: "PENDING" | "ACTIVE" | "EXPIRED" | "CANCELLED";
+  isActive: boolean;
 }
 
 export interface OofData {
@@ -60,6 +64,9 @@ export function useOof() {
         throw new Error(data.error || "Failed to update OOF settings");
       }
       setOof(data);
+      if (typeof data.warning === "string" && data.warning.trim()) {
+        setError(`OOF saved, but forwarding may not be active: ${data.warning}`);
+      }
       return true;
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
