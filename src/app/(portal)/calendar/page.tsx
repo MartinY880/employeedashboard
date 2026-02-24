@@ -144,7 +144,7 @@ export default function CalendarPage() {
 
   if (isLoading) {
     return (
-      <div className="max-w-[1200px] mx-auto px-6 py-6 space-y-6">
+      <div className="max-w-[1920px] mx-auto px-6 py-6 space-y-6">
         <Skeleton className="h-10 w-64" />
         <div className="flex gap-2">
           {[...Array(5)].map((_, i) => (
@@ -165,7 +165,7 @@ export default function CalendarPage() {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="max-w-[1200px] mx-auto px-6 py-6 space-y-5"
+      className="max-w-[1920px] mx-auto px-6 py-6 space-y-5"
     >
       {/* Page Header */}
       <div className="flex items-center justify-between">

@@ -21,7 +21,7 @@ const DEFAULT_PILLARS: PillarData[] = [
 const DEFAULT_HEADER: PillarHeader = {
   title: "OUR COMPANY PILLARS",
   subtitle: "The core values that drive everything we do at MortgagePros",
-  maxWidth: 1100,
+  maxWidth: 1400,
 };
 
 export function StatsRow() {
@@ -48,13 +48,13 @@ export function StatsRow() {
 
   if (loading) {
     return (
-      <div className="max-w-[1100px] mx-auto space-y-4">
+      <div className="max-w-[1400px] mx-auto space-y-4">
         <Skeleton className="h-[52px] rounded-xl bg-brand-blue/10" />
         <div
           className="grid gap-4 mx-auto"
           style={{
             gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-            maxWidth: "1100px",
+            maxWidth: "1400px",
           }}
         >
           {Array.from({ length: 6 }).map((_, i) => (

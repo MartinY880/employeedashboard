@@ -11,6 +11,7 @@ export interface DirectoryNode {
   mail: string | null;
   userPrincipalName: string;
   jobTitle: string | null;
+  employeeType?: string | null;
   department: string | null;
   officeLocation: string | null;
   photoUrl?: string;

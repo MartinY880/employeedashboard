@@ -18,6 +18,30 @@ export const isGraphConfigured =
   !!graphConfig.clientId &&
   !!graphConfig.clientSecret;
 
+const DIRECTORY_CACHE_TTL_MS = Number(process.env.DIRECTORY_CACHE_TTL_MS || 300000); // 5 min
+
+type CacheState<T> = {
+  value: T | null;
+  expiresAt: number;
+  inFlight: Promise<T> | null;
+};
+
+const allUsersCache: CacheState<GraphUser[]> = {
+  value: null,
+  expiresAt: 0,
+  inFlight: null,
+};
+
+const orgHierarchyCache: CacheState<GraphUser[]> = {
+  value: null,
+  expiresAt: 0,
+  inFlight: null,
+};
+
+function cloneDirectoryData<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
 // ─── Graph Client Singleton ───────────────────────────────
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -62,8 +86,11 @@ const USER_SELECT = [
   "mail",
   "userPrincipalName",
   "jobTitle",
+  "employeeType",
   "department",
   "officeLocation",
+  "accountEnabled",
+  "assignedLicenses",
 ].join(",");
 
 // ─── Directory Functions ──────────────────────────────────
@@ -74,16 +101,19 @@ export interface GraphUser {
   mail: string | null;
   userPrincipalName: string;
   jobTitle: string | null;
+  employeeType?: string | null;
   department: string | null;
   officeLocation: string | null;
+  accountEnabled?: boolean;
+  assignedLicenses?: Array<{ skuId: string }>;
   directReports?: GraphUser[];
   manager?: GraphUser | null;
 }
 
 /**
- * Get all users from the directory
+ * Fetch all users from Graph (uncached)
  */
-export async function getAllUsers(): Promise<GraphUser[]> {
+async function fetchAllUsersFromGraph(): Promise<GraphUser[]> {
   const client = await getGraphClient();
 
   const result = await client
@@ -93,7 +123,39 @@ export async function getAllUsers(): Promise<GraphUser[]> {
     .filter("accountEnabled eq true")
     .get();
 
-  return result.value || [];
+  const users: GraphUser[] = result.value || [];
+
+  // Directory should only include active + licensed employees
+  return users.filter((user) => {
+    const isActive = user.accountEnabled !== false;
+    const hasLicense = (user.assignedLicenses?.length ?? 0) > 0;
+    const hasDepartment = typeof user.department === "string" && user.department.trim().length > 0;
+    return isActive && hasLicense && hasDepartment;
+  });
+}
+
+/**
+ * Get all users from the directory (cached)
+ */
+export async function getAllUsers(): Promise<GraphUser[]> {
+  const now = Date.now();
+  if (allUsersCache.value && allUsersCache.expiresAt > now) {
+    return cloneDirectoryData(allUsersCache.value);
+  }
+
+  if (!allUsersCache.inFlight) {
+    allUsersCache.inFlight = (async () => {
+      const users = await fetchAllUsersFromGraph();
+      allUsersCache.value = users;
+      allUsersCache.expiresAt = Date.now() + DIRECTORY_CACHE_TTL_MS;
+      return users;
+    })().finally(() => {
+      allUsersCache.inFlight = null;
+    });
+  }
+
+  const users = await allUsersCache.inFlight;
+  return cloneDirectoryData(users);
 }
 
 /**
@@ -128,26 +190,184 @@ export async function getUserWithReports(userId: string): Promise<GraphUser> {
  * Build org hierarchy starting from users with no manager (CEO level)
  */
 export async function getOrgHierarchy(): Promise<GraphUser[]> {
+  const now = Date.now();
+  if (orgHierarchyCache.value && orgHierarchyCache.expiresAt > now) {
+    return cloneDirectoryData(orgHierarchyCache.value);
+  }
+
+  if (orgHierarchyCache.inFlight) {
+    const cachedInFlight = await orgHierarchyCache.inFlight;
+    return cloneDirectoryData(cachedInFlight);
+  }
+
+  orgHierarchyCache.inFlight = (async () => {
   const client = await getGraphClient();
+  const startedAt = Date.now();
 
-  // Get all users
+  // Build hierarchy from manager relationships in Entra
   const allUsers = await getAllUsers();
-
-  // Find top-level users (no manager) by checking each
-  const topLevel: GraphUser[] = [];
+  console.log("[Graph] Building hierarchy", { userCount: allUsers.length });
+  const userMap = new Map<string, GraphUser>();
 
   for (const user of allUsers) {
+    userMap.set(user.id, { ...user, directReports: [] });
+  }
+
+  // ── Phase 1: Batch-resolve manager relationships ──
+  const managerResults: Array<{ userId: string; managerId: string | null }> = [];
+  const batchSize = 20;
+
+  for (let i = 0; i < allUsers.length; i += batchSize) {
+    const chunk = allUsers.slice(i, i + batchSize);
+    const requests = chunk.map((user) => ({
+      id: user.id,
+      method: "GET",
+      url: `/users/${user.id}/manager?$select=id`,
+    }));
+
     try {
-      await client.api(`/users/${user.id}/manager`).select("id").get();
-      // Has manager — skip
+      const batchResponse = await client.api("/$batch").post({ requests });
+      const responses = (batchResponse?.responses || []) as Array<{ id: string; status: number; body?: { id?: string } }>;
+
+      const byId = new Map<string, { status: number; body?: { id?: string } }>();
+      for (const response of responses) {
+        byId.set(response.id, response);
+      }
+
+      for (const user of chunk) {
+        const response = byId.get(user.id);
+        if (response && response.status === 200) {
+          managerResults.push({ userId: user.id, managerId: response.body?.id ?? null });
+        } else {
+          managerResults.push({ userId: user.id, managerId: null });
+        }
+      }
     } catch {
-      // No manager — this is a top-level user
-      topLevel.push(user);
+      for (const user of chunk) {
+        managerResults.push({ userId: user.id, managerId: null });
+      }
     }
   }
 
-  // Build tree from top-level users
-  return Promise.all(topLevel.map((u) => getUserWithReports(u.id)));
+  const roots: GraphUser[] = [];
+  // Track users whose manager exists in Entra but is NOT in our filtered list
+  const orphanedUsers: Array<{ user: GraphUser; managerId: string }> = [];
+
+  for (const result of managerResults) {
+    const current = userMap.get(result.userId);
+    if (!current) continue;
+
+    if (result.managerId && userMap.has(result.managerId)) {
+      // Manager is in our filtered user list — normal case
+      const managerNode = userMap.get(result.managerId);
+      managerNode?.directReports?.push(current);
+    } else if (result.managerId) {
+      // Manager exists in Entra but was filtered out (no dept/license/disabled).
+      // We'll walk up the chain in Phase 2 to find an ancestor in the list.
+      orphanedUsers.push({ user: current, managerId: result.managerId });
+    } else {
+      // Genuinely no manager — true root
+      roots.push(current);
+    }
+  }
+
+  // ── Phase 2: Walk up the chain for orphaned users ──
+  // When a user's direct manager is filtered out, we trace up the hierarchy
+  // via /users/{id}/manager calls until we find an ancestor in our user list.
+  if (orphanedUsers.length > 0) {
+    console.log("[Graph] Phase 2: Walking up chain for", orphanedUsers.length, "users with filtered-out managers");
+
+    for (const { user, managerId } of orphanedUsers) {
+      let currentManagerId: string | null = managerId;
+      let resolved = false;
+      const visited = new Set<string>();
+
+      // Walk up to 10 levels (prevent infinite loops)
+      for (let depth = 0; depth < 10 && currentManagerId; depth++) {
+        if (visited.has(currentManagerId)) break;
+        visited.add(currentManagerId);
+
+        // Check if this manager is in our filtered list
+        if (userMap.has(currentManagerId)) {
+          userMap.get(currentManagerId)!.directReports!.push(user);
+          console.log("[Graph] Chain resolved:", user.displayName, "→", userMap.get(currentManagerId)?.displayName, `(skipped ${depth} filtered-out manager(s))`);
+          resolved = true;
+          break;
+        }
+
+        // Manager not in list — look up THEIR manager
+        try {
+          const mgrResponse: { id?: string } = await client
+            .api(`/users/${currentManagerId}/manager`)
+            .select("id")
+            .get();
+          currentManagerId = mgrResponse?.id ?? null;
+        } catch {
+          // No manager found or API error — stop walking
+          currentManagerId = null;
+        }
+      }
+
+      if (!resolved) {
+        roots.push(user);
+      }
+    }
+  }
+
+  const sortTree = (nodes: GraphUser[], isRoot = false) => {
+    if (isRoot) {
+      // At root level: Managing Partners first, then alphabetical within groups
+      const MANAGING_PARTNER_NAMES = new Set([
+        "george abro",
+        "nathan shamo",
+        "andrew shamo",
+        "anthony karana",
+      ]);
+      const partners: GraphUser[] = [];
+      const others: GraphUser[] = [];
+      for (const node of nodes) {
+        if (
+          node.jobTitle?.toLowerCase().includes("managing partner") ||
+          MANAGING_PARTNER_NAMES.has(node.displayName.toLowerCase())
+        ) {
+          partners.push(node);
+        } else {
+          others.push(node);
+        }
+      }
+      partners.sort((a, b) => a.displayName.localeCompare(b.displayName));
+      others.sort((a, b) => a.displayName.localeCompare(b.displayName));
+      nodes.length = 0;
+      nodes.push(...partners, ...others);
+    } else {
+      nodes.sort((a, b) => a.displayName.localeCompare(b.displayName));
+    }
+    for (const node of nodes) {
+      if (node.directReports?.length) {
+        sortTree(node.directReports);
+      }
+    }
+  };
+
+  sortTree(roots, true);
+  const rootCount = roots.length;
+  const managedCount = allUsers.length - rootCount;
+  console.log("[Graph] Hierarchy built", { rootCount, managedCount, ms: Date.now() - startedAt });
+
+  // Log root names for debugging misplaced users
+  if (rootCount > 0 && rootCount < 50) {
+    console.log("[Graph] Root users:", roots.map(r => r.displayName).join(", "));
+  }
+
+  orgHierarchyCache.value = roots;
+  orgHierarchyCache.expiresAt = Date.now() + DIRECTORY_CACHE_TTL_MS;
+  return roots;
+  })().finally(() => {
+    orgHierarchyCache.inFlight = null;
+  });
+
+  const hierarchy = await orgHierarchyCache.inFlight;
+  return cloneDirectoryData(hierarchy);
 }
 
 /**

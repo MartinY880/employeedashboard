@@ -39,7 +39,7 @@ import { ICON_MAP, ICON_NAMES, type PillarData, type PillarIconName, type Pillar
 const DEFAULT_HEADER: PillarHeader = {
   title: "OUR COMPANY PILLARS",
   subtitle: "The core values that drive everything we do at MortgagePros",
-  maxWidth: 1100,
+  maxWidth: 1400,
 };
 
 export default function AdminPillarsPage() {
@@ -232,23 +232,23 @@ export default function AdminPillarsPage() {
         {/* Max Width Slider */}
         <div>
           <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 block">
-            Container Width — {header.maxWidth ?? 1100}px
+            Container Width — {header.maxWidth ?? 1400}px
           </label>
           <div className="flex items-center gap-3">
             <span className="text-xs text-gray-400 w-10">600</span>
             <input
               type="range"
               min={600}
-              max={1400}
+              max={1920}
               step={10}
-              value={header.maxWidth ?? 1100}
+              value={header.maxWidth ?? 1400}
               onChange={(e) => {
                 setHeader((prev) => ({ ...prev, maxWidth: Number(e.target.value) }));
                 setHasChanges(true);
               }}
               className="flex-1 h-2 accent-brand-blue cursor-pointer"
             />
-            <span className="text-xs text-gray-400 w-10 text-right">1400</span>
+            <span className="text-xs text-gray-400 w-10 text-right">1920</span>
           </div>
         </div>
 

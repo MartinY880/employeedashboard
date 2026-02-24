@@ -121,6 +121,31 @@ model SiteBranding {
   @@map("site_branding")
 }
 
+model DirectorySnapshot {
+  id                String   @id
+  displayName       String   @map("display_name")
+  mail              String?
+  userPrincipalName String   @map("user_principal_name")
+  jobTitle          String?  @map("job_title")
+  employeeType      String?  @map("employee_type")
+  department        String?
+  officeLocation    String?  @map("office_location")
+  managerId         String?  @map("manager_id")
+  syncedAt          DateTime @default(now()) @map("synced_at")
+
+  @@index([managerId])
+  @@index([displayName])
+  @@map("directory_snapshots")
+}
+
+model DirectorySnapshotState {
+  id           String   @id
+  lastSyncedAt DateTime? @map("last_synced_at")
+  updatedAt    DateTime @default(now()) @map("updated_at")
+
+  @@map("directory_snapshot_state")
+}
+
 // ─── Enums ────────────────────────────────────────────────
 
 enum Role {

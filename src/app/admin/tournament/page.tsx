@@ -476,6 +476,12 @@ function TournamentDetail({
     teamsByDiv[t.division].push(t);
   }
 
+  const matchesByDiv: Record<string, TournamentMatch[]> = {};
+  for (const m of tournament.matches || []) {
+    if (!matchesByDiv[m.division]) matchesByDiv[m.division] = [];
+    matchesByDiv[m.division].push(m);
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -633,8 +639,9 @@ function TournamentDetail({
 
       {/* Matches Table */}
       {activeTab === "matches" && (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <Table>
+        <div className="space-y-4">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <Table>
             <TableHeader>
               <TableRow>
                 <TableHead className="w-12">Match</TableHead>
@@ -761,7 +768,8 @@ function TournamentDetail({
                 })
               )}
             </TableBody>
-          </Table>
+            </Table>
+          </div>
         </div>
       )}
 

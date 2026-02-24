@@ -3,7 +3,36 @@
 // Falls back to demo data when Graph API is not configured
 
 import { NextResponse } from "next/server";
-import { isGraphConfigured, getAllUsers, type GraphUser } from "@/lib/graph";
+import { isGraphConfigured, getAllUsers, getOrgHierarchy, type GraphUser } from "@/lib/graph";
+import {
+  getSnapshotFlatUsers,
+  getSnapshotSyncMeta,
+  getSnapshotTreeUsers,
+  getSnapshotUserCount,
+  searchSnapshotUsers,
+  syncDirectorySnapshotFromGraph,
+} from "@/lib/directory-snapshot";
+
+const DIRECTORY_HTTP_MAX_AGE_SECONDS = Number(process.env.DIRECTORY_HTTP_MAX_AGE_SECONDS || 300);
+const DIRECTORY_HTTP_STALE_SECONDS = Number(process.env.DIRECTORY_HTTP_STALE_SECONDS || 900);
+
+const DIRECTORY_RESPONSE_HEADERS = {
+  "Cache-Control": `private, max-age=${DIRECTORY_HTTP_MAX_AGE_SECONDS}, stale-while-revalidate=${DIRECTORY_HTTP_STALE_SECONDS}`,
+};
+
+async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error(`Timed out after ${ms}ms`)), ms);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
 
 // Helper: build photo proxy URL for a user
 function photoUrl(user: { id: string; displayName: string }, size = 120): string {
@@ -120,10 +149,13 @@ const DEMO_USERS: GraphUser[] = [
 
 export async function GET(request: Request) {
   try {
+    const startedAt = Date.now();
     const { searchParams } = new URL(request.url);
     const mode = searchParams.get("mode") || "tree"; // "tree" | "flat"
     const countOnly = searchParams.get("count") === "true";
     const search = searchParams.get("search")?.toLowerCase().trim();
+
+    console.log("[Directory API] Request", { mode, countOnly, hasSearch: !!search, graphConfigured: isGraphConfigured });
 
     // Use Graph API when configured, demo data otherwise
     if (!isGraphConfigured) {
@@ -142,7 +174,7 @@ export async function GET(request: Request) {
             (u.mail && u.mail.toLowerCase().includes(search)) ||
             u.userPrincipalName.toLowerCase().includes(search)
         );
-        return NextResponse.json({ users: filtered.slice(0, 10) });
+        return NextResponse.json({ users: filtered.slice(0, 10) }, { headers: DIRECTORY_RESPONSE_HEADERS });
       }
 
       if (mode === "flat") {
@@ -151,37 +183,117 @@ export async function GET(request: Request) {
       return NextResponse.json({ users: injectPhotos(JSON.parse(JSON.stringify(DEMO_USERS))) });
     }
 
-    // Real Graph API
-    if (countOnly) {
-      const users = await getAllUsers();
-      return NextResponse.json({ count: users.length });
+    // Real Graph API via DB snapshot for fast reads
+    let snapshotMeta = await getSnapshotSyncMeta();
+
+    if (!snapshotMeta.lastSyncedAt) {
+      await withTimeout(syncDirectorySnapshotFromGraph(), 30000);
+      snapshotMeta = await getSnapshotSyncMeta();
+    } else if (snapshotMeta.isStale) {
+      void syncDirectorySnapshotFromGraph().catch((error) => {
+        console.error("[Directory API] Background snapshot sync failed:", error);
+      });
     }
 
-    const users = await getAllUsers();
-    injectPhotos(users);
+    if (countOnly) {
+      const count = await getSnapshotUserCount();
+      console.log("[Directory API] Count response", {
+        count,
+        source: "db-snapshot",
+        lastSyncedAt: snapshotMeta.lastSyncedAt,
+        ms: Date.now() - startedAt,
+      });
+      return NextResponse.json({ count }, { headers: DIRECTORY_RESPONSE_HEADERS });
+    }
 
-    // People search — filter Graph results by name or email
     if (search) {
-      const filtered = users.filter(
-        (u) =>
-          u.displayName.toLowerCase().includes(search) ||
-          (u.mail && u.mail.toLowerCase().includes(search)) ||
-          u.userPrincipalName.toLowerCase().includes(search)
-      );
-      return NextResponse.json({ users: filtered.slice(0, 10) });
+      const users = await searchSnapshotUsers(search, 10);
+      injectPhotos(users);
+      console.log("[Directory API] Search response", {
+        returned: users.length,
+        source: "db-snapshot",
+        lastSyncedAt: snapshotMeta.lastSyncedAt,
+        ms: Date.now() - startedAt,
+      });
+      return NextResponse.json({ users }, { headers: DIRECTORY_RESPONSE_HEADERS });
     }
 
     if (mode === "flat") {
-      return NextResponse.json({ users });
+      const users = await getSnapshotFlatUsers();
+      injectPhotos(users);
+      console.log("[Directory API] Flat response", {
+        total: users.length,
+        source: "db-snapshot",
+        lastSyncedAt: snapshotMeta.lastSyncedAt,
+        ms: Date.now() - startedAt,
+      });
+      return NextResponse.json({ users }, { headers: DIRECTORY_RESPONSE_HEADERS });
     }
 
-    // Tree mode — build org hierarchy
-    return NextResponse.json({ users });
+    const treeUsers = await getSnapshotTreeUsers();
+    injectPhotos(treeUsers);
+    const totalUsers = countFlat(treeUsers);
+    console.log("[Directory API] Tree response", {
+      roots: treeUsers.length,
+      totalUsers,
+      source: "db-snapshot",
+      lastSyncedAt: snapshotMeta.lastSyncedAt,
+      ms: Date.now() - startedAt,
+    });
+    return NextResponse.json({ users: treeUsers }, { headers: DIRECTORY_RESPONSE_HEADERS });
   } catch (error) {
     console.error("[Directory API] Error:", error);
-    // Fallback to demo data on any Graph API error
-    return NextResponse.json({ users: injectPhotos(JSON.parse(JSON.stringify(DEMO_USERS))) });
+    if (isGraphConfigured) {
+      try {
+        if (countOnlyFromUrl(request.url)) {
+          const users = await getAllUsers();
+          return NextResponse.json({ count: users.length }, { headers: DIRECTORY_RESPONSE_HEADERS });
+        }
+
+        const mode = modeFromUrl(request.url);
+        const search = searchFromUrl(request.url);
+
+        if (search || mode === "flat") {
+          const users = await getAllUsers();
+          injectPhotos(users);
+          if (search) {
+            const filtered = users.filter(
+              (u) =>
+                u.displayName.toLowerCase().includes(search) ||
+                (u.mail && u.mail.toLowerCase().includes(search)) ||
+                u.userPrincipalName.toLowerCase().includes(search)
+            );
+            return NextResponse.json({ users: filtered.slice(0, 10) }, { headers: DIRECTORY_RESPONSE_HEADERS });
+          }
+          return NextResponse.json({ users }, { headers: DIRECTORY_RESPONSE_HEADERS });
+        }
+
+        const treeUsers = await withTimeout(getOrgHierarchy(), 15000);
+        injectPhotos(treeUsers);
+        return NextResponse.json({ users: treeUsers }, { headers: DIRECTORY_RESPONSE_HEADERS });
+      } catch (graphFallbackError) {
+        console.error("[Directory API] Graph fallback error:", graphFallbackError);
+      }
+    }
+
+    // Final fallback to demo data
+    return NextResponse.json({ users: injectPhotos(JSON.parse(JSON.stringify(DEMO_USERS))) }, { headers: DIRECTORY_RESPONSE_HEADERS });
   }
+}
+
+function countOnlyFromUrl(url: string) {
+  const { searchParams } = new URL(url);
+  return searchParams.get("count") === "true";
+}
+
+function modeFromUrl(url: string) {
+  const { searchParams } = new URL(url);
+  return searchParams.get("mode") || "tree";
+}
+
+function searchFromUrl(url: string) {
+  const { searchParams } = new URL(url);
+  return searchParams.get("search")?.toLowerCase().trim();
 }
 
 // Helper: flatten a tree into a flat array
