@@ -3,7 +3,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo, useDeferredValue } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Link2,
@@ -17,6 +17,7 @@ import {
   ArrowDown,
   Loader2,
   ExternalLink,
+  ChevronDown,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -38,15 +39,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useSounds } from "@/components/shared/SoundProvider";
-import { AVAILABLE_ICONS } from "@/components/widgets/QuickLinksBar";
+import {
+  AVAILABLE_ICON_OPTIONS,
+  normalizeQuickLinkIconId,
+  renderQuickLinkIconPreview,
+} from "@/components/widgets/QuickLinksBar";
 
 interface QuickLinkItem {
   id: string;
@@ -60,6 +58,11 @@ interface QuickLinkItem {
 }
 
 export default function AdminQuickLinksPage() {
+  const ICON_INITIAL_RESULTS = 80;
+  const ICON_LOAD_STEP = 120;
+  const ICON_MAX_RESULTS = 250;
+  const ICON_MIN_QUERY_LENGTH = 2;
+
   const { playClick, playSuccess, playPop } = useSounds();
   const [links, setLinks] = useState<QuickLinkItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -70,7 +73,11 @@ export default function AdminQuickLinksPage() {
   const [editingLink, setEditingLink] = useState<QuickLinkItem | null>(null);
   const [formLabel, setFormLabel] = useState("");
   const [formUrl, setFormUrl] = useState("");
-  const [formIcon, setFormIcon] = useState("link");
+  const [formIcon, setFormIcon] = useState("lucide:link");
+  const [iconSearch, setIconSearch] = useState("");
+  const [iconMenuOpen, setIconMenuOpen] = useState(false);
+  const [visibleDefaultIcons, setVisibleDefaultIcons] = useState(ICON_INITIAL_RESULTS);
+  const deferredIconSearch = useDeferredValue(iconSearch);
 
   // Delete confirmation
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -100,7 +107,10 @@ export default function AdminQuickLinksPage() {
     setEditingLink(null);
     setFormLabel("");
     setFormUrl("");
-    setFormIcon("link");
+    setFormIcon("lucide:link");
+    setIconSearch("");
+    setIconMenuOpen(false);
+    setVisibleDefaultIcons(ICON_INITIAL_RESULTS);
     setDialogOpen(true);
     playClick();
   };
@@ -109,10 +119,60 @@ export default function AdminQuickLinksPage() {
     setEditingLink(link);
     setFormLabel(link.label);
     setFormUrl(link.url);
-    setFormIcon(link.icon);
+    setFormIcon(link.icon.includes(":") ? link.icon : `lucide:${link.icon}`);
+    setIconSearch("");
+    setIconMenuOpen(false);
+    setVisibleDefaultIcons(ICON_INITIAL_RESULTS);
     setDialogOpen(true);
     playClick();
   };
+
+  const filteredIconOptions = useMemo(() => {
+    if (!iconMenuOpen) return [];
+
+    const query = deferredIconSearch.trim().toLowerCase();
+    if (!query) return AVAILABLE_ICON_OPTIONS.slice(0, visibleDefaultIcons);
+    if (query.length < ICON_MIN_QUERY_LENGTH) return [];
+
+    return AVAILABLE_ICON_OPTIONS.filter((option) =>
+      [option.label, option.id, ...option.keywords]
+        .join(" ")
+        .toLowerCase()
+        .includes(query)
+    ).slice(0, ICON_MAX_RESULTS);
+  }, [deferredIconSearch, iconMenuOpen, visibleDefaultIcons]);
+
+  const hasMoreDefaultIcons = useMemo(() => {
+    const query = deferredIconSearch.trim();
+    return !query && visibleDefaultIcons < AVAILABLE_ICON_OPTIONS.length;
+  }, [deferredIconSearch, visibleDefaultIcons]);
+
+  const groupedIconOptions = useMemo(() => {
+    return {
+      lucide: filteredIconOptions.filter((option) => option.library === "lucide"),
+      reactIcons: filteredIconOptions.filter(
+        (option) => option.library === "react-icons"
+      ),
+      fontAwesome: filteredIconOptions.filter(
+        (option) => option.library === "fontawesome"
+      ),
+    };
+  }, [filteredIconOptions]);
+
+  const selectedIconOption = useMemo(() => {
+    const normalized = normalizeQuickLinkIconId(formIcon);
+    return (
+      AVAILABLE_ICON_OPTIONS.find((option) => option.id === normalized) ??
+      AVAILABLE_ICON_OPTIONS.find((option) => option.id === "lucide:link") ??
+      null
+    );
+  }, [formIcon]);
+
+  const selectIcon = useCallback((iconId: string) => {
+    setFormIcon(iconId);
+    setIconMenuOpen(false);
+    setIconSearch("");
+  }, []);
 
   const handleSave = async () => {
     if (!formLabel.trim() || !formUrl.trim()) return;
@@ -200,7 +260,7 @@ export default function AdminQuickLinksPage() {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="max-w-5xl mx-auto"
+      className="max-w-5xl mx-auto px-6 pt-8 pb-6"
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
@@ -407,18 +467,135 @@ export default function AdminQuickLinksPage() {
               <label className="text-xs font-medium text-gray-600 mb-1 block">
                 Icon
               </label>
-              <Select value={formIcon} onValueChange={setFormIcon}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {AVAILABLE_ICONS.map((icon) => (
-                    <SelectItem key={icon} value={icon}>
-                      {icon}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="relative">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full justify-between"
+                  onClick={() => {
+                    setIconMenuOpen((open) => {
+                      const nextOpen = !open;
+                      if (nextOpen) {
+                        setVisibleDefaultIcons(ICON_INITIAL_RESULTS);
+                      } else {
+                        setIconSearch("");
+                      }
+                      return nextOpen;
+                    });
+                  }}
+                >
+                  {selectedIconOption ? (
+                    <span className="inline-flex items-center gap-2">
+                      {renderQuickLinkIconPreview(selectedIconOption.id, "w-4 h-4")}
+                      {selectedIconOption.label}
+                    </span>
+                  ) : (
+                    <span>Select an icon</span>
+                  )}
+                  <ChevronDown className="w-4 h-4 opacity-60" />
+                </Button>
+
+                {iconMenuOpen && (
+                  <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-50 rounded-md border bg-popover text-popover-foreground shadow-md">
+                    <div className="p-1 border-b border-border">
+                      <Input
+                        placeholder="Search icons..."
+                        value={iconSearch}
+                        onChange={(e) => setIconSearch(e.target.value)}
+                        className="h-8"
+                        autoFocus
+                      />
+                    </div>
+                    <div
+                      className="max-h-64 overflow-y-auto p-1"
+                      onScroll={(e) => {
+                        if (deferredIconSearch.trim()) return;
+                        const element = e.currentTarget;
+                        const nearBottom =
+                          element.scrollTop + element.clientHeight >= element.scrollHeight - 24;
+                        if (nearBottom) {
+                          setVisibleDefaultIcons((prev) =>
+                            Math.min(prev + ICON_LOAD_STEP, AVAILABLE_ICON_OPTIONS.length)
+                          );
+                        }
+                      }}
+                    >
+                      {iconSearch.trim().length === 1 && (
+                        <div className="px-2 py-1.5 text-xs text-brand-grey">
+                          Type at least 2 characters to search
+                        </div>
+                      )}
+
+                      {groupedIconOptions.lucide.length > 0 && (
+                        <>
+                          <div className="px-2 py-1 text-xs text-brand-grey">Lucide</div>
+                          {groupedIconOptions.lucide.map((icon) => (
+                            <button
+                              key={icon.id}
+                              type="button"
+                              className="w-full text-left px-2 py-1.5 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground"
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => selectIcon(icon.id)}
+                            >
+                              <span className="inline-flex items-center gap-2">
+                                {renderQuickLinkIconPreview(icon.id, "w-4 h-4")}
+                                {icon.label}
+                              </span>
+                            </button>
+                          ))}
+                        </>
+                      )}
+
+                      {groupedIconOptions.reactIcons.length > 0 && (
+                        <>
+                          <div className="px-2 py-1 text-xs text-brand-grey">React Icons</div>
+                          {groupedIconOptions.reactIcons.map((icon) => (
+                            <button
+                              key={icon.id}
+                              type="button"
+                              className="w-full text-left px-2 py-1.5 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground"
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => selectIcon(icon.id)}
+                            >
+                              <span className="inline-flex items-center gap-2">
+                                {renderQuickLinkIconPreview(icon.id, "w-4 h-4")}
+                                {icon.label}
+                              </span>
+                            </button>
+                          ))}
+                        </>
+                      )}
+
+                      {groupedIconOptions.fontAwesome.length > 0 && (
+                        <>
+                          <div className="px-2 py-1 text-xs text-brand-grey">Font Awesome</div>
+                          {groupedIconOptions.fontAwesome.map((icon) => (
+                            <button
+                              key={icon.id}
+                              type="button"
+                              className="w-full text-left px-2 py-1.5 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground"
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => selectIcon(icon.id)}
+                            >
+                              <span className="inline-flex items-center gap-2">
+                                {renderQuickLinkIconPreview(icon.id, "w-4 h-4")}
+                                {icon.label}
+                              </span>
+                            </button>
+                          ))}
+                        </>
+                      )}
+
+                      {filteredIconOptions.length === 0 && iconSearch.trim().length !== 1 && (
+                        <div className="px-2 py-1.5 text-xs text-brand-grey">No icons found</div>
+                      )}
+                      {hasMoreDefaultIcons && (
+                        <div className="px-2 py-1.5 text-xs text-brand-grey">Scroll to load more icons…</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
           <DialogFooter>

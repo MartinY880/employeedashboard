@@ -55,5 +55,41 @@ export function useKudos() {
     []
   );
 
-  return { kudos, isLoading, sendKudos, refetch: fetchKudos };
+  const toggleReaction = useCallback(
+    async (kudosId: string, reaction: "highfive" | "uplift" | "bomb") => {
+      const res = await fetch("/api/kudos", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kudosId, reaction }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to toggle reaction");
+      }
+
+      const data: {
+        kudosId: string;
+        reactions: { highfive: number; uplift: number; bomb: number };
+        myReactions: Array<"highfive" | "uplift" | "bomb">;
+      } = await res.json();
+
+      setKudos((prev) =>
+        prev.map((item) =>
+          item.id === data.kudosId
+            ? {
+                ...item,
+                reactions: data.reactions,
+                myReactions: data.myReactions,
+                likes: data.reactions.highfive,
+              }
+            : item
+        )
+      );
+
+      return data;
+    },
+    []
+  );
+
+  return { kudos, isLoading, sendKudos, toggleReaction, refetch: fetchKudos };
 }

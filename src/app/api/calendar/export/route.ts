@@ -59,10 +59,25 @@ async function getCategoryLabels(): Promise<{ federal: string; fun: string; comp
   }
 }
 
-async function getBrandingLogo(): Promise<string | null> {
+async function getCalendarExportLogo(): Promise<string | null> {
   try {
-    const branding = await prisma.siteBranding.findUnique({ where: { id: "singleton" } });
-    return branding?.logoData || null;
+    const setting = await prisma.calendarSetting.findUnique({ where: { id: "calendar_export_logo" } });
+    if (!setting) return null;
+
+    if (typeof setting.data === "string" && setting.data.startsWith("data:image")) {
+      return setting.data;
+    }
+
+    try {
+      const parsed = JSON.parse(setting.data);
+      if (typeof parsed === "string" && parsed.startsWith("data:image")) {
+        return parsed;
+      }
+    } catch {
+      // Not JSON; fall through
+    }
+
+    return null;
   } catch {
     return null;
   }
@@ -159,12 +174,7 @@ function generateCalendarGridHtml(
       ${["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map((d) => `<th style="padding:10px;color:#fff;text-align:center;font-weight:600;width:14.28%;">${d}</th>`).join("")}
     </tr></thead>
     <tbody>${weeks.join("")}</tbody>
-  </table>
-  <div style="margin-top:16px;display:flex;gap:16px;justify-content:center;flex-wrap:wrap;">
-    <span style="display:inline-flex;align-items:center;font-size:12px;"><span style="width:12px;height:12px;background:CATCOLOR_FEDERAL;border-radius:50%;margin-right:6px;"></span>${categoryLabels.federal}</span>
-    <span style="display:inline-flex;align-items:center;font-size:12px;"><span style="width:12px;height:12px;background:CATCOLOR_FUN;border-radius:50%;margin-right:6px;"></span>${categoryLabels.fun}</span>
-    <span style="display:inline-flex;align-items:center;font-size:12px;"><span style="width:12px;height:12px;background:CATCOLOR_COMPANY;border-radius:50%;margin-right:6px;"></span>${categoryLabels.company}</span>
-  </div>`;
+  </table>`;
 }
 
 const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -250,8 +260,7 @@ export async function POST(request: Request) {
         .replace(/CATCOLOR_FUN/g, catColors.fun)
         .replace(/CATCOLOR_COMPANY/g, catColors.company);
 
-      // Get logo for CID attachment
-      const logoData = template.includeCompanyLogo ? await getBrandingLogo() : null;
+      const logoData = await getCalendarExportLogo();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let logoAttachment: any = null;
       if (logoData?.startsWith("data:image")) {
@@ -266,14 +275,40 @@ export async function POST(request: Request) {
         }
       }
 
+      const subtitle = template.headerText?.trim() || `${year} Holiday Calendar`;
+      const emailHeaderHtml = `
+      <div style="border-radius:12px 12px 0 0;overflow:hidden;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;table-layout:fixed;">
+          <tr>
+            <td style="background:#06427F;width:38%;vertical-align:top;padding:18px 20px;">
+              <div style="color:#ffffff;font-size:28px;line-height:1.1;font-weight:700;">${monthName}</div>
+              <div style="color:#c7ddf5;font-size:13px;margin-top:4px;">${subtitle}</div>
+            </td>
+            <td style="background:#82b2e2;width:37%;vertical-align:middle;text-align:center;padding:12px 8px;">
+              ${logoAttachment ? '<img src="cid:companylogo" alt="Logo" style="max-height:56px;width:auto;display:inline-block;">' : ""}
+            </td>
+            <td style="background:#95aac0;width:25%;vertical-align:top;text-align:right;padding:14px 12px;">
+              <div style="display:inline-block;text-align:left;">
+                <div style="color:#e8f0fa;font-size:12px;line-height:1.6;white-space:nowrap;">
+                  <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${catColors.federal};margin-right:6px;"></span>${categoryLabels.federal}
+                </div>
+                <div style="color:#e8f0fa;font-size:12px;line-height:1.6;white-space:nowrap;">
+                  <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${catColors.fun};margin-right:6px;"></span>${categoryLabels.fun}
+                </div>
+                <div style="color:#e8f0fa;font-size:12px;line-height:1.6;white-space:nowrap;">
+                  <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${catColors.company};margin-right:6px;"></span>${categoryLabels.company}
+                </div>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </div>`;
+
       const emailHtml = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"></head>
 <body style="font-family:'Segoe UI',Arial,sans-serif;margin:0;padding:0;background:#f5f5f4;">
   <div style="max-width:800px;margin:0 auto;padding:20px;">
-    <div style="background:#06427F;padding:24px;border-radius:12px 12px 0 0;text-align:center;">
-      ${logoAttachment ? '<img src="cid:companylogo" alt="Logo" style="max-height:60px;margin-bottom:12px;">' : '<h1 style="color:#fff;margin:0;font-size:24px;">ProConnect</h1>'}
-      <h2 style="color:#fff;margin:12px 0 0;font-size:18px;font-weight:normal;">${template.headerText || `${monthName} ${year} Holiday Calendar`}</h2>
-    </div>
+    ${emailHeaderHtml}
     <div style="background:#fff;padding:24px;border-radius:0 0 12px 12px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
       ${contentHtml}
       ${template.footerText ? `<div style="margin-top:24px;padding-top:16px;border-top:1px solid #e5e5e5;color:#666;font-size:14px;">${template.footerText}</div>` : ""}

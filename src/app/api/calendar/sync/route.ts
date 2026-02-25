@@ -1,6 +1,7 @@
 // ProConnect — Calendar Sync API Route
 // Fetches holidays from configured external APIs and upserts into local DB
 // Supports: Nager.Date, Calendarific, Abstract, and custom APIs
+//THIS IS MARTINS MESSAGE
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -22,11 +23,43 @@ interface HolidayApiConfig {
   responsePathToHolidays?: string;
 }
 
+interface SyncOptions {
+  force?: boolean;
+}
+
 const CATEGORY_COLORS: Record<string, string> = {
   federal: "#1e40af",
   fun: "#16a34a",
   company: "#06427F",
 };
+
+const ABSTRACT_SYNC_STATE_KEY = "abstract_sync_state";
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function getAbstractSyncState(): Promise<Record<string, boolean>> {
+  try {
+    const setting = await prisma.calendarSetting.findUnique({ where: { id: ABSTRACT_SYNC_STATE_KEY } });
+    if (!setting?.data) return {};
+    const parsed = JSON.parse(setting.data) as Record<string, boolean>;
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+async function markAbstractYearSeeded(sourceId: string, year: number): Promise<void> {
+  const state = await getAbstractSyncState();
+  state[`${sourceId}:${year}`] = true;
+
+  await prisma.calendarSetting.upsert({
+    where: { id: ABSTRACT_SYNC_STATE_KEY },
+    update: { data: JSON.stringify(state) },
+    create: { id: ABSTRACT_SYNC_STATE_KEY, data: JSON.stringify(state) },
+  });
+}
 
 async function getApiConfigs(): Promise<HolidayApiConfig[]> {
   try {
@@ -122,40 +155,75 @@ async function syncCalendarific(config: HolidayApiConfig, year: number): Promise
 }
 
 // ── Abstract API sync ────────────────────────────────────
-async function syncAbstract(config: HolidayApiConfig, year: number): Promise<number> {
+async function syncAbstract(
+  config: HolidayApiConfig,
+  year: number,
+  options?: SyncOptions
+): Promise<number> {
   if (!config.apiKey) throw new Error("No API key configured");
-  const resp = await fetch(
-    `${config.endpoint}?api_key=${config.apiKey}&country=${config.country}&year=${year}`,
-    { signal: AbortSignal.timeout(15000) }
-  );
-  if (!resp.ok) throw new Error(`Abstract API returned ${resp.status}`);
-  const holidays: { name: string; date?: string; date_year?: string; date_month?: string; date_day?: string }[] = await resp.json();
+
+  const force = options?.force === true;
+  const state = await getAbstractSyncState();
+  if (!force && state[`${config.id}:${year}`]) {
+    return 0;
+  }
+
+  const base = config.endpoint.replace(/\/+$/, "");
   let count = 0;
-  for (const h of holidays) {
-    let dateStr: string;
-    if (h.date_year && h.date_month && h.date_day) {
-      dateStr = `${h.date_year}-${String(h.date_month).padStart(2,"0")}-${String(h.date_day).padStart(2,"0")}`;
-    } else if (h.date) {
-      dateStr = h.date;
-    } else continue;
-    const existing = await prisma.holiday.findFirst({
-      where: { title: h.name, date: dateStr, source: config.id },
-    });
-    if (!existing) {
-      await prisma.holiday.create({
-        data: {
-          title: h.name,
-          date: dateStr,
-          category: config.category,
-          color: config.color || CATEGORY_COLORS[config.category] || "#06427F",
-          source: config.id,
-          visible: true,
-          recurring: false,
-        },
-      });
-      count++;
+  for (let month = 1; month <= 12; month++) {
+    const daysInMonth = new Date(year, month, 0).getDate();
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const resp = await fetch(
+        `${base}?api_key=${config.apiKey}&country=${config.country}&year=${year}&month=${month}&day=${day}`,
+        { signal: AbortSignal.timeout(15000) }
+      );
+
+      if (!resp.ok) {
+        const payload = await resp.json().catch(() => null);
+        const message = payload?.error?.message as string | undefined;
+        throw new Error(message ? `Abstract API returned ${resp.status}: ${message}` : `Abstract API returned ${resp.status}`);
+      }
+
+      const holidays: { name: string; date?: string; date_year?: string; date_month?: string; date_day?: string }[] =
+        await resp.json();
+
+      for (const h of holidays) {
+        let dateStr: string;
+        if (h.date_year && h.date_month && h.date_day) {
+          dateStr = `${h.date_year}-${String(h.date_month).padStart(2, "0")}-${String(h.date_day).padStart(2, "0")}`;
+        } else if (h.date) {
+          dateStr = h.date;
+        } else {
+          continue;
+        }
+
+        const existing = await prisma.holiday.findFirst({
+          where: { title: h.name, date: dateStr, source: config.id },
+        });
+
+        if (!existing) {
+          await prisma.holiday.create({
+            data: {
+              title: h.name,
+              date: dateStr,
+              category: config.category,
+              color: config.color || CATEGORY_COLORS[config.category] || "#06427F",
+              source: config.id,
+              visible: true,
+              recurring: false,
+            },
+          });
+          count++;
+        }
+      }
+
+      await sleep(1100);
     }
   }
+
+  await markAbstractYearSeeded(config.id, year);
+
   return count;
 }
 
@@ -200,11 +268,11 @@ async function syncCustom(config: HolidayApiConfig, year: number): Promise<numbe
 }
 
 // ── Sync dispatcher ──────────────────────────────────────
-async function syncFromApi(config: HolidayApiConfig, year: number): Promise<number> {
+async function syncFromApi(config: HolidayApiConfig, year: number, options?: SyncOptions): Promise<number> {
   switch (config.type) {
     case "nager": return syncNager(config, year);
     case "calendarific": return syncCalendarific(config, year);
-    case "abstract": return syncAbstract(config, year);
+    case "abstract": return syncAbstract(config, year, options);
     case "custom": return syncCustom(config, year);
     default: return 0;
   }
@@ -244,6 +312,7 @@ export async function POST(request: Request) {
     const yearsToSync = Math.min(Math.max(Number(body.years) || 2, 1), 5);
     const years = Array.from({ length: yearsToSync }, (_, i) => baseYear + i);
     const specificApiId = body.apiId; // Optional: sync only one API
+    const force = body.force === true;
 
     const configs = await getApiConfigs();
     const enabledConfigs = specificApiId
@@ -261,7 +330,7 @@ export async function POST(request: Request) {
 
       for (const year of years) {
         try {
-          const count = await syncFromApi(config, year);
+          const count = await syncFromApi(config, year, { force });
           detailsByYear[config.id][year.toString()] = count;
           apiTotal += count;
           total += count;

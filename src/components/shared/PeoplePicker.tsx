@@ -88,6 +88,9 @@ export function PeoplePicker({
 
   // Debounced search
   const handleInputChange = (val: string) => {
+    if (hasSelected) {
+      onChange("", "");
+    }
     setQuery(val);
     setHasSelected(false);
 
@@ -164,11 +167,9 @@ export function PeoplePicker({
 
   // Sync external value changes
   useEffect(() => {
-    if (selectedName && !hasSelected) {
-      setQuery(selectedName);
-      setHasSelected(true);
-    }
-  }, [selectedName, hasSelected]);
+    setQuery(selectedName || value || "");
+    setHasSelected(!!value);
+  }, [selectedName, value]);
 
   return (
     <div ref={wrapperRef} className={`relative ${className}`}>

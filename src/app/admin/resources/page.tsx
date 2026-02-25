@@ -230,7 +230,7 @@ export default function AdminResourcesPage() {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="max-w-6xl mx-auto"
+      className="max-w-6xl mx-auto px-6 py-6"
     >
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">

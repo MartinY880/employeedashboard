@@ -70,6 +70,7 @@ function getDefaults(): Record<string, unknown> {
   return {
     category_labels: { federal: "Federal", fun: "Fun", company: "Company" },
     category_colors: { federal: "#1e40af", fun: "#16a34a", company: "#06427F" },
+    calendar_export_logo: null,
     holiday_api_configs: [
       {
         id: "nager-us",
