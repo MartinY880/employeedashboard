@@ -15,6 +15,12 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   }
 
   if (!hasAnyAdminPermission(user)) {
+    console.warn("[RBAC] Admin access denied", {
+      sub: user.sub,
+      role: user.role,
+      permissions: user.permissions,
+    });
+
     // Non-admin users get a 403-style page
     return (
       <PortalShell user={user}>

@@ -20,7 +20,7 @@ const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
 export async function POST(request: Request) {
   try {
     const { isAuthenticated, user } = await getAuthUser();
-    if (!isAuthenticated || !user || !hasPermission(user, PERMISSIONS.MANAGE_QUICKLINKS)) {
+    if (!isAuthenticated || !user || !hasPermission(user, PERMISSIONS.MANAGE_RESOURCES)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

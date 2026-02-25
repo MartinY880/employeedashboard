@@ -33,7 +33,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const { isAuthenticated, user } = await getAuthUser();
-    if (!isAuthenticated || !user || !hasPermission(user, PERMISSIONS.MANAGE_QUICKLINKS)) {
+    if (!isAuthenticated || !user || !hasPermission(user, PERMISSIONS.MANAGE_RESOURCES)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -72,7 +72,7 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const { isAuthenticated, user } = await getAuthUser();
-    if (!isAuthenticated || !user || !hasPermission(user, PERMISSIONS.MANAGE_QUICKLINKS)) {
+    if (!isAuthenticated || !user || !hasPermission(user, PERMISSIONS.MANAGE_RESOURCES)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -117,7 +117,7 @@ export async function PUT(request: Request) {
 export async function DELETE(request: Request) {
   try {
     const { isAuthenticated, user } = await getAuthUser();
-    if (!isAuthenticated || !user || !hasPermission(user, PERMISSIONS.MANAGE_QUICKLINKS)) {
+    if (!isAuthenticated || !user || !hasPermission(user, PERMISSIONS.MANAGE_RESOURCES)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

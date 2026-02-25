@@ -146,7 +146,7 @@ const adminPages = [
     badge: "CRUD",
     color: "text-sky-600",
     bgColor: "bg-sky-50",
-    permission: PERMISSIONS.MANAGE_QUICKLINKS,
+    permission: PERMISSIONS.MANAGE_RESOURCES,
   },
   {
     title: "Employee Highlights",
@@ -210,19 +210,10 @@ export default function AdminPage() {
   }, []);
 
   const userPerms = new Set(permissions);
-  const canViewByManagePermission = (managePermission: Permission) => {
-    const viewPermission = managePermission.replace("manage:", "view:") as Permission;
-    return userPerms.has(managePermission) || userPerms.has(viewPermission);
-  };
-
-  const visibleAdminPages = adminPages.filter((page) =>
-    canViewByManagePermission(page.permission)
-  );
+  const visibleAdminPages = adminPages.filter((page) => userPerms.has(page.permission));
   const visibleStatCards = statCards.filter((card) => {
     const perm = ROUTE_PERMISSION[card.href];
-    if (!perm) return true;
-    const managePermission = perm.replace("view:", "manage:") as Permission;
-    return userPerms.has(perm) || userPerms.has(managePermission);
+    return !perm || userPerms.has(perm);
   });
 
   return (

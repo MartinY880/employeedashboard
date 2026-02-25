@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { getAuthUser } from "@/lib/logto";
-import { hasViewOrManagePermission, PERMISSIONS } from "@/lib/rbac";
+import { hasPermission, PERMISSIONS } from "@/lib/rbac";
 import { PortalShell } from "@/components/layout/PortalShell";
 
 export default async function HighlightsAdminLayout({ children }: { children: ReactNode }) {
@@ -11,12 +11,12 @@ export default async function HighlightsAdminLayout({ children }: { children: Re
     redirect("/sign-in");
   }
 
-  if (!hasViewOrManagePermission(user, PERMISSIONS.VIEW_HIGHLIGHTS)) {
+  if (!hasPermission(user, PERMISSIONS.MANAGE_HIGHLIGHTS)) {
     return (
       <PortalShell user={user}>
         <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
           <h2 className="text-xl font-bold text-gray-900 mb-2">Access Denied</h2>
-          <p className="text-brand-grey text-sm">You don&apos;t have permission to view highlights.</p>
+          <p className="text-brand-grey text-sm">You don&apos;t have permission to manage highlights.</p>
         </div>
       </PortalShell>
     );
