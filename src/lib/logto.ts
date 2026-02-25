@@ -3,7 +3,7 @@
 
 import type { LogtoNextConfig } from "@logto/next";
 import type { AuthUser } from "@/types";
-import { ROLE_DEFAULT_PERMISSIONS } from "@/lib/rbac";
+import { PERMISSIONS, ROLE_DEFAULT_PERMISSIONS } from "@/lib/rbac";
 
 // ─── Role normalization helpers ───────────────────────────
 
@@ -94,12 +94,38 @@ function extractPermissionsFromToken(accessToken: string): string[] {
   return scope.split(/\s+/).filter(Boolean);
 }
 
+async function getApiResourceAccessToken(
+  contextAccessToken?: string
+): Promise<string | undefined> {
+  if (!LOGTO_API_RESOURCE) return undefined;
+
+  try {
+    const { getAccessToken } = await import("@logto/next/server-actions");
+    const accessToken = await getAccessToken(logtoConfig, LOGTO_API_RESOURCE);
+    if (accessToken) return accessToken;
+  } catch {
+    // Ignore and try RSC-safe fallback.
+  }
+
+  try {
+    const { getAccessTokenRSC } = await import("@logto/next/server-actions");
+    const accessToken = await getAccessTokenRSC(logtoConfig, LOGTO_API_RESOURCE);
+    if (accessToken) return accessToken;
+  } catch {
+    // Ignore and use context token fallback.
+  }
+
+  return contextAccessToken;
+}
+
 // ─── Feature flag: is Logto configured? ───────────────────
 export const isLogtoConfigured =
   !!process.env.LOGTO_ENDPOINT && !!process.env.LOGTO_APP_ID;
 
 // ─── Optional API Resource for permission-based RBAC ──────
 const LOGTO_API_RESOURCE = process.env.LOGTO_API_RESOURCE || "";
+const LOGTO_STRICT_SCOPES = process.env.LOGTO_STRICT_SCOPES !== "false";
+const LOGTO_PERMISSION_SCOPES = Array.from(new Set(Object.values(PERMISSIONS)));
 
 // ─── Logto SDK config ─────────────────────────────────────
 export const logtoConfig: LogtoNextConfig = {
@@ -109,7 +135,7 @@ export const logtoConfig: LogtoNextConfig = {
   cookieSecret: process.env.LOGTO_COOKIE_SECRET || "dev-cookie-secret-at-least-32-characters-long!!",
   cookieSecure: (process.env.LOGTO_BASE_URL || "").startsWith("https://"),
   baseUrl: process.env.LOGTO_BASE_URL || "http://localhost:3000",
-  scopes: ["openid", "profile", "email", "roles"],
+  scopes: ["openid", "profile", "email", "roles", ...LOGTO_PERMISSION_SCOPES],
   // Register API resource so the SDK can request access tokens for it
   ...(LOGTO_API_RESOURCE ? { resources: [LOGTO_API_RESOURCE] } : {}),
 };
@@ -126,6 +152,107 @@ const DEV_USER: AuthUser = {
 
 // ─── Cookie key used by @logto/next ───────────────────────
 export const LOGTO_COOKIE_KEY = `logto_${logtoConfig.appId}`;
+
+export interface AuthScopeDebugInfo {
+  isLogtoConfigured: boolean;
+  apiResourceConfigured: boolean;
+  strictScopes: boolean;
+  hasAccessToken: boolean;
+  rawScope: string;
+  tokenPermissions: string[];
+  adminPermissionsFromToken: string[];
+  resolvedRole: AuthUser["role"];
+  effectivePermissions: string[];
+  usedRoleFallback: boolean;
+}
+
+export async function getAuthScopeDebugInfo(): Promise<AuthScopeDebugInfo> {
+  if (!isLogtoConfigured) {
+    return {
+      isLogtoConfigured: false,
+      apiResourceConfigured: Boolean(LOGTO_API_RESOURCE),
+      strictScopes: LOGTO_STRICT_SCOPES,
+      hasAccessToken: false,
+      rawScope: "",
+      tokenPermissions: [],
+      adminPermissionsFromToken: [],
+      resolvedRole: "SUPER_ADMIN",
+      effectivePermissions: [...ROLE_DEFAULT_PERMISSIONS.SUPER_ADMIN],
+      usedRoleFallback: true,
+    };
+  }
+
+  const { getLogtoContext } = await import("@logto/next/server-actions");
+  const contextOptions: Record<string, unknown> = { fetchUserInfo: true };
+
+  const context = await getLogtoContext(logtoConfig, contextOptions);
+  const claims = (context.claims as Record<string, unknown>) ?? {};
+  const userInfo = (context.userInfo as Record<string, unknown>) ?? {};
+  const info: Record<string, unknown> = {
+    ...claims,
+    ...userInfo,
+  };
+
+  const normalizedRoles = getNormalizedRoles(info);
+  const isSuperAdmin = hasSuperAdminRole(normalizedRoles);
+  const isAdmin = hasAdminRole(normalizedRoles);
+  const role: AuthUser["role"] = isSuperAdmin ? "SUPER_ADMIN" : isAdmin ? "ADMIN" : "EMPLOYEE";
+
+  let accessToken: string | undefined;
+  if (LOGTO_API_RESOURCE) {
+    const contextAccessToken = (context as Record<string, unknown>).accessToken as
+      | string
+      | undefined;
+    accessToken = await getApiResourceAccessToken(contextAccessToken);
+  } else {
+    accessToken = (context as Record<string, unknown>).accessToken as string | undefined;
+  }
+  const payload = accessToken ? decodeJwtPayload(accessToken) : {};
+  const rawScope = typeof payload.scope === "string" ? payload.scope : "";
+  const tokenPerms = accessToken ? extractPermissionsFromToken(accessToken) : [];
+  const adminPerms = tokenPerms.filter(
+    (permission) => permission.startsWith("manage:") || permission.startsWith("view:")
+  );
+
+  let effectivePermissions: string[] = [];
+  let usedRoleFallback = false;
+
+  if (LOGTO_API_RESOURCE) {
+    if (accessToken) {
+      if (adminPerms.length > 0) {
+        effectivePermissions = adminPerms;
+      } else if (role === "SUPER_ADMIN") {
+        usedRoleFallback = true;
+        effectivePermissions = [...ROLE_DEFAULT_PERMISSIONS.SUPER_ADMIN];
+      } else {
+        usedRoleFallback = !LOGTO_STRICT_SCOPES;
+        effectivePermissions = LOGTO_STRICT_SCOPES ? [] : [...ROLE_DEFAULT_PERMISSIONS[role]];
+      }
+    } else if (role === "SUPER_ADMIN") {
+      usedRoleFallback = true;
+      effectivePermissions = [...ROLE_DEFAULT_PERMISSIONS.SUPER_ADMIN];
+    } else {
+      usedRoleFallback = !LOGTO_STRICT_SCOPES;
+      effectivePermissions = LOGTO_STRICT_SCOPES ? [] : [...ROLE_DEFAULT_PERMISSIONS[role]];
+    }
+  } else {
+    usedRoleFallback = true;
+    effectivePermissions = [...ROLE_DEFAULT_PERMISSIONS[role]];
+  }
+
+  return {
+    isLogtoConfigured: true,
+    apiResourceConfigured: Boolean(LOGTO_API_RESOURCE),
+    strictScopes: LOGTO_STRICT_SCOPES,
+    hasAccessToken: Boolean(accessToken),
+    rawScope,
+    tokenPermissions: tokenPerms,
+    adminPermissionsFromToken: adminPerms,
+    resolvedRole: role,
+    effectivePermissions,
+    usedRoleFallback,
+  };
+}
 
 // ─── Get authenticated user (with dev bypass) ─────────────
 export async function getAuthUser(): Promise<{
@@ -145,11 +272,6 @@ export async function getAuthUser(): Promise<{
 
   // If an API resource is configured, also request an access token for it
   // The token's `scope` claim will contain the user's granted permissions
-  if (LOGTO_API_RESOURCE) {
-    contextOptions.getAccessToken = true;
-    contextOptions.resource = LOGTO_API_RESOURCE;
-  }
-
   const context = await getLogtoContext(logtoConfig, contextOptions);
 
   if (!context.isAuthenticated) {
@@ -157,10 +279,12 @@ export async function getAuthUser(): Promise<{
   }
 
   // Prefer userInfo (fresh from server) over cached claims
-  const info: Record<string, unknown> =
-    (context.userInfo as Record<string, unknown>) ??
-    (context.claims as Record<string, unknown>) ??
-    {};
+  const claims = (context.claims as Record<string, unknown>) ?? {};
+  const userInfo = (context.userInfo as Record<string, unknown>) ?? {};
+  const info: Record<string, unknown> = {
+    ...claims,
+    ...userInfo,
+  };
 
   // Extract role from claims/userInfo
   const normalizedRoles = getNormalizedRoles(info);
@@ -170,19 +294,36 @@ export async function getAuthUser(): Promise<{
 
   // Extract permissions: prefer access token scopes, fall back to role defaults
   let permissions: string[];
-  const accessToken = (context as Record<string, unknown>).accessToken as string | undefined;
-  if (accessToken && LOGTO_API_RESOURCE) {
-    const tokenPerms = extractPermissionsFromToken(accessToken);
-    // Only use token permissions if they contain admin scopes
-    // (view:* or manage:*). Otherwise fall back to role defaults.
-    const adminPerms = tokenPerms.filter(
-      (p) => p.startsWith("manage:") || p.startsWith("view:")
-    );
-    if (adminPerms.length > 0) {
-      permissions = adminPerms;
+  let accessToken: string | undefined;
+  if (LOGTO_API_RESOURCE) {
+    const contextAccessToken = (context as Record<string, unknown>).accessToken as
+      | string
+      | undefined;
+    accessToken = await getApiResourceAccessToken(contextAccessToken);
+  } else {
+    accessToken = (context as Record<string, unknown>).accessToken as string | undefined;
+  }
+  if (LOGTO_API_RESOURCE) {
+    if (accessToken) {
+      const tokenPerms = extractPermissionsFromToken(accessToken);
+      // Only use token permissions if they contain admin scopes
+      // (view:* or manage:*).
+      const adminPerms = tokenPerms.filter(
+        (p) => p.startsWith("manage:") || p.startsWith("view:")
+      );
+      if (adminPerms.length > 0) {
+        permissions = adminPerms;
+      } else if (role === "SUPER_ADMIN") {
+        permissions = [...ROLE_DEFAULT_PERMISSIONS.SUPER_ADMIN];
+      } else {
+        // Compatibility fallback: if scopes are not yet configured in Logto,
+        // keep role-based defaults unless strict scope mode is explicitly enabled.
+        permissions = LOGTO_STRICT_SCOPES ? [] : [...ROLE_DEFAULT_PERMISSIONS[role]];
+      }
+    } else if (role === "SUPER_ADMIN") {
+      permissions = [...ROLE_DEFAULT_PERMISSIONS.SUPER_ADMIN];
     } else {
-      // Token exists but has no manage:* scopes — fall back to role
-      permissions = [...ROLE_DEFAULT_PERMISSIONS[role]];
+      permissions = LOGTO_STRICT_SCOPES ? [] : [...ROLE_DEFAULT_PERMISSIONS[role]];
     }
   } else {
     // No API resource configured — derive permissions from role

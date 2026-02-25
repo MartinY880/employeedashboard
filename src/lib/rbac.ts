@@ -18,6 +18,8 @@ export const PERMISSIONS = {
   MANAGE_IDEAS: "manage:ideas",
   VIEW_QUICKLINKS: "view:quicklinks",
   MANAGE_QUICKLINKS: "manage:quicklinks",
+  VIEW_RESOURCES: "view:resources",
+  MANAGE_RESOURCES: "manage:resources",
   VIEW_HIGHLIGHTS: "view:highlights",
   MANAGE_HIGHLIGHTS: "manage:highlights",
   VIEW_CALENDAR: "view:calendar",
@@ -31,16 +33,16 @@ const ALL_PERMISSIONS: Permission[] = Object.values(PERMISSIONS);
 
 // ─── Route → required permission mapping ──────────────────
 export const ROUTE_PERMISSION: Record<string, Permission> = {
-  "/admin/alerts": PERMISSIONS.VIEW_ALERTS,
-  "/admin/tournament": PERMISSIONS.VIEW_TOURNAMENT,
-  "/admin/branding": PERMISSIONS.VIEW_BRANDING,
-  "/admin/kudos": PERMISSIONS.VIEW_KUDOS,
-  "/admin/pillars": PERMISSIONS.VIEW_PILLARS,
-  "/admin/ideas": PERMISSIONS.VIEW_IDEAS,
-  "/admin/quicklinks": PERMISSIONS.VIEW_QUICKLINKS,
-  "/admin/resources": PERMISSIONS.VIEW_QUICKLINKS,
-  "/admin/highlights": PERMISSIONS.VIEW_HIGHLIGHTS,
-  "/admin/calendar": PERMISSIONS.VIEW_CALENDAR,
+  "/admin/alerts": PERMISSIONS.MANAGE_ALERTS,
+  "/admin/tournament": PERMISSIONS.MANAGE_TOURNAMENT,
+  "/admin/branding": PERMISSIONS.MANAGE_BRANDING,
+  "/admin/kudos": PERMISSIONS.MANAGE_KUDOS,
+  "/admin/pillars": PERMISSIONS.MANAGE_PILLARS,
+  "/admin/ideas": PERMISSIONS.MANAGE_IDEAS,
+  "/admin/quicklinks": PERMISSIONS.MANAGE_QUICKLINKS,
+  "/admin/resources": PERMISSIONS.MANAGE_RESOURCES,
+  "/admin/highlights": PERMISSIONS.MANAGE_HIGHLIGHTS,
+  "/admin/calendar": PERMISSIONS.MANAGE_CALENDAR,
 };
 
 export const VIEW_TO_MANAGE_PERMISSION: Partial<Record<Permission, Permission>> = {
@@ -51,6 +53,7 @@ export const VIEW_TO_MANAGE_PERMISSION: Partial<Record<Permission, Permission>> 
   [PERMISSIONS.VIEW_PILLARS]: PERMISSIONS.MANAGE_PILLARS,
   [PERMISSIONS.VIEW_IDEAS]: PERMISSIONS.MANAGE_IDEAS,
   [PERMISSIONS.VIEW_QUICKLINKS]: PERMISSIONS.MANAGE_QUICKLINKS,
+  [PERMISSIONS.VIEW_RESOURCES]: PERMISSIONS.MANAGE_RESOURCES,
   [PERMISSIONS.VIEW_HIGHLIGHTS]: PERMISSIONS.MANAGE_HIGHLIGHTS,
   [PERMISSIONS.VIEW_CALENDAR]: PERMISSIONS.MANAGE_CALENDAR,
 };
@@ -63,8 +66,6 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<AppRole, Permission[]> = {
     PERMISSIONS.MANAGE_ALERTS,
     PERMISSIONS.VIEW_TOURNAMENT,
     PERMISSIONS.MANAGE_TOURNAMENT,
-    PERMISSIONS.VIEW_CALENDAR,
-    PERMISSIONS.MANAGE_CALENDAR,
   ],
   EMPLOYEE: [],
 };
@@ -78,7 +79,9 @@ export function hasPermission(user: AuthUser, permission: Permission): boolean {
 
 /** Does the user have ANY admin-level permission (i.e. can see Admin Panel)? */
 export function hasAnyAdminPermission(user: AuthUser): boolean {
-  return ALL_PERMISSIONS.some((p) => user.permissions.includes(p));
+  return ALL_PERMISSIONS
+    .filter((permission) => permission.startsWith("manage:"))
+    .some((permission) => user.permissions.includes(permission));
 }
 
 /** Does the user have view access for an admin section (view OR manage)? */
