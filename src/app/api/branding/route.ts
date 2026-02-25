@@ -15,6 +15,17 @@ interface SmtpSettings {
   fromName: string;
 }
 
+interface TopNavMenuItem {
+  id: string;
+  label: string;
+  href: string;
+  active: boolean;
+  sortOrder: number;
+  iframeUrl?: string;
+  icon?: string;
+  logoUrl?: string;
+}
+
 const DEFAULT_SMTP: SmtpSettings = {
   host: "",
   port: "587",
@@ -23,6 +34,14 @@ const DEFAULT_SMTP: SmtpSettings = {
   from: "",
   fromName: "ProConnect",
 };
+
+const DEFAULT_TOPNAV_MENU: TopNavMenuItem[] = [
+  { id: "dashboard", label: "Dashboard", href: "/dashboard", active: true, sortOrder: 0, iframeUrl: "", icon: "dashboard", logoUrl: "" },
+  { id: "directory", label: "Directory", href: "/directory", active: true, sortOrder: 1, iframeUrl: "", icon: "directory", logoUrl: "" },
+  { id: "calendar", label: "Calendar", href: "/calendar", active: true, sortOrder: 2, iframeUrl: "", icon: "calendar", logoUrl: "" },
+  { id: "tournament", label: "Tournament", href: "/tournament", active: true, sortOrder: 3, iframeUrl: "", icon: "tournament", logoUrl: "" },
+  { id: "resources", label: "Resources", href: "/resources", active: true, sortOrder: 4, iframeUrl: "", icon: "resources", logoUrl: "" },
+];
 
 // In-memory branding for demo mode
 const demoBranding = {
@@ -35,9 +54,10 @@ const demoBranding = {
 
 export async function GET() {
   try {
-    const [branding, smtpSetting] = await Promise.all([
+    const [branding, smtpSetting, topNavSetting] = await Promise.all([
       prisma.siteBranding.findUnique({ where: { id: "singleton" } }),
       prisma.calendarSetting.findUnique({ where: { id: "smtp_settings" } }),
+      prisma.calendarSetting.findUnique({ where: { id: "topnav_menu" } }),
     ]);
 
     let smtpSettings = DEFAULT_SMTP;
@@ -49,14 +69,37 @@ export async function GET() {
       }
     }
 
+    let topNavMenu = DEFAULT_TOPNAV_MENU;
+    if (topNavSetting?.data) {
+      try {
+        const parsed = JSON.parse(topNavSetting.data) as TopNavMenuItem[];
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          topNavMenu = parsed
+            .map((item, index) => ({
+              id: String(item.id || `menu-${index}`),
+              label: String(item.label || "Menu"),
+              href: String(item.href || "/dashboard"),
+              active: item.active !== false,
+              sortOrder: Number.isFinite(item.sortOrder) ? item.sortOrder : index,
+              iframeUrl: String(item.iframeUrl || ""),
+              icon: String(item.icon || ""),
+              logoUrl: String(item.logoUrl || ""),
+            }))
+            .sort((a, b) => a.sortOrder - b.sortOrder);
+        }
+      } catch {
+        topNavMenu = DEFAULT_TOPNAV_MENU;
+      }
+    }
+
     if (branding) {
-      return NextResponse.json({ ...branding, smtpSettings });
+      return NextResponse.json({ ...branding, smtpSettings, topNavMenu });
     }
     // No DB record yet — return defaults
-    return NextResponse.json({ ...demoBranding, smtpSettings });
+    return NextResponse.json({ ...demoBranding, smtpSettings, topNavMenu });
   } catch {
     // DB unavailable — return demo branding
-    return NextResponse.json({ ...demoBranding, smtpSettings: DEFAULT_SMTP });
+    return NextResponse.json({ ...demoBranding, smtpSettings: DEFAULT_SMTP, topNavMenu: DEFAULT_TOPNAV_MENU });
   }
 }
 
@@ -82,6 +125,34 @@ export async function POST(request: Request) {
       from: ((formData.get("smtpFrom") as string | null) || "").trim(),
       fromName: ((formData.get("smtpFromName") as string | null) || "ProConnect").trim(),
     };
+    const topNavRaw = (formData.get("topNavMenu") as string | null) || "";
+
+    let topNavMenu = DEFAULT_TOPNAV_MENU;
+    if (topNavRaw) {
+      try {
+        const parsed = JSON.parse(topNavRaw) as TopNavMenuItem[];
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          topNavMenu = parsed
+            .map((item, index) => {
+              const href = String(item.href || "/dashboard").trim();
+              return {
+                id: String(item.id || globalThis.crypto?.randomUUID?.() || `menu-${Date.now()}-${index}`),
+                label: String(item.label || "Menu").trim() || "Menu",
+                href: href.startsWith("/") ? href : `/${href}`,
+                active: item.active !== false,
+                sortOrder: Number.isFinite(item.sortOrder) ? item.sortOrder : index,
+                iframeUrl: String(item.iframeUrl || "").trim(),
+                icon: String(item.icon || "").trim(),
+                logoUrl: String(item.logoUrl || "").trim(),
+              };
+            })
+            .sort((a, b) => a.sortOrder - b.sortOrder)
+            .map((item, index) => ({ ...item, sortOrder: index }));
+        }
+      } catch {
+        topNavMenu = DEFAULT_TOPNAV_MENU;
+      }
+    }
 
     // Convert files to base64 data URLs
     let logoData: string | null | undefined = undefined;
@@ -127,9 +198,14 @@ export async function POST(request: Request) {
           update: { data: JSON.stringify(smtpSettings) },
           create: { id: "smtp_settings", data: JSON.stringify(smtpSettings) },
         }),
+        prisma.calendarSetting.upsert({
+          where: { id: "topnav_menu" },
+          update: { data: JSON.stringify(topNavMenu) },
+          create: { id: "topnav_menu", data: JSON.stringify(topNavMenu) },
+        }),
       ]);
 
-      return NextResponse.json({ ...branding, smtpSettings });
+      return NextResponse.json({ ...branding, smtpSettings, topNavMenu });
     } catch {
       // DB unavailable — update demo branding
       if (companyName) demoBranding.companyName = companyName;
@@ -137,7 +213,7 @@ export async function POST(request: Request) {
       if (faviconData !== undefined) demoBranding.faviconData = faviconData;
       demoBranding.updatedAt = new Date().toISOString();
 
-      return NextResponse.json({ ...demoBranding, smtpSettings });
+      return NextResponse.json({ ...demoBranding, smtpSettings, topNavMenu });
     }
   } catch (err) {
     console.error("Branding POST error:", err);

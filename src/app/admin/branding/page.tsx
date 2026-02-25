@@ -18,9 +18,22 @@ import {
   Check,
   Mail,
   TestTube,
+  Plus,
+  Link2,
+  Eye,
+  EyeOff,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useSounds } from "@/components/shared/SoundProvider";
 import { toast } from "sonner";
 
@@ -28,7 +41,31 @@ interface BrandingData {
   companyName: string;
   logoData: string | null;
   faviconData: string | null;
+  topNavMenu: TopNavMenuItem[];
 }
+
+interface TopNavMenuItem {
+  id: string;
+  label: string;
+  href: string;
+  active: boolean;
+  sortOrder: number;
+  iframeUrl?: string;
+  icon?: string;
+  logoUrl?: string;
+}
+
+const TOPNAV_ICON_OPTIONS = [
+  { value: "dashboard", label: "Dashboard" },
+  { value: "directory", label: "Directory" },
+  { value: "calendar", label: "Calendar" },
+  { value: "tournament", label: "Tournament" },
+  { value: "resources", label: "Resources" },
+  { value: "embed", label: "Embed" },
+  { value: "link", label: "Link" },
+  { value: "star", label: "Star" },
+  { value: "settings", label: "Settings" },
+];
 
 interface SmtpSettings {
   host: string;
@@ -54,7 +91,10 @@ export default function AdminBrandingPage() {
     companyName: "MortgagePros",
     logoData: null,
     faviconData: null,
+    topNavMenu: [],
   });
+  const [topNavMenu, setTopNavMenu] = useState<TopNavMenuItem[]>([]);
+  const [initialTopNavMenu, setInitialTopNavMenu] = useState<TopNavMenuItem[]>([]);
   const [smtpSettings, setSmtpSettings] = useState<SmtpSettings>(DEFAULT_SMTP);
   const [initialSmtpSettings, setInitialSmtpSettings] = useState<SmtpSettings>(DEFAULT_SMTP);
   const [isLoading, setIsLoading] = useState(true);
@@ -79,6 +119,9 @@ export default function AdminBrandingPage() {
       if (res.ok) {
         const data = await res.json();
         setBranding(data);
+        const menu = Array.isArray(data.topNavMenu) ? data.topNavMenu : [];
+        setTopNavMenu(menu);
+        setInitialTopNavMenu(menu);
         const smtp = { ...DEFAULT_SMTP, ...(data.smtpSettings || {}) };
         setSmtpSettings(smtp);
         setInitialSmtpSettings(smtp);
@@ -160,6 +203,11 @@ export default function AdminBrandingPage() {
       formData.append("smtpPass", smtpSettings.pass);
       formData.append("smtpFrom", smtpSettings.from);
       formData.append("smtpFromName", smtpSettings.fromName);
+      formData.append("topNavMenu", JSON.stringify(topNavMenu.map((item, index) => ({
+        ...item,
+        href: item.href.startsWith("/") ? item.href : `/${item.href}`,
+        sortOrder: index,
+      }))));
 
       const res = await fetch("/api/branding", {
         method: "POST",
@@ -180,6 +228,9 @@ export default function AdminBrandingPage() {
       setRemoveFavicon(false);
       setSmtpSettings({ ...DEFAULT_SMTP, ...(updated.smtpSettings || {}) });
       setInitialSmtpSettings({ ...DEFAULT_SMTP, ...(updated.smtpSettings || {}) });
+      const updatedMenu = Array.isArray(updated.topNavMenu) ? updated.topNavMenu : [];
+      setTopNavMenu(updatedMenu);
+      setInitialTopNavMenu(updatedMenu);
       if (logoInputRef.current) logoInputRef.current.value = "";
       if (faviconInputRef.current) faviconInputRef.current.value = "";
 
@@ -207,12 +258,74 @@ export default function AdminBrandingPage() {
 
   const currentLogo = logoPreview ?? (removeLogo ? null : branding.logoData);
   const currentFavicon = faviconPreview ?? (removeFavicon ? null : branding.faviconData);
+  const menuChanged = JSON.stringify(topNavMenu) !== JSON.stringify(initialTopNavMenu);
   const hasChanges =
     logoFile !== null ||
     faviconFile !== null ||
     removeLogo ||
     removeFavicon ||
-    JSON.stringify(smtpSettings) !== JSON.stringify(initialSmtpSettings);
+    JSON.stringify(smtpSettings) !== JSON.stringify(initialSmtpSettings) ||
+    menuChanged;
+
+  function normalizeHref(href: string): string {
+    const trimmed = href.trim();
+    if (!trimmed) return "/dashboard";
+    return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+  }
+
+  function handleAddMenuItem() {
+    const nextIndex = topNavMenu.length;
+    setTopNavMenu((prev) => [
+      ...prev,
+      {
+        id: `menu-${Date.now()}-${nextIndex}`,
+        label: "New Menu",
+        href: "/embedded",
+        active: true,
+        sortOrder: nextIndex,
+        iframeUrl: "",
+        icon: "embed",
+        logoUrl: "",
+      },
+    ]);
+  }
+
+  function handleMenuFieldChange(id: string, field: "label" | "href" | "iframeUrl" | "icon" | "logoUrl", value: string) {
+    setTopNavMenu((prev) =>
+      prev.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              [field]: field === "href" ? normalizeHref(value) : value,
+            }
+          : item
+      )
+    );
+  }
+
+  function handleToggleMenuItem(id: string) {
+    setTopNavMenu((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, active: !item.active } : item))
+    );
+  }
+
+  function handleRemoveMenuItem(id: string) {
+    setTopNavMenu((prev) => prev.filter((item) => item.id !== id));
+  }
+
+  function handleMoveMenuItem(id: string, direction: "up" | "down") {
+    setTopNavMenu((prev) => {
+      const currentIndex = prev.findIndex((item) => item.id === id);
+      if (currentIndex === -1) return prev;
+
+      const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+      if (targetIndex < 0 || targetIndex >= prev.length) return prev;
+
+      const next = [...prev];
+      [next[currentIndex], next[targetIndex]] = [next[targetIndex], next[currentIndex]];
+      return next;
+    });
+  }
 
   async function handleSendTestEmail() {
     if (!testEmail) return;
@@ -546,6 +659,147 @@ export default function AdminBrandingPage() {
             {isSendingTest ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <TestTube className="w-3.5 h-3.5" />}
             Send Test
           </Button>
+        </div>
+      </div>
+
+      {/* Top Navigation Menu */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+        <div className="flex items-center justify-between gap-4 mb-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <Link2 className="w-5 h-5 text-brand-blue" />
+              <h2 className="text-lg font-bold text-gray-900">Top Navigation Menu</h2>
+            </div>
+            <p className="text-sm text-brand-grey mt-1">
+              Add/remove links and hide/unhide items in the top navigation bar.
+            </p>
+          </div>
+          <Button variant="outline" size="sm" onClick={handleAddMenuItem}>
+            <Plus className="w-4 h-4 mr-1.5" />
+            Add Item
+          </Button>
+        </div>
+
+        <div className="space-y-2">
+          {topNavMenu.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-gray-200 p-4 text-sm text-brand-grey">
+              No menu items yet. Add one to show it in the top navigation.
+            </div>
+          ) : (
+            topNavMenu.map((item, index) => (
+              <div
+                key={item.id}
+                className={`rounded-lg border p-3 space-y-2 ${
+                  item.active ? "border-gray-200" : "border-gray-100 bg-gray-50"
+                }`}
+              >
+                <div className="grid grid-cols-1 md:grid-cols-[auto_1fr_1fr_auto_auto] gap-2">
+                  <div className="flex items-center gap-1">
+                    <div className="h-7 min-w-7 px-2 rounded-md bg-gray-100 text-gray-600 text-xs font-semibold flex items-center justify-center">
+                      {index + 1}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleMoveMenuItem(item.id, "up")}
+                      disabled={index === 0}
+                      className="px-2"
+                      title="Move up"
+                    >
+                      <ArrowUp className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleMoveMenuItem(item.id, "down")}
+                      disabled={index === topNavMenu.length - 1}
+                      className="px-2"
+                      title="Move down"
+                    >
+                      <ArrowDown className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                  <Input
+                    value={item.label}
+                    onChange={(e) => handleMenuFieldChange(item.id, "label", e.target.value)}
+                    placeholder="Label"
+                    className="text-sm"
+                  />
+                  <Input
+                    value={item.href}
+                    onChange={(e) => handleMenuFieldChange(item.id, "href", e.target.value)}
+                    placeholder="/path"
+                    className="text-sm"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleToggleMenuItem(item.id)}
+                    title={item.active ? "Hide" : "Unhide"}
+                    className="px-3"
+                  >
+                    {item.active ? (
+                      <>
+                        <EyeOff className="w-4 h-4 mr-1.5" />
+                        Hide
+                      </>
+                    ) : (
+                      <>
+                        <Eye className="w-4 h-4 mr-1.5" />
+                        Unhide
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleRemoveMenuItem(item.id)}
+                    className="text-red-500 hover:text-red-600 hover:bg-red-50 px-3"
+                    title="Remove"
+                  >
+                    <Trash2 className="w-4 h-4 mr-1.5" />
+                    Remove
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                  <Input
+                    value={item.iframeUrl || ""}
+                    onChange={(e) => handleMenuFieldChange(item.id, "iframeUrl", e.target.value)}
+                    placeholder="https://... (optional iframe source)"
+                    className="text-sm"
+                  />
+
+                  <Select
+                    value={item.icon || "link"}
+                    onValueChange={(value) => handleMenuFieldChange(item.id, "icon", value)}
+                  >
+                    <SelectTrigger className="text-sm">
+                      <SelectValue placeholder="Icon" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TOPNAV_ICON_OPTIONS.map((iconOption) => (
+                        <SelectItem key={iconOption.value} value={iconOption.value}>
+                          {iconOption.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Input
+                    value={item.logoUrl || ""}
+                    onChange={(e) => handleMenuFieldChange(item.id, "logoUrl", e.target.value)}
+                    placeholder="https://... (optional logo image URL)"
+                    className="text-sm"
+                  />
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
 
