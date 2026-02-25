@@ -7,9 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function ProsMortgageJoinPage() {
-  return (
-    <main className="min-h-screen bg-black p-6 space-y-4">
-      <IframeHostClient />
-    </main>
-  );
+  return <IframeHostClient />;
 }

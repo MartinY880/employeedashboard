@@ -6,7 +6,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { LayoutDashboard, Users, CalendarDays, BookOpen, LogOut, Bell, ShieldCheck, Volume2, VolumeX, Trophy, Award, Star, Lightbulb, CheckCheck, Trash2 } from "lucide-react";
+import { LayoutDashboard, Users, CalendarDays, BookOpen, LogOut, Bell, ShieldCheck, Volume2, VolumeX, Trophy, Award, Star, Lightbulb, CheckCheck, Trash2, Link2, PanelTop, Settings } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Tooltip,
@@ -34,13 +35,36 @@ import type { AuthUser } from "@/types";
 import { hasAnyAdminPermission } from "@/lib/rbac";
 import { signOutAction } from "@/app/(auth)/sign-in/actions";
 
-const navLinks = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/directory", label: "Directory", icon: Users },
-  { href: "/calendar", label: "Calendar", icon: CalendarDays },
-  { href: "/tournament", label: "Tournament", icon: Trophy },
-  { href: "/resources", label: "Resources", icon: BookOpen },
+const DEFAULT_NAV_LINKS = [
+  { id: "dashboard", href: "/dashboard", label: "Dashboard", active: true, sortOrder: 0, iframeUrl: "", icon: "dashboard", logoUrl: "" },
+  { id: "directory", href: "/directory", label: "Directory", active: true, sortOrder: 1, iframeUrl: "", icon: "directory", logoUrl: "" },
+  { id: "calendar", href: "/calendar", label: "Calendar", active: true, sortOrder: 2, iframeUrl: "", icon: "calendar", logoUrl: "" },
+  { id: "tournament", href: "/tournament", label: "Tournament", active: true, sortOrder: 3, iframeUrl: "", icon: "tournament", logoUrl: "" },
+  { id: "resources", href: "/resources", label: "Resources", active: true, sortOrder: 4, iframeUrl: "", icon: "resources", logoUrl: "" },
 ];
+
+const NAV_ICON_MAP: Record<string, LucideIcon> = {
+  dashboard: LayoutDashboard,
+  directory: Users,
+  calendar: CalendarDays,
+  tournament: Trophy,
+  resources: BookOpen,
+  embed: PanelTop,
+  settings: Settings,
+  star: Star,
+  link: Link2,
+};
+
+function getNavIcon(href: string, iframeUrl?: string, icon?: string) {
+  if (icon && NAV_ICON_MAP[icon]) return NAV_ICON_MAP[icon];
+  if (href.startsWith("/dashboard")) return LayoutDashboard;
+  if (href.startsWith("/directory")) return Users;
+  if (href.startsWith("/calendar")) return CalendarDays;
+  if (href.startsWith("/tournament")) return Trophy;
+  if (href.startsWith("/resources")) return BookOpen;
+  if (iframeUrl || href.startsWith("/embedded") || href.startsWith("/iframe")) return PanelTop;
+  return Link2;
+}
 
 interface TopNavProps {
   user: AuthUser;
@@ -86,6 +110,9 @@ export function TopNav({ user }: TopNavProps) {
   const avatarSrc = shouldUseProxyAvatar
     ? `/api/directory/photo?userId=${encodeURIComponent(user.sub)}&email=${encodeURIComponent(user.email)}&name=${encodeURIComponent(user.name)}&size=48x48`
     : user.avatar;
+  const navLinks = (branding.topNavMenu?.length ? branding.topNavMenu : DEFAULT_NAV_LINKS)
+    .filter((item) => item.active)
+    .sort((a, b) => a.sortOrder - b.sortOrder);
 
   return (
     <header
@@ -109,11 +136,12 @@ export function TopNav({ user }: TopNavProps) {
 
       {/* Nav Links */}
       <nav className="flex items-center gap-1 flex-grow">
-        {navLinks.map(({ href, label, icon: Icon }) => {
+        {navLinks.map(({ id, href, label, iframeUrl, icon, logoUrl }) => {
+          const Icon = getNavIcon(href, iframeUrl, icon);
           const isActive = pathname === href || pathname.startsWith(href + "/");
           return (
             <Link
-              key={href}
+              key={id}
               href={href}
               className={`relative flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
                 isActive
@@ -121,7 +149,11 @@ export function TopNav({ user }: TopNavProps) {
                   : "text-brand-grey hover:text-brand-blue hover:bg-gray-50"
               }`}
             >
-              <Icon className="w-4 h-4" />
+              {logoUrl ? (
+                <img src={logoUrl} alt={`${label} logo`} className="w-4 h-4 object-contain" />
+              ) : (
+                <Icon className="w-4 h-4" />
+              )}
               <span className="hidden md:inline">{label}</span>
               {isActive && (
                 <div className="absolute bottom-0 left-3 right-3 h-0.5 bg-brand-blue rounded-full" />

@@ -97,5 +97,21 @@
     "active": true,
     "kind": "link",
     "document": null
+  },
+  {
+    "id": "res-89d6a287-8888-4721-81e2-ecf74cc4f446",
+    "title": "Test",
+    "description": "Test",
+    "href": "/resources/view/res-89d6a287-8888-4721-81e2-ecf74cc4f446",
+    "category": "Test",
+    "sortOrder": 9,
+    "active": true,
+    "kind": "document",
+    "document": {
+      "storageName": "0b3fccfb-7266-49ab-93b4-7ec0fd89e810.pdf",
+      "originalName": "Pillars-v5.pdf",
+      "mimeType": "application/pdf",
+      "size": 101982
+    }
   }
 ]

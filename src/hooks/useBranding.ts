@@ -9,12 +9,29 @@ export interface Branding {
   companyName: string;
   logoData: string | null;
   faviconData: string | null;
+  topNavMenu: Array<{
+    id: string;
+    label: string;
+    href: string;
+    active: boolean;
+    sortOrder: number;
+    iframeUrl?: string;
+    icon?: string;
+    logoUrl?: string;
+  }>;
 }
 
 const DEFAULT_BRANDING: Branding = {
   companyName: "MortgagePros",
   logoData: null,
   faviconData: null,
+  topNavMenu: [
+    { id: "dashboard", label: "Dashboard", href: "/dashboard", active: true, sortOrder: 0, iframeUrl: "", icon: "dashboard", logoUrl: "" },
+    { id: "directory", label: "Directory", href: "/directory", active: true, sortOrder: 1, iframeUrl: "", icon: "directory", logoUrl: "" },
+    { id: "calendar", label: "Calendar", href: "/calendar", active: true, sortOrder: 2, iframeUrl: "", icon: "calendar", logoUrl: "" },
+    { id: "tournament", label: "Tournament", href: "/tournament", active: true, sortOrder: 3, iframeUrl: "", icon: "tournament", logoUrl: "" },
+    { id: "resources", label: "Resources", href: "/resources", active: true, sortOrder: 4, iframeUrl: "", icon: "resources", logoUrl: "" },
+  ],
 };
 
 // Module-level cache so all consumers share the same data
@@ -31,6 +48,9 @@ async function fetchBranding(): Promise<Branding> {
     companyName: data.companyName || DEFAULT_BRANDING.companyName,
     logoData: data.logoData || null,
     faviconData: data.faviconData || null,
+    topNavMenu: Array.isArray(data.topNavMenu) && data.topNavMenu.length > 0
+      ? data.topNavMenu
+      : DEFAULT_BRANDING.topNavMenu,
   };
 }
 
