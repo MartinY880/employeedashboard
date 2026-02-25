@@ -3,7 +3,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { Idea } from "@/types";
 
 type VoteDirection = "up" | "down";
@@ -13,6 +13,7 @@ export function useIdeas() {
   const [votedIdeaIds, setVotedIdeaIds] = useState<string[]>([]);
   const [userVotesByIdea, setUserVotesByIdea] = useState<Record<string, VoteDirection>>({});
   const [isLoading, setIsLoading] = useState(true);
+  const pendingVoteIdsRef = useRef<Set<string>>(new Set());
 
   const fetchIdeas = useCallback(async () => {
     try {
@@ -53,25 +54,22 @@ export function useIdeas() {
 
   const voteIdea = useCallback(
     async (id: string, direction: "up" | "down") => {
+      if (pendingVoteIdsRef.current.has(id)) return false;
+
       const currentVote = userVotesByIdea[id];
-      const nextVote = currentVote === direction ? null : direction;
+      // Allow voting if no current vote, or switching direction
+      if (currentVote === direction) return false;
 
-      const getDelta = (fromVote?: VoteDirection, toVote?: VoteDirection | null) => {
-        const from = fromVote ?? null;
-        const to = toVote ?? null;
-        if (from === to) return 0;
-        if (from === null && to === "up") return 1;
-        if (from === null && to === "down") return -1;
-        if (from === "up" && to === null) return -1;
-        if (from === "down" && to === null) return 1;
-        if (from === "up" && to === "down") return -2;
-        if (from === "down" && to === "up") return 2;
-        return 0;
-      };
+      const nextVote: VoteDirection = direction;
+      // Switching: undo old vote + apply new = +/-2. Fresh vote = +/-1.
+      let delta: number;
+      if (currentVote && currentVote !== direction) {
+        delta = direction === "up" ? 2 : -2;
+      } else {
+        delta = direction === "up" ? 1 : -1;
+      }
+      pendingVoteIdsRef.current.add(id);
 
-      const delta = getDelta(currentVote, nextVote);
-
-      // Optimistic update
       setIdeas((prev) =>
         prev.map((idea) =>
           idea.id === id
@@ -79,17 +77,8 @@ export function useIdeas() {
             : idea
         )
       );
-      setUserVotesByIdea((prev) => {
-        const next = { ...prev };
-        if (nextVote === null) {
-          delete next[id];
-        } else {
-          next[id] = nextVote;
-        }
-        return next;
-      });
+      setUserVotesByIdea((prev) => ({ ...prev, [id]: nextVote }));
       setVotedIdeaIds((prev) => {
-        if (nextVote === null) return prev.filter((ideaId) => ideaId !== id);
         return prev.includes(id) ? prev : [...prev, id];
       });
 
@@ -101,7 +90,6 @@ export function useIdeas() {
         });
 
         if (!res.ok) {
-          // Revert on failure
           setIdeas((prev) =>
             prev.map((idea) =>
               idea.id === id
@@ -111,22 +99,14 @@ export function useIdeas() {
           );
           setUserVotesByIdea((prev) => {
             const next = { ...prev };
-            if (!currentVote) {
-              delete next[id];
-            } else {
-              next[id] = currentVote;
-            }
+            delete next[id];
             return next;
           });
-          setVotedIdeaIds((prev) => {
-            if (!currentVote) return prev.filter((ideaId) => ideaId !== id);
-            return prev.includes(id) ? prev : [...prev, id];
-          });
+          setVotedIdeaIds((prev) => prev.filter((ideaId) => ideaId !== id));
           return false;
         }
         return true;
       } catch {
-        // Revert on error
         setIdeas((prev) =>
           prev.map((idea) =>
             idea.id === id
@@ -136,18 +116,13 @@ export function useIdeas() {
         );
         setUserVotesByIdea((prev) => {
           const next = { ...prev };
-          if (!currentVote) {
-            delete next[id];
-          } else {
-            next[id] = currentVote;
-          }
+          delete next[id];
           return next;
         });
-        setVotedIdeaIds((prev) => {
-          if (!currentVote) return prev.filter((ideaId) => ideaId !== id);
-          return prev.includes(id) ? prev : [...prev, id];
-        });
+        setVotedIdeaIds((prev) => prev.filter((ideaId) => ideaId !== id));
         return false;
+      } finally {
+        pendingVoteIdsRef.current.delete(id);
       }
     },
     [userVotesByIdea]

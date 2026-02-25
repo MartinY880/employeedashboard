@@ -1,22 +1,11 @@
 [
   {
-    "id": "res-1",
-    "title": "Employee Handbook",
-    "description": "Company policies, procedures, and guidelines",
-    "href": "#",
-    "category": "HR & Policies",
-    "sortOrder": 0,
-    "active": true,
-    "kind": "link",
-    "document": null
-  },
-  {
     "id": "res-2",
     "title": "Benefits Portal",
     "description": "Health insurance, 401k, and employee benefits",
     "href": "#",
     "category": "HR & Policies",
-    "sortOrder": 1,
+    "sortOrder": 0,
     "active": true,
     "kind": "link",
     "document": null
@@ -27,7 +16,7 @@
     "description": "Required annual compliance and regulatory courses",
     "href": "#",
     "category": "Training",
-    "sortOrder": 2,
+    "sortOrder": 1,
     "active": true,
     "kind": "link",
     "document": null
@@ -38,7 +27,7 @@
     "description": "Professional development and skill-building courses",
     "href": "#",
     "category": "Training",
-    "sortOrder": 3,
+    "sortOrder": 2,
     "active": true,
     "kind": "link",
     "document": null
@@ -49,7 +38,7 @@
     "description": "Submit tickets for technical support and questions",
     "href": "#",
     "category": "Support",
-    "sortOrder": 4,
+    "sortOrder": 3,
     "active": true,
     "kind": "link",
     "document": null
@@ -60,7 +49,7 @@
     "description": "Loan forms, disclosures, and processing templates",
     "href": "#",
     "category": "Documents",
-    "sortOrder": 5,
+    "sortOrder": 4,
     "active": true,
     "kind": "link",
     "document": null
@@ -71,7 +60,7 @@
     "description": "RESPA, TILA, and regulatory reference materials",
     "href": "#",
     "category": "Documents",
-    "sortOrder": 6,
+    "sortOrder": 5,
     "active": true,
     "kind": "link",
     "document": null
@@ -82,7 +71,7 @@
     "description": "Branch locations, hours, and contact information",
     "href": "#",
     "category": "Company",
-    "sortOrder": 7,
+    "sortOrder": 6,
     "active": true,
     "kind": "link",
     "document": null
@@ -93,7 +82,7 @@
     "description": "Interactive organizational chart",
     "href": "/directory",
     "category": "Company",
-    "sortOrder": 8,
+    "sortOrder": 7,
     "active": true,
     "kind": "link",
     "document": null
@@ -104,7 +93,7 @@
     "description": "Test",
     "href": "/resources/view/res-89d6a287-8888-4721-81e2-ecf74cc4f446",
     "category": "Test",
-    "sortOrder": 9,
+    "sortOrder": 8,
     "active": true,
     "kind": "document",
     "document": {
@@ -112,6 +101,278 @@
       "originalName": "Pillars-v5.pdf",
       "mimeType": "application/pdf",
       "size": 101982
+    }
+  },
+  {
+    "id": "res-d6f2e5cd-2b80-48b2-a9ff-4fd2fd6b5fbf",
+    "title": "Repayment Agreement",
+    "description": "Mortgage Loan Officer Repayment Agreement",
+    "href": "/resources/view/res-d6f2e5cd-2b80-48b2-a9ff-4fd2fd6b5fbf",
+    "category": "HR & Policies",
+    "sortOrder": 9,
+    "active": true,
+    "kind": "document",
+    "document": {
+      "storageName": "e4acebe5-c355-4f8a-810f-f7da99fecfe8.pdf",
+      "originalName": "Repayment agreement 2.24.2026.pdf",
+      "mimeType": "application/pdf",
+      "size": 167447
+    }
+  },
+  {
+    "id": "res-1ba8ff0f-e7f5-425c-83ed-1b4da1846ad6",
+    "title": "Employee Handbook",
+    "description": "Company policies, procedures, and guidelines",
+    "href": "/resources/view/res-1ba8ff0f-e7f5-425c-83ed-1b4da1846ad6",
+    "category": "HR & Policies",
+    "sortOrder": 10,
+    "active": true,
+    "kind": "document",
+    "document": {
+      "storageName": "041beb3d-bbef-411d-a4ff-2b9a7a287495.pdf",
+      "originalName": "Handbook 2.24.2026.pdf",
+      "mimeType": "application/pdf",
+      "size": 689432
+    }
+  },
+  {
+    "id": "res-acff2ca9-ff2e-4ca3-9c92-30fdb4bc0285",
+    "title": "Loan Officer Compensation Plan",
+    "description": "Loan Officer Compensation Plan",
+    "href": "/resources/view/res-acff2ca9-ff2e-4ca3-9c92-30fdb4bc0285",
+    "category": "HR & Policies",
+    "sortOrder": 11,
+    "active": true,
+    "kind": "document",
+    "document": {
+      "storageName": "f51b5d67-c03f-4d31-b56e-07516356bd4f.pdf",
+      "originalName": "Loan officer compensation policy 2.24.26.pdf",
+      "mimeType": "application/pdf",
+      "size": 180098
+    }
+  },
+  {
+    "id": "res-23a23afb-e13b-4cc6-abba-d8b9bbf113ee",
+    "title": "Arbitration and Class Action Waiver",
+    "description": "Arbitration and Class Action Waiver",
+    "href": "/resources/view/res-23a23afb-e13b-4cc6-abba-d8b9bbf113ee",
+    "category": "HR & Policies",
+    "sortOrder": 12,
+    "active": true,
+    "kind": "document",
+    "document": {
+      "storageName": "e7dd6c08-26c9-4868-8d62-2b9b0e0d5dd6.pdf",
+      "originalName": "Arbitration and class action waiver 2.24.26.pdf",
+      "mimeType": "application/pdf",
+      "size": 183086
+    }
+  },
+  {
+    "id": "res-261ed5cb-cd34-4ba4-b63f-d85f32be8167",
+    "title": "TCPA policy",
+    "description": "Telemarketing Law Compliance and Safe Harbor",
+    "href": "/resources/view/res-261ed5cb-cd34-4ba4-b63f-d85f32be8167",
+    "category": "HR & Policies",
+    "sortOrder": 13,
+    "active": true,
+    "kind": "document",
+    "document": {
+      "storageName": "e19b583d-cfaf-477f-abec-a320fdee3884.pdf",
+      "originalName": "TCPA policy 2.24.26.pdf",
+      "mimeType": "application/pdf",
+      "size": 174078
+    }
+  },
+  {
+    "id": "res-0a898b2a-e69f-4b00-9c19-34abf7f0efc8",
+    "title": "Non-Compete, Non-solicitation, IP confidentiality, and NDA",
+    "description": "Non-Compete, Non-solicitation, IP confidentiality, and NDA",
+    "href": "/resources/view/res-0a898b2a-e69f-4b00-9c19-34abf7f0efc8",
+    "category": "HR & Policies",
+    "sortOrder": 14,
+    "active": true,
+    "kind": "document",
+    "document": {
+      "storageName": "16e0d65a-98e6-4875-b096-9a5bd87df9d0.pdf",
+      "originalName": "Non-compete, non-solicitation, IP confidentiality and NDA 2.24.26.pdf",
+      "mimeType": "application/pdf",
+      "size": 261904
+    }
+  },
+  {
+    "id": "res-2b83a009-a4f0-4a8e-aefa-c5361be3fd32",
+    "title": "Guardian Program Flyer",
+    "description": "Guardian Program Flyer",
+    "href": "/resources/view/res-2b83a009-a4f0-4a8e-aefa-c5361be3fd32",
+    "category": "HR & Policies",
+    "sortOrder": 15,
+    "active": true,
+    "kind": "document",
+    "document": {
+      "storageName": "a11cfc85-7f85-413d-83c7-74686e62bf07.pdf",
+      "originalName": "Program Flyer.pdf",
+      "mimeType": "application/pdf",
+      "size": 296676
+    }
+  },
+  {
+    "id": "res-148d57b2-b780-4969-8ce7-4a3986765e40",
+    "title": "Guardian FAQ",
+    "description": "Guardian FAQ",
+    "href": "/resources/view/res-148d57b2-b780-4969-8ce7-4a3986765e40",
+    "category": "HR & Policies",
+    "sortOrder": 16,
+    "active": true,
+    "kind": "document",
+    "document": {
+      "storageName": "8ae014f9-7c6b-4414-ac78-bf62844bc45b.pdf",
+      "originalName": "Employee FAQ's.pdf",
+      "mimeType": "application/pdf",
+      "size": 275849
+    }
+  },
+  {
+    "id": "res-97403bd0-6fe5-445e-a669-ef518452979c",
+    "title": "Guardian Legal Connect",
+    "description": "Guardian Legal Connect",
+    "href": "/resources/view/res-97403bd0-6fe5-445e-a669-ef518452979c",
+    "category": "HR & Policies",
+    "sortOrder": 17,
+    "active": true,
+    "kind": "document",
+    "document": {
+      "storageName": "cda466bb-9875-45f4-b44c-34f40f8516b7.pdf",
+      "originalName": "LegalConnect Service Flyer.pdf",
+      "mimeType": "application/pdf",
+      "size": 296252
+    }
+  },
+  {
+    "id": "res-15abf9de-ac47-4032-9511-e8db37fa7b5d",
+    "title": "Guardian Financial Connect",
+    "description": "Guardian Financial Connect",
+    "href": "/resources/view/res-15abf9de-ac47-4032-9511-e8db37fa7b5d",
+    "category": "HR & Policies",
+    "sortOrder": 18,
+    "active": true,
+    "kind": "document",
+    "document": {
+      "storageName": "2044f601-989c-409f-aed6-9669fff83c7b.pdf",
+      "originalName": "FinancialConnect Service Flyer.pdf",
+      "mimeType": "application/pdf",
+      "size": 303729
+    }
+  },
+  {
+    "id": "res-03515396-2ae2-47ce-bd01-441e7bdb5e74",
+    "title": "Lifetime Flyer",
+    "description": "Lifetime Fitness Flyer",
+    "href": "/resources/view/res-03515396-2ae2-47ce-bd01-441e7bdb5e74",
+    "category": "HR & Policies",
+    "sortOrder": 19,
+    "active": true,
+    "kind": "document",
+    "document": {
+      "storageName": "ac470c59-d6b0-4bc0-89c5-ae6dba7b98ee.pdf",
+      "originalName": "MortgagePros LifeTime Flyer (002).pdf",
+      "mimeType": "application/pdf",
+      "size": 845228
+    }
+  },
+  {
+    "id": "res-b0286a24-6c1a-43ff-85e2-a0fd57adb9f4",
+    "title": "Lifetime Fitness Membership Pricing",
+    "description": "Lifetime Fitness Membership Pricing",
+    "href": "/resources/view/res-b0286a24-6c1a-43ff-85e2-a0fd57adb9f4",
+    "category": "HR & Policies",
+    "sortOrder": 20,
+    "active": true,
+    "kind": "document",
+    "document": {
+      "storageName": "81d5e07b-38be-4f18-8da5-e17165ca36d0.pdf",
+      "originalName": "Membership Pricing- Lifetime.pdf",
+      "mimeType": "application/pdf",
+      "size": 77481
+    }
+  },
+  {
+    "id": "res-d0af3f2f-c579-4571-adc4-10afe7a2942d",
+    "title": "Employee Navigator",
+    "description": "Employee Navigator User Set Up",
+    "href": "/resources/view/res-d0af3f2f-c579-4571-adc4-10afe7a2942d",
+    "category": "HR & Policies",
+    "sortOrder": 21,
+    "active": true,
+    "kind": "document",
+    "document": {
+      "storageName": "c929b825-eecd-42d1-af12-a4eeb0e20e02.pdf",
+      "originalName": "Employee navigator.pdf",
+      "mimeType": "application/pdf",
+      "size": 960355
+    }
+  },
+  {
+    "id": "res-cca2337f-b4a4-4261-914b-9afd9109f207",
+    "title": "Arbitration Details",
+    "description": "Arbitration Details",
+    "href": "/resources/view/res-cca2337f-b4a4-4261-914b-9afd9109f207",
+    "category": "HR & Policies",
+    "sortOrder": 22,
+    "active": true,
+    "kind": "document",
+    "document": {
+      "storageName": "3741dbe2-ab6c-4104-9bfd-ca1cf730ebf2.pdf",
+      "originalName": "Arbitration Details.pdf",
+      "mimeType": "application/pdf",
+      "size": 361206
+    }
+  },
+  {
+    "id": "res-8dd78174-0c08-4649-922b-d8332ba67c3e",
+    "title": "Employee Dental Benefits Guide",
+    "description": "Employee Dental Benefits Guide",
+    "href": "/resources/view/res-8dd78174-0c08-4649-922b-d8332ba67c3e",
+    "category": "HR & Policies",
+    "sortOrder": 23,
+    "active": true,
+    "kind": "document",
+    "document": {
+      "storageName": "b373d52c-7f3a-47f3-bf97-d6b618d76f55.pdf",
+      "originalName": "Mortgage Pros Delta Dental.pdf",
+      "mimeType": "application/pdf",
+      "size": 159402
+    }
+  },
+  {
+    "id": "res-3cd3513f-d8b1-4858-b114-73b7d978d644",
+    "title": "Employee Vision Benefits Guide",
+    "description": "Employee Vision Benefits Guide",
+    "href": "/resources/view/res-3cd3513f-d8b1-4858-b114-73b7d978d644",
+    "category": "HR & Policies",
+    "sortOrder": 24,
+    "active": true,
+    "kind": "document",
+    "document": {
+      "storageName": "50f266e4-168d-4c48-b1ff-65ebe5ff6f7e.pdf",
+      "originalName": "Mortgage Pros Delta Vision.pdf",
+      "mimeType": "application/pdf",
+      "size": 165293
+    }
+  },
+  {
+    "id": "res-852f283f-a1e4-4ce0-aa4f-9032830e3a78",
+    "title": "Employee Health Benefits Guide",
+    "description": "Health Benefits Plan Details",
+    "href": "/resources/view/res-852f283f-a1e4-4ce0-aa4f-9032830e3a78",
+    "category": "HR & Policies",
+    "sortOrder": 25,
+    "active": true,
+    "kind": "document",
+    "document": {
+      "storageName": "523855df-b4cf-4e4a-83f8-71826c15a260.pdf",
+      "originalName": "All HealthCare.pdf",
+      "mimeType": "application/pdf",
+      "size": 282098
     }
   }
 ]

@@ -265,11 +265,6 @@ export default function CalendarPage() {
             >
               <Icon className="w-3.5 h-3.5" />
               {cat.label}
-              {cat.key !== "all" && (
-                <span className={`ml-0.5 text-[10px] ${isActive ? "text-white/80" : "text-brand-grey/60"}`}>
-                  ({holidays.filter((h) => h.category === cat.key).length})
-                </span>
-              )}
             </button>
           );
         })}
@@ -458,11 +453,7 @@ export default function CalendarPage() {
       </AnimatePresence>
 
       {/* Summary footer */}
-      <div className="flex items-center justify-between text-xs text-brand-grey bg-white rounded-lg border border-gray-200 px-4 py-2.5">
-        <span>
-          {filteredHolidays.length} event{filteredHolidays.length !== 1 ? "s" : ""} total
-          {activeCategory !== "all" && ` in "${activeCategory}"`}
-        </span>
+      <div className="flex items-center justify-end text-xs text-brand-grey bg-white rounded-lg border border-gray-200 px-4 py-2.5">
         <span>{monthHolidays.length} in {MONTH_NAMES[viewMonth]}</span>
       </div>
 

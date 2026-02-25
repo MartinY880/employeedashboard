@@ -94,7 +94,7 @@ export async function PATCH(request: Request) {
       });
 
       let voteDelta = 0;
-      let action: "created" | "switched" | "removed" = "created";
+      let action: "created" | "switched" = "created";
 
       if (!existingVote) {
         voteDelta = vote === "up" ? 1 : -1;
@@ -120,20 +120,12 @@ export async function PATCH(request: Request) {
       const existingDirection = existingVote.direction === "UP" ? "up" : "down";
 
       if (existingDirection === vote) {
-        voteDelta = vote === "up" ? -1 : 1;
-        action = "removed";
-
-        const [, idea] = await prisma.$transaction([
-          prisma.ideaVote.delete({ where: { id: existingVote.id } }),
-          prisma.idea.update({
-            where: { id },
-            data: { votes: { increment: voteDelta } },
-          }),
-        ]);
-
-        return NextResponse.json({ idea, action, vote: null });
+        return NextResponse.json({ error: "Already voted in this direction" }, { status: 409 });
       }
 
+      // Switching vote: remove old vote effect and apply new one
+      // up→down: undo +1 then apply -1 = -2
+      // down→up: undo -1 then apply +1 = +2
       voteDelta = vote === "up" ? 2 : -2;
       action = "switched";
 

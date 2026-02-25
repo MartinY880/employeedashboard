@@ -42,6 +42,8 @@ function IdeaCard({
   isTrending?: boolean;
 }) {
   const { playClick } = useSounds();
+  const canUpvote = userVote !== "up";
+  const canDownvote = userVote !== "down";
 
   const timeAgo = getTimeAgo(idea.createdAt);
 
@@ -61,16 +63,21 @@ function IdeaCard({
       {/* Vote Buttons */}
       <div className="flex flex-col items-center gap-0 shrink-0 pt-0.5">
         <button
+          disabled={!canUpvote}
           onClick={() => {
             playClick();
             onVote(idea.id, "up");
           }}
-          className={`w-6 h-6 flex items-center justify-center rounded transition-colors ${
+          className={`w-6 h-6 flex items-center justify-center rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
             userVote === "up"
               ? "text-brand-blue bg-brand-blue/10"
               : "text-gray-400 hover:text-brand-blue hover:bg-brand-blue/10"
           }`}
-          title={userVote === "up" ? "Remove upvote" : userVote === "down" ? "Switch to upvote" : "Upvote"}
+          title={
+            userVote === "up"
+              ? "Already upvoted"
+              : "Upvote"
+          }
         >
           <ChevronUp className="w-4 h-4" />
         </button>
@@ -82,16 +89,23 @@ function IdeaCard({
           {idea.votes}
         </span>
         <button
+          disabled={!canDownvote}
           onClick={() => {
             playClick();
             onVote(idea.id, "down");
           }}
-          className={`w-6 h-6 flex items-center justify-center rounded transition-colors ${
+          className={`w-6 h-6 flex items-center justify-center rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
             userVote === "down"
               ? "text-red-500 bg-red-50"
               : "text-gray-400 hover:text-red-500 hover:bg-red-50"
           }`}
-          title={userVote === "down" ? "Remove downvote" : userVote === "up" ? "Switch to downvote" : "Downvote"}
+          title={
+            userVote === "up"
+              ? "Downvote to remove your upvote"
+              : userVote === "down"
+                ? "Already downvoted"
+                : "Downvote"
+          }
         >
           <ChevronDown className="w-4 h-4" />
         </button>
@@ -317,8 +331,7 @@ export function BeBrilliantWidget() {
     .filter((i) => i.votes >= TRENDING_THRESHOLD)
     .slice(0, 3);
   const freshIdeas = orderedActive
-    .filter((i) => i.votes < TRENDING_THRESHOLD)
-    .slice(0, 5);
+    .filter((i) => i.votes < TRENDING_THRESHOLD);
   const selectedIdeas = ideas
     .filter((i) => i.status === "SELECTED")
     .sort((a, b) => b.votes - a.votes)
