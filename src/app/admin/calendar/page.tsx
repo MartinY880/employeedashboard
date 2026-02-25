@@ -3,7 +3,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CalendarDays,
@@ -37,6 +37,7 @@ import {
   ChevronRight,
   Save,
   AlertTriangle,
+  Upload,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -66,7 +67,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useSounds } from "@/components/shared/SoundProvider";
-import { useBranding } from "@/hooks/useBranding";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -209,7 +209,6 @@ type TabKey = "holidays" | "settings" | "export" | "sync";
 
 export default function AdminCalendarPage() {
   const { playClick, playSuccess, playNotify } = useSounds();
-  const { branding } = useBranding();
 
   // ── Data ─────────────────────────────────────────────────
   const [holidays, setHolidays] = useState<Holiday[]>([]);
@@ -242,6 +241,10 @@ export default function AdminCalendarPage() {
   const [apiForm, setApiForm] = useState<ApiConfig>(DEFAULT_API);
   const [settingsSaving, setSettingsSaving] = useState<string | null>(null);
   const [settingsMsg, setSettingsMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [calendarExportLogoData, setCalendarExportLogoData] = useState<string | null>(null);
+  const [calendarExportLogoPreview, setCalendarExportLogoPreview] = useState<string | null>(null);
+  const [removeCalendarExportLogo, setRemoveCalendarExportLogo] = useState(false);
+  const calendarLogoInputRef = useRef<HTMLInputElement>(null);
 
   // ── Export tab state ─────────────────────────────────────
   const [exportMonth, setExportMonth] = useState(new Date().getMonth());
@@ -251,7 +254,6 @@ export default function AdminCalendarPage() {
   const [exportSubject, setExportSubject] = useState("Company Holiday Calendar");
   const [exportHeaderText, setExportHeaderText] = useState("");
   const [exportFooterText, setExportFooterText] = useState("");
-  const [exportIncludeLogo, setExportIncludeLogo] = useState(true);
   const [isSendingExport, setIsSendingExport] = useState(false);
   const [exportMsg, setExportMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
@@ -290,6 +292,9 @@ export default function AdminCalendarPage() {
       }
       if (data.category_colors) {
         setCategoryColors((prev) => ({ ...prev, ...data.category_colors }));
+      }
+      if (typeof data.calendar_export_logo === "string" || data.calendar_export_logo === null) {
+        setCalendarExportLogoData(data.calendar_export_logo || null);
       }
     } catch (err) {
       console.error("Failed to fetch settings:", err);
@@ -457,7 +462,7 @@ export default function AdminCalendarPage() {
   };
 
   // ── Settings: Save helpers ───────────────────────────────
-  const saveSetting = async (key: string, value: unknown) => {
+  const saveSetting = async (key: string, value: unknown): Promise<boolean> => {
     setSettingsSaving(key);
     setSettingsMsg(null);
     try {
@@ -470,10 +475,56 @@ export default function AdminCalendarPage() {
       playSuccess();
       setSettingsMsg({ type: "success", text: "Saved!" });
       setTimeout(() => setSettingsMsg(null), 2500);
+      return true;
     } catch {
       setSettingsMsg({ type: "error", text: "Failed to save" });
+      return false;
     } finally {
       setSettingsSaving(null);
+    }
+  };
+
+  const currentCalendarExportLogo =
+    calendarExportLogoPreview ?? (removeCalendarExportLogo ? null : calendarExportLogoData);
+
+  const handleCalendarExportLogoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setSettingsMsg({ type: "error", text: "Please select an image file" });
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setSettingsMsg({ type: "error", text: "Logo must be under 2MB" });
+      return;
+    }
+
+    setRemoveCalendarExportLogo(false);
+    const reader = new FileReader();
+    reader.onload = () => {
+      setCalendarExportLogoPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveCalendarExportLogo = () => {
+    setCalendarExportLogoPreview(null);
+    setRemoveCalendarExportLogo(true);
+    if (calendarLogoInputRef.current) {
+      calendarLogoInputRef.current.value = "";
+    }
+  };
+
+  const saveCalendarExportLogo = async () => {
+    const valueToSave = removeCalendarExportLogo ? null : currentCalendarExportLogo;
+    const ok = await saveSetting("calendar_export_logo", valueToSave);
+    if (!ok) return;
+
+    setCalendarExportLogoData(valueToSave);
+    setCalendarExportLogoPreview(null);
+    setRemoveCalendarExportLogo(false);
+    if (calendarLogoInputRef.current) {
+      calendarLogoInputRef.current.value = "";
     }
   };
 
@@ -539,7 +590,7 @@ export default function AdminCalendarPage() {
             headerText: exportHeaderText,
             footerText: exportFooterText,
             layout: exportLayout,
-            includeCompanyLogo: exportIncludeLogo,
+            includeCompanyLogo: true,
           },
           holidays: exportHolidays.map((h) => ({
             title: h.title,
@@ -615,13 +666,13 @@ export default function AdminCalendarPage() {
       roundRect(margin, margin, contentW * 0.38, headerH, 3, "F");
 
       /* Company logo centered in header, text stays left */
-      if (exportIncludeLogo && branding.logoData) {
+      if (currentCalendarExportLogo) {
         try {
           const img = new Image();
           await new Promise<void>((resolve, reject) => {
             img.onload = () => resolve();
             img.onerror = () => reject(new Error("Logo load failed"));
-            img.src = branding.logoData!;
+            img.src = currentCalendarExportLogo;
           });
           const natW = img.naturalWidth || img.width;
           const natH = img.naturalHeight || img.height;
@@ -632,8 +683,8 @@ export default function AdminCalendarPage() {
             const logoW = logoH * aspect;
             const logoX = margin + (contentW - logoW) / 2;
             const logoY = margin + 2;
-            const fmt = branding.logoData.includes("image/png") ? "PNG" : "JPEG";
-            pdf.addImage(branding.logoData, fmt, logoX, logoY, logoW, logoH);
+            const fmt = currentCalendarExportLogo.includes("image/png") ? "PNG" : "JPEG";
+            pdf.addImage(currentCalendarExportLogo, fmt, logoX, logoY, logoW, logoH);
           }
         } catch {
           // logo failed, skip
@@ -1038,7 +1089,7 @@ export default function AdminCalendarPage() {
       )}
 
       {/* ── Tabs ────────────────────────────────────────────── */}
-      <div className="flex items-center gap-1 border-b border-gray-200 overflow-x-auto">
+      <div className="flex flex-wrap items-center gap-1 border-b border-gray-200">
         {([
           { key: "holidays" as TabKey, label: "Holidays", icon: CalendarDays },
           { key: "settings" as TabKey, label: "Settings", icon: Settings },
@@ -1097,7 +1148,7 @@ export default function AdminCalendarPage() {
 
           {/* Table */}
           <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-            <Table>
+            <Table className="table-fixed [&_th]:whitespace-normal [&_td]:whitespace-normal">
               <TableHeader>
                 <TableRow className="bg-gray-50/80">
                   <TableHead className="w-10"></TableHead>
@@ -1138,7 +1189,7 @@ export default function AdminCalendarPage() {
                         <TableCell>
                           <div className="w-3 h-3 rounded-full" style={{ backgroundColor: h.color }} />
                         </TableCell>
-                        <TableCell className="font-medium text-gray-900">{h.title}</TableCell>
+                        <TableCell className="font-medium text-gray-900 break-words">{h.title}</TableCell>
                         <TableCell className="text-sm text-brand-grey">{formatDate(h.date)}</TableCell>
                         <TableCell>
                           <Badge
@@ -1149,7 +1200,7 @@ export default function AdminCalendarPage() {
                             {categoryLabels[h.category as keyof CategoryLabels] || h.category}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-xs text-brand-grey">{h.source}</TableCell>
+                        <TableCell className="text-xs text-brand-grey break-words">{h.source}</TableCell>
                         <TableCell className="text-center">
                           <button onClick={() => toggleVisibility(h)} className="p-1 hover:bg-gray-100 rounded transition-colors">
                             {h.visible ? <Eye className="w-4 h-4 text-green-600" /> : <EyeOff className="w-4 h-4 text-gray-400" />}
@@ -1158,7 +1209,7 @@ export default function AdminCalendarPage() {
                         <TableCell className="text-center">
                           {h.recurring ? <RefreshCw className="w-3.5 h-3.5 text-brand-blue mx-auto" /> : <span className="text-xs text-brand-grey">—</span>}
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right whitespace-nowrap">
                           <div className="flex items-center justify-end gap-1">
                             <Button variant="ghost" size="sm" onClick={() => openEdit(h)} className="h-7 w-7 p-0">
                               <Pencil className="w-3.5 h-3.5" />
@@ -1363,8 +1414,60 @@ export default function AdminCalendarPage() {
             </div>
           </div>
 
+          <div className="bg-white rounded-xl border border-gray-100 p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <Upload className="w-4 h-4 text-brand-blue" />
+              <h3 className="font-semibold text-gray-900">Calendar Export Logo</h3>
+            </div>
+            <p className="text-xs text-brand-grey mb-4">
+              Upload a custom logo for calendar PDF export and calendar email header. This logo is used instead of Site Branding.
+            </p>
+
+            <div className="space-y-3">
+              <Input
+                ref={calendarLogoInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleCalendarExportLogoSelect}
+                className="text-sm"
+              />
+
+              {currentCalendarExportLogo ? (
+                <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                  <img
+                    src={currentCalendarExportLogo}
+                    alt="Calendar export logo preview"
+                    className="max-h-20 w-auto object-contain"
+                  />
+                </div>
+              ) : (
+                <div className="text-xs text-brand-grey">No custom export logo uploaded.</div>
+              )}
+
+              <div className="flex items-center justify-end gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRemoveCalendarExportLogo}
+                  disabled={!currentCalendarExportLogo || settingsSaving === "calendar_export_logo"}
+                >
+                  Remove
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={saveCalendarExportLogo}
+                  disabled={settingsSaving === "calendar_export_logo"}
+                  className="gap-1.5 bg-brand-blue hover:bg-brand-blue/90"
+                >
+                  {settingsSaving === "calendar_export_logo" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                  Save Export Logo
+                </Button>
+              </div>
+            </div>
+          </div>
+
           <div className="bg-blue-50 border border-blue-100 text-blue-700 rounded-xl p-4 text-sm">
-            SMTP settings moved to Site Branding. Configure email under Admin &rarr; Site Branding.
+            SMTP settings are managed in Site Branding. Calendar export logo is managed here.
           </div>
         </motion.div>
       )}
@@ -1510,15 +1613,6 @@ export default function AdminCalendarPage() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <label className="flex items-center gap-2 cursor-pointer mt-4">
-                    <input
-                      type="checkbox"
-                      checked={exportIncludeLogo}
-                      onChange={(e) => setExportIncludeLogo(e.target.checked)}
-                      className="w-4 h-4 rounded border-gray-300 text-brand-blue focus:ring-brand-blue"
-                    />
-                    <span className="text-sm text-gray-700">Include company logo</span>
-                  </label>
                 </div>
               </div>
             </div>

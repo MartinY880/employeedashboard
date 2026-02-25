@@ -24,6 +24,7 @@ model User {
 
   kudosSent      KudosMessage[]  @relation("KudosAuthor")
   kudosReceived  KudosMessage[]  @relation("KudosRecipient")
+  kudosReactions KudosReaction[]
   alertsCreated  Alert[]
   notifications  Notification[]
 
@@ -35,8 +36,10 @@ model KudosMessage {
   content     String
   authorId    String
   recipientId String
+  badge       String   @default("mvp")
   author      User     @relation("KudosAuthor", fields: [authorId], references: [id])
   recipient   User     @relation("KudosRecipient", fields: [recipientId], references: [id])
+  reactions   KudosReaction[]
   likes       Int      @default(0)
   createdAt   DateTime @default(now())
 
@@ -44,6 +47,21 @@ model KudosMessage {
   @@index([recipientId])
   @@index([createdAt])
   @@map("kudos_messages")
+}
+
+model KudosReaction {
+  id        String            @id @default(cuid())
+  kudosId   String
+  userId    String
+  reaction  KudosReactionType
+  kudos     KudosMessage      @relation(fields: [kudosId], references: [id], onDelete: Cascade)
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime          @default(now())
+
+  @@unique([kudosId, userId, reaction])
+  @@index([kudosId, reaction])
+  @@index([userId])
+  @@map("kudos_reactions")
 }
 
 model Alert {
@@ -235,6 +253,12 @@ enum NotificationType {
   KUDOS
   HIGHLIGHT
   IDEA_SELECTED
+}
+
+enum KudosReactionType {
+  HIGHFIVE
+  UPLIFT
+  BOMB
 }
 
 // ─── Calendar / Holidays ──────────────────────────────────

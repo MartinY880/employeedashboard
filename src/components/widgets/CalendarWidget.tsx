@@ -6,6 +6,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Calendar, ExternalLink, RefreshCw } from "lucide-react";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -180,9 +181,12 @@ export function CalendarWidget() {
       </AnimatePresence>
 
       <div className="px-4 pt-2 pb-3 flex items-center justify-between">
-        <button className="inline-flex items-center gap-1.5 text-xs text-brand-blue hover:underline font-medium">
+        <Link
+          href="/calendar"
+          className="inline-flex items-center gap-1.5 text-xs text-brand-blue hover:underline font-medium"
+        >
           View full calendar <ExternalLink className="w-3 h-3" />
-        </button>
+        </Link>
         <div className="flex items-center gap-2">
           {isEmpty && (
             <span className="text-[10px] text-brand-grey/60 italic">no data</span>

@@ -2,10 +2,20 @@
 // GET: Fetch latest kudos | POST: Create new kudos message
 
 import { NextResponse } from "next/server";
+import type { KudosReactionType } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/logto";
 import { hasPermission, PERMISSIONS, toDbRole } from "@/lib/rbac";
 import { createNotification } from "@/lib/notifications";
+
+const ALLOWED_BADGES = new Set([
+  "mvp",
+  "rockstar",
+  "brainiac",
+  "heart",
+  "fire",
+  "teamplayer",
+]);
 
 export async function GET(request: Request) {
   try {
@@ -42,10 +52,145 @@ export async function GET(request: Request) {
       take: 30,
     });
 
-    return NextResponse.json({ kudos });
+    const kudosIds = kudos.map((k) => k.id);
+    const groupedReactions = kudosIds.length
+      ? await prisma.kudosReaction.groupBy({
+          by: ["kudosId", "reaction"],
+          where: { kudosId: { in: kudosIds } },
+          _count: { _all: true },
+        })
+      : [];
+
+    const authResult = await getAuthUser();
+    let currentUserId: string | null = null;
+    if (authResult.isAuthenticated && authResult.user) {
+      const dbUser = await prisma.user.findUnique({ where: { logtoId: authResult.user.sub } });
+      currentUserId = dbUser?.id || null;
+    }
+
+    const myReactionsRaw = currentUserId && kudosIds.length
+      ? await prisma.kudosReaction.findMany({
+          where: { userId: currentUserId, kudosId: { in: kudosIds } },
+          select: { kudosId: true, reaction: true },
+        })
+      : [];
+
+    const reactionCountsMap = new Map<string, { highfive: number; uplift: number; bomb: number }>();
+    for (const reaction of groupedReactions) {
+      const existing = reactionCountsMap.get(reaction.kudosId) || { highfive: 0, uplift: 0, bomb: 0 };
+      if (reaction.reaction === "HIGHFIVE") existing.highfive = reaction._count._all;
+      if (reaction.reaction === "UPLIFT") existing.uplift = reaction._count._all;
+      if (reaction.reaction === "BOMB") existing.bomb = reaction._count._all;
+      reactionCountsMap.set(reaction.kudosId, existing);
+    }
+
+    const myReactionsMap = new Map<string, Array<"highfive" | "uplift" | "bomb">>();
+    for (const reaction of myReactionsRaw) {
+      const existing = myReactionsMap.get(reaction.kudosId) || [];
+      if (reaction.reaction === "HIGHFIVE") existing.push("highfive");
+      if (reaction.reaction === "UPLIFT") existing.push("uplift");
+      if (reaction.reaction === "BOMB") existing.push("bomb");
+      myReactionsMap.set(reaction.kudosId, existing);
+    }
+
+    const hydratedKudos = kudos.map((k) => ({
+      ...k,
+      reactions: reactionCountsMap.get(k.id) || { highfive: 0, uplift: 0, bomb: 0 },
+      myReactions: myReactionsMap.get(k.id) || [],
+    }));
+
+    return NextResponse.json({ kudos: hydratedKudos });
   } catch (error) {
     console.error("[Kudos API] GET error:", error);
     return NextResponse.json({ error: "Failed to fetch kudos" }, { status: 500 });
+  }
+}
+
+const REACTION_KEY_TO_ENUM: Record<string, KudosReactionType> = {
+  highfive: "HIGHFIVE",
+  uplift: "UPLIFT",
+  bomb: "BOMB",
+};
+
+const ENUM_TO_REACTION_KEY: Record<KudosReactionType, "highfive" | "uplift" | "bomb"> = {
+  HIGHFIVE: "highfive",
+  UPLIFT: "uplift",
+  BOMB: "bomb",
+};
+
+export async function PATCH(request: Request) {
+  try {
+    const authResult = await getAuthUser();
+    if (!authResult.isAuthenticated || !authResult.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body: { kudosId?: string; reaction?: "highfive" | "uplift" | "bomb" } = await request.json();
+    const { kudosId, reaction } = body;
+
+    if (!kudosId || !reaction || !REACTION_KEY_TO_ENUM[reaction]) {
+      return NextResponse.json({ error: "kudosId and valid reaction are required" }, { status: 400 });
+    }
+
+    const dbUser = await prisma.user.upsert({
+      where: { logtoId: authResult.user.sub },
+      create: {
+        logtoId: authResult.user.sub,
+        email: authResult.user.email,
+        displayName: authResult.user.name,
+        role: toDbRole(authResult.user.role),
+      },
+      update: { displayName: authResult.user.name },
+    });
+
+    const reactionEnum = REACTION_KEY_TO_ENUM[reaction];
+
+    const existing = await prisma.kudosReaction.findUnique({
+      where: {
+        kudosId_userId_reaction: {
+          kudosId,
+          userId: dbUser.id,
+          reaction: reactionEnum,
+        },
+      },
+    });
+
+    if (existing) {
+      await prisma.kudosReaction.delete({ where: { id: existing.id } });
+    } else {
+      await prisma.kudosReaction.create({
+        data: {
+          kudosId,
+          userId: dbUser.id,
+          reaction: reactionEnum,
+        },
+      });
+    }
+
+    const groupedReactions = await prisma.kudosReaction.groupBy({
+      by: ["reaction"],
+      where: { kudosId },
+      _count: { _all: true },
+    });
+
+    const myReactionsRaw = await prisma.kudosReaction.findMany({
+      where: { kudosId, userId: dbUser.id },
+      select: { reaction: true },
+    });
+
+    const reactions = { highfive: 0, uplift: 0, bomb: 0 };
+    for (const item of groupedReactions) {
+      if (item.reaction === "HIGHFIVE") reactions.highfive = item._count._all;
+      if (item.reaction === "UPLIFT") reactions.uplift = item._count._all;
+      if (item.reaction === "BOMB") reactions.bomb = item._count._all;
+    }
+
+    const myReactions = myReactionsRaw.map((item) => ENUM_TO_REACTION_KEY[item.reaction]);
+
+    return NextResponse.json({ kudosId, reactions, myReactions });
+  } catch (error) {
+    console.error("[Kudos API] PATCH reaction error:", error);
+    return NextResponse.json({ error: "Failed to toggle reaction" }, { status: 500 });
   }
 }
 
@@ -58,6 +203,9 @@ export async function POST(request: Request) {
 
     const body: { content?: string; recipientId?: string; recipientName?: string; badge?: string } = await request.json();
     const { content, recipientId } = body;
+    const badge = typeof body.badge === "string" && ALLOWED_BADGES.has(body.badge)
+      ? body.badge
+      : "mvp";
 
     if (!content || !recipientId) {
       return NextResponse.json(
@@ -111,6 +259,7 @@ export async function POST(request: Request) {
     const kudos = await prisma.kudosMessage.create({
       data: {
         content,
+        badge,
         authorId: dbUser.id,
         recipientId: resolvedRecipientId,
       },

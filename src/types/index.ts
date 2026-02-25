@@ -35,6 +35,12 @@ export interface KudosMessage {
   recipient: Pick<User, "id" | "displayName" | "avatarUrl"> & { photoUrl?: string };
   likes: number;
   badge?: string;
+  reactions?: {
+    highfive: number;
+    uplift: number;
+    bomb: number;
+  };
+  myReactions?: Array<"highfive" | "uplift" | "bomb">;
   createdAt: string;
 }
 

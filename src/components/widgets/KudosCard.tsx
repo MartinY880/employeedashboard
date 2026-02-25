@@ -16,6 +16,7 @@ export const PRAISE_BADGES = [
     key: "mvp",
     label: "MVP",
     emoji: "🏆",
+    emojiScale: "scale-110",
     gradient: "from-amber-400 to-yellow-500",
     bg: "bg-amber-50",
     border: "border-amber-200",
@@ -26,6 +27,7 @@ export const PRAISE_BADGES = [
     key: "rockstar",
     label: "Rockstar",
     emoji: "🎸",
+    emojiScale: "scale-110",
     gradient: "from-purple-500 to-pink-500",
     bg: "bg-purple-50",
     border: "border-purple-200",
@@ -36,6 +38,7 @@ export const PRAISE_BADGES = [
     key: "brainiac",
     label: "Brainiac",
     emoji: "🧠",
+    emojiScale: "scale-110",
     gradient: "from-blue-500 to-cyan-400",
     bg: "bg-blue-50",
     border: "border-blue-200",
@@ -46,6 +49,7 @@ export const PRAISE_BADGES = [
     key: "heart",
     label: "Big Heart",
     emoji: "💖",
+    emojiScale: "scale-100",
     gradient: "from-pink-400 to-rose-500",
     bg: "bg-pink-50",
     border: "border-pink-200",
@@ -56,6 +60,7 @@ export const PRAISE_BADGES = [
     key: "fire",
     label: "On Fire",
     emoji: "🔥",
+    emojiScale: "scale-100",
     gradient: "from-orange-500 to-red-500",
     bg: "bg-orange-50",
     border: "border-orange-200",
@@ -66,6 +71,7 @@ export const PRAISE_BADGES = [
     key: "teamplayer",
     label: "Team Player",
     emoji: "🤝",
+    emojiScale: "scale-100",
     gradient: "from-emerald-400 to-teal-500",
     bg: "bg-emerald-50",
     border: "border-emerald-200",
@@ -100,6 +106,9 @@ interface KudosCardProps {
   recipientName: string;
   message: string;
   likes: number;
+  reactions?: Record<ReactionKey, number>;
+  myReactions?: ReactionKey[];
+  onReact?: (reaction: ReactionKey) => Promise<void>;
   createdAt: string;
   badge?: string;
 }
@@ -113,35 +122,37 @@ export function KudosCard({
   recipientName,
   message,
   likes,
+  reactions: reactionCounts,
+  myReactions: currentUserReactions,
+  onReact,
   createdAt,
   badge: badgeKey,
 }: KudosCardProps) {
   const { playPop } = useSounds();
   const badge = getBadge(badgeKey);
 
-  const [reactions, setReactions] = useState<Record<ReactionKey, number>>({
+  const reactions: Record<ReactionKey, number> = reactionCounts || {
     highfive: likes,
-    uplift: Math.floor(likes * 0.6),
-    bomb: Math.floor(likes * 0.3),
-  });
-  const [myReactions, setMyReactions] = useState<Set<ReactionKey>>(new Set());
+    uplift: 0,
+    bomb: 0,
+  };
+  const myReactions = new Set<ReactionKey>(currentUserReactions || []);
   const [poppedReaction, setPoppedReaction] = useState<ReactionKey | null>(null);
+  const [isToggling, setIsToggling] = useState<ReactionKey | null>(null);
   const timeAgo = getRelativeTime(createdAt);
   const totalReactions = Object.values(reactions).reduce((a, b) => a + b, 0);
 
-  const handleReaction = (key: ReactionKey) => {
+  const handleReaction = async (key: ReactionKey) => {
+    if (!onReact || isToggling === key) return;
+
+    setIsToggling(key);
+    try {
+      await onReact(key);
+    } finally {
+      setIsToggling(null);
+    }
+
     playPop();
-    const isActive = myReactions.has(key);
-    setMyReactions((prev) => {
-      const next = new Set(prev);
-      if (isActive) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-    setReactions((prev) => ({
-      ...prev,
-      [key]: isActive ? prev[key] - 1 : prev[key] + 1,
-    }));
     setPoppedReaction(key);
     setTimeout(() => setPoppedReaction(null), 400);
   };
@@ -154,7 +165,9 @@ export function KudosCard({
     >
       {/* Badge Header Ribbon */}
       <div className={`bg-gradient-to-r ${badge.gradient} px-3.5 py-2 flex items-center gap-2`}>
-        <span className="text-lg leading-none drop-shadow-sm">{badge.emoji}</span>
+        <span className="h-5 w-5 inline-flex items-center justify-center">
+          <span className={`text-lg leading-none drop-shadow-sm ${badge.emojiScale}`}>{badge.emoji}</span>
+        </span>
         <div className="flex-1 min-w-0">
           <div className="text-white font-bold text-[11px] uppercase tracking-wider leading-none">
             {badge.label}
@@ -203,9 +216,10 @@ export function KudosCard({
             return (
               <motion.button
                 key={r.key}
-                onClick={() => handleReaction(r.key)}
+                onClick={() => void handleReaction(r.key)}
                 animate={isPopping ? { scale: [1, 1.35, 1] } : {}}
                 transition={{ duration: 0.3 }}
+                disabled={isToggling === r.key}
                 className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
                   isActive
                     ? `${r.activeBg} ring-1 ${r.ring} shadow-sm`

@@ -4,7 +4,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { KudosCard, PRAISE_BADGES, type PraiseBadgeKey } from "./KudosCard";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,7 +24,7 @@ function getInitials(name: string): string {
 }
 
 export function KudosFeed() {
-  const { kudos, isLoading, sendKudos } = useKudos();
+  const { kudos, isLoading, sendKudos, toggleReaction } = useKudos();
   const { playNotify, playSuccess, playClick, playPop } = useSounds();
   const [message, setMessage] = useState("");
   const [recipientEmail, setRecipientEmail] = useState("");
@@ -137,14 +137,16 @@ export function KudosFeed() {
                         playPop();
                       }}
                       whileTap={{ scale: 0.95 }}
-                      className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-left transition-all ${
+                     className={`h-11 w-full flex items-center justify-center gap-1.5 px-2 rounded-lg text-xs font-semibold text-center transition-all ${
                         isSelected
                           ? `bg-gradient-to-r ${b.gradient} text-white shadow-sm ring-2 ring-offset-1 ring-brand-blue/30`
                           : `${b.bg} ${b.border} border hover:shadow-sm`
                       }`}
                     >
-                      <span className="text-sm leading-none">{b.emoji}</span>
-                      <span className={`text-[10px] font-bold leading-tight ${isSelected ? "text-white" : "text-gray-700"}`}>
+                      <span className="h-4 w-4 inline-flex items-center justify-center">
+                        <span className={`text-sm leading-none ${b.emojiScale}`}>{b.emoji}</span>
+                      </span>
+                      <span className={`text-[10px] font-bold leading-tight whitespace-nowrap ${isSelected ? "text-white" : "text-gray-700"}`}>
                         {b.label}
                       </span>
                     </motion.button>
@@ -236,12 +238,18 @@ export function KudosFeed() {
             transition={{ duration: 0.3, delay: i * 0.06 }}
           >
             <KudosCard
+              id={k.id}
               authorName={k.author?.displayName || "Unknown"}
               authorInitials={getInitials(k.author?.displayName || "?")}
               authorPhotoUrl={k.author?.photoUrl || `/api/directory/photo?userId=${encodeURIComponent(k.author?.id || "")}&name=${encodeURIComponent(k.author?.displayName || "?")}&size=48x48`}
               recipientName={k.recipient?.displayName || "Unknown"}
               message={k.content}
               likes={k.likes}
+              reactions={k.reactions}
+              myReactions={k.myReactions}
+              onReact={async (reaction) => {
+                await toggleReaction(k.id, reaction);
+              }}
               createdAt={k.createdAt}
               badge={k.badge}
             />
