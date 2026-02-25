@@ -45,6 +45,11 @@ export function useKudos() {
         setKudos((prev) => [data.kudos, ...prev]);
       }
 
+      // Signal notification system to refetch (recipient gets a notification)
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("notifications-updated"));
+      }
+
       return data.kudos;
     },
     []

@@ -20,6 +20,8 @@ export const PERMISSIONS = {
   MANAGE_QUICKLINKS: "manage:quicklinks",
   VIEW_HIGHLIGHTS: "view:highlights",
   MANAGE_HIGHLIGHTS: "manage:highlights",
+  VIEW_CALENDAR: "view:calendar",
+  MANAGE_CALENDAR: "manage:calendar",
 } as const;
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -36,7 +38,9 @@ export const ROUTE_PERMISSION: Record<string, Permission> = {
   "/admin/pillars": PERMISSIONS.VIEW_PILLARS,
   "/admin/ideas": PERMISSIONS.VIEW_IDEAS,
   "/admin/quicklinks": PERMISSIONS.VIEW_QUICKLINKS,
+  "/admin/resources": PERMISSIONS.VIEW_QUICKLINKS,
   "/admin/highlights": PERMISSIONS.VIEW_HIGHLIGHTS,
+  "/admin/calendar": PERMISSIONS.VIEW_CALENDAR,
 };
 
 export const VIEW_TO_MANAGE_PERMISSION: Partial<Record<Permission, Permission>> = {
@@ -48,6 +52,7 @@ export const VIEW_TO_MANAGE_PERMISSION: Partial<Record<Permission, Permission>> 
   [PERMISSIONS.VIEW_IDEAS]: PERMISSIONS.MANAGE_IDEAS,
   [PERMISSIONS.VIEW_QUICKLINKS]: PERMISSIONS.MANAGE_QUICKLINKS,
   [PERMISSIONS.VIEW_HIGHLIGHTS]: PERMISSIONS.MANAGE_HIGHLIGHTS,
+  [PERMISSIONS.VIEW_CALENDAR]: PERMISSIONS.MANAGE_CALENDAR,
 };
 
 // ─── Fallback: derive permissions from role when Logto API Resource isn't configured ───
@@ -58,6 +63,8 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<AppRole, Permission[]> = {
     PERMISSIONS.MANAGE_ALERTS,
     PERMISSIONS.VIEW_TOURNAMENT,
     PERMISSIONS.MANAGE_TOURNAMENT,
+    PERMISSIONS.VIEW_CALENDAR,
+    PERMISSIONS.MANAGE_CALENDAR,
   ],
   EMPLOYEE: [],
 };

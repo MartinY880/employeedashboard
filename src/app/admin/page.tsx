@@ -21,6 +21,7 @@ import {
   Star,
   Paintbrush,
   Trophy,
+  FolderOpen,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -83,7 +84,7 @@ const statCards = [
   { key: "activeAlerts", label: "Active Alerts", icon: AlertTriangle, color: "bg-amber-500", href: "/admin/alerts" },
   { key: "totalProps", label: "Total Props", icon: MessageCircle, color: "bg-brand-blue", href: "/admin/kudos" },
   { key: "teamMembers", label: "Team Members", icon: Users, color: "bg-green-500", href: "/directory" },
-  { key: "upcomingHolidays", label: "Holidays", icon: CalendarDays, color: "bg-purple-500", href: "/calendar" },
+  { key: "upcomingHolidays", label: "Holidays", icon: CalendarDays, color: "bg-purple-500", href: "/admin/calendar" },
 ] as const;
 
 const adminPages = [
@@ -138,6 +139,16 @@ const adminPages = [
     permission: PERMISSIONS.MANAGE_QUICKLINKS,
   },
   {
+    title: "Resources Page",
+    description: "Control resources shown to employees — add, edit, hide, or remove cards by category.",
+    icon: FolderOpen,
+    href: "/admin/resources",
+    badge: "CRUD",
+    color: "text-sky-600",
+    bgColor: "bg-sky-50",
+    permission: PERMISSIONS.MANAGE_QUICKLINKS,
+  },
+  {
     title: "Employee Highlights",
     description: "Spotlight employees on the dashboard — highlight achievements, milestones, and recognition.",
     icon: Star,
@@ -166,6 +177,16 @@ const adminPages = [
     color: "text-orange-500",
     bgColor: "bg-orange-50",
     permission: PERMISSIONS.MANAGE_TOURNAMENT,
+  },
+  {
+    title: "Calendar Management",
+    description: "Create, edit, and delete holidays. Sync federal holidays from external APIs. Toggle visibility and manage categories.",
+    icon: CalendarDays,
+    href: "/admin/calendar",
+    badge: "CRUD",
+    color: "text-purple-500",
+    bgColor: "bg-purple-50",
+    permission: PERMISSIONS.MANAGE_CALENDAR,
   },
 ];
 

@@ -1,58 +1,144 @@
 // ProConnect — Calendar API Route
-// Proxies to MortgagePros Calendar app (Express backend on port 4000)
-// Falls back to demo data when calendar service is unavailable
+// Native holiday CRUD from PostgreSQL via Prisma
+// Supports: GET (list/filter), POST (create), PUT (update), DELETE (remove)
 
 import { NextResponse } from "next/server";
-
-const CALENDAR_API_URL = process.env.CALENDAR_API_URL || "http://localhost:4000";
-
-// Demo holidays in case the calendar service isn't running
-const DEMO_HOLIDAYS = [
-  { id: 1, title: "Presidents' Day", date: "2026-02-16", category: "federal", visible: true, recurring: true },
-  { id: 2, title: "Employee Appreciation Day", date: "2026-03-06", category: "company", visible: true, recurring: true },
-  { id: 3, title: "St. Patrick's Day", date: "2026-03-17", category: "fun", visible: true, recurring: true },
-  { id: 4, title: "Good Friday", date: "2026-04-03", category: "federal", visible: true, recurring: true },
-  { id: 5, title: "Memorial Day", date: "2026-05-25", category: "federal", visible: true, recurring: true },
-  { id: 6, title: "Company Summer BBQ", date: "2026-06-19", category: "company", visible: true, recurring: false },
-  { id: 7, title: "Independence Day", date: "2026-07-04", category: "federal", visible: true, recurring: true },
-  { id: 8, title: "Labor Day", date: "2026-09-07", category: "federal", visible: true, recurring: true },
-  { id: 9, title: "Thanksgiving", date: "2026-11-26", category: "federal", visible: true, recurring: true },
-  { id: 10, title: "Company Holiday Party", date: "2026-12-18", category: "company", visible: true, recurring: true },
-  { id: 11, title: "Christmas Day", date: "2026-12-25", category: "federal", visible: true, recurring: true },
-  { id: 12, title: "New Year's Day", date: "2026-01-01", category: "federal", visible: true, recurring: true },
-];
+import { prisma } from "@/lib/prisma";
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const year = searchParams.get("year") || new Date().getFullYear().toString();
+    const year = searchParams.get("year");
     const category = searchParams.get("category");
+    const includeHidden = searchParams.get("includeHidden") === "true";
+    const statsOnly = searchParams.get("stats") === "true";
+    const countOnly = searchParams.get("count") === "true";
 
-    const params = new URLSearchParams({ year });
-    if (category) params.set("category", category);
+    // Stats summary for admin dashboard
+    if (statsOnly) {
+      const currentYear = (year || new Date().getFullYear()).toString();
+      const [total, federal, fun, company, hidden] = await Promise.all([
+        prisma.holiday.count({ where: { date: { startsWith: currentYear } } }),
+        prisma.holiday.count({ where: { date: { startsWith: currentYear }, category: "federal" } }),
+        prisma.holiday.count({ where: { date: { startsWith: currentYear }, category: "fun" } }),
+        prisma.holiday.count({ where: { date: { startsWith: currentYear }, category: "company" } }),
+        prisma.holiday.count({ where: { date: { startsWith: currentYear }, visible: false } }),
+      ]);
+      return NextResponse.json({ total, federal, fun, company, hidden, year: currentYear });
+    }
 
-    const response = await fetch(`${CALENDAR_API_URL}/api/holidays?${params}`, {
-      next: { revalidate: 300 }, // Cache for 5 minutes
-      signal: AbortSignal.timeout(5000), // 5s timeout
+    // Count of upcoming visible holidays (for stat cards)
+    if (countOnly) {
+      const today = new Date().toISOString().split("T")[0];
+      const count = await prisma.holiday.count({
+        where: { visible: true, date: { gte: today } },
+      });
+      return NextResponse.json({ count });
+    }
+
+    // Build filter
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const where: any = {};
+    if (year) where.date = { startsWith: year };
+    if (category) where.category = category;
+    if (!includeHidden) where.visible = true;
+
+    const holidays = await prisma.holiday.findMany({
+      where,
+      orderBy: { date: "asc" },
     });
 
-    if (!response.ok) {
-      throw new Error(`Calendar API responded with ${response.status}`);
-    }
-
-    const holidays = await response.json();
     return NextResponse.json(holidays);
   } catch (error) {
-    console.error("[Calendar Proxy] Error:", error);
+    console.error("[Calendar API] GET error:", error);
+    return NextResponse.json({ error: "Failed to fetch holidays" }, { status: 500 });
+  }
+}
 
-    // Fall back to demo data
-    let filtered = DEMO_HOLIDAYS.filter((h) => h.visible);
-    const { searchParams } = new URL(request.url);
-    const category = searchParams.get("category");
-    if (category) {
-      filtered = filtered.filter((h) => h.category === category);
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const { title, date, category, color, source, visible, recurring } = body;
+
+    if (!title || !date || !category) {
+      return NextResponse.json(
+        { error: "Title, date, and category are required" },
+        { status: 400 }
+      );
     }
 
-    return NextResponse.json(filtered);
+    const holiday = await prisma.holiday.create({
+      data: {
+        title,
+        date,
+        category,
+        color: color || "#06427F",
+        source: source || "custom",
+        visible: visible !== undefined ? visible : true,
+        recurring: recurring || false,
+      },
+    });
+
+    return NextResponse.json(holiday, { status: 201 });
+  } catch (error) {
+    console.error("[Calendar API] POST error:", error);
+    return NextResponse.json({ error: "Failed to create holiday" }, { status: 500 });
+  }
+}
+
+export async function PUT(request: Request) {
+  try {
+    const body = await request.json();
+    const { id, title, date, category, color, visible, recurring } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: "ID is required" }, { status: 400 });
+    }
+
+    const holiday = await prisma.holiday.update({
+      where: { id },
+      data: {
+        ...(title !== undefined && { title }),
+        ...(date !== undefined && { date }),
+        ...(category !== undefined && { category }),
+        ...(color !== undefined && { color }),
+        ...(visible !== undefined && { visible }),
+        ...(recurring !== undefined && { recurring }),
+      },
+    });
+
+    return NextResponse.json(holiday);
+  } catch (error) {
+    console.error("[Calendar API] PUT error:", error);
+    return NextResponse.json({ error: "Failed to update holiday" }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+    const bulkSource = searchParams.get("bulkSource");
+    const bulkAll = searchParams.get("bulkAll") === "true";
+
+    if (bulkAll) {
+      const result = await prisma.holiday.deleteMany({});
+      return NextResponse.json({ message: `Deleted ${result.count} holidays` });
+    }
+
+    if (bulkSource) {
+      const result = await prisma.holiday.deleteMany({ where: { source: bulkSource } });
+      return NextResponse.json({ message: `Deleted ${result.count} ${bulkSource} holidays` });
+    }
+
+    if (!id) {
+      return NextResponse.json({ error: "ID is required" }, { status: 400 });
+    }
+
+    await prisma.holiday.delete({ where: { id } });
+    return NextResponse.json({ message: "Holiday deleted" });
+  } catch (error) {
+    console.error("[Calendar API] DELETE error:", error);
+    return NextResponse.json({ error: "Failed to delete holiday" }, { status: 500 });
   }
 }

@@ -3,18 +3,51 @@
 
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Calendar, ExternalLink, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useCalendar } from "@/hooks/useCalendar";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useCalendar, type CalendarHoliday } from "@/hooks/useCalendar";
 
-const categoryStyles: Record<string, string> = {
-  federal: "bg-blue-100 text-blue-700",
-  company: "bg-brand-blue/10 text-brand-blue",
-  fun: "bg-green-100 text-green-700",
-  observance: "bg-purple-100 text-purple-700",
+const DEFAULT_CATEGORY_COLORS: Record<string, string> = {
+  federal: "#1e40af",
+  company: "#06427F",
+  fun: "#16a34a",
+  observance: "#9333ea",
 };
+
+const DEFAULT_CATEGORY_LABELS: Record<string, string> = {
+  federal: "Federal",
+  company: "Company",
+  fun: "Fun",
+  observance: "Observance",
+};
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const cleaned = hex.replace("#", "").trim();
+  if (!/^[0-9a-fA-F]{6}$/.test(cleaned)) return null;
+  return {
+    r: parseInt(cleaned.slice(0, 2), 16),
+    g: parseInt(cleaned.slice(2, 4), 16),
+    b: parseInt(cleaned.slice(4, 6), 16),
+  };
+}
+
+function getBadgeStyle(color: string) {
+  const rgb = hexToRgb(color);
+  if (!rgb) return { backgroundColor: "#f3f4f6", color: "#374151" };
+  return {
+    backgroundColor: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.14)`,
+    color,
+  };
+}
 
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr + "T00:00:00");
@@ -33,7 +66,32 @@ function daysUntil(dateStr: string): number {
 }
 
 export function CalendarWidget() {
-  const { holidays, isLoading, isDemo, refetch } = useCalendar(6);
+  const { holidays, isLoading, isEmpty, refetch } = useCalendar(6);
+  const [selectedHoliday, setSelectedHoliday] = useState<CalendarHoliday | null>(null);
+  const [categoryColors, setCategoryColors] = useState<Record<string, string>>(DEFAULT_CATEGORY_COLORS);
+  const [categoryLabels, setCategoryLabels] = useState<Record<string, string>>(DEFAULT_CATEGORY_LABELS);
+
+  useEffect(() => {
+    let isMounted = true;
+    fetch("/api/calendar/settings")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!isMounted || !data) return;
+        if (data.category_colors) {
+          setCategoryColors((prev) => ({ ...prev, ...data.category_colors }));
+        }
+        if (data.category_labels) {
+          setCategoryLabels((prev) => ({ ...prev, ...data.category_labels }));
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const getCategoryColor = (category: string) => categoryColors[category] || DEFAULT_CATEGORY_COLORS[category] || "#6b7280";
+  const getCategoryLabel = (category: string) => categoryLabels[category] || DEFAULT_CATEGORY_LABELS[category] || category;
 
   if (isLoading) {
     return (
@@ -74,18 +132,20 @@ export function CalendarWidget() {
             const isSoon = days > 0 && days <= 7;
 
             return (
-              <motion.div
+              <motion.button
                 key={holiday.id}
+                type="button"
+                onClick={() => setSelectedHoliday(holiday)}
                 initial={{ opacity: 0, x: -12 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.3, delay: i * 0.06 }}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-50 transition-colors group ${
+                className={`w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-50 transition-colors group ${
                   isToday ? "bg-brand-blue/5" : ""
                 }`}
               >
                 <div
                   className="w-1.5 h-8 rounded-full shrink-0"
-                  style={{ backgroundColor: holiday.color }}
+                  style={{ backgroundColor: getCategoryColor(holiday.category) }}
                 />
                 <Calendar className="w-4 h-4 text-brand-grey shrink-0" />
                 <div className="flex-1 min-w-0">
@@ -108,13 +168,12 @@ export function CalendarWidget() {
                 </div>
                 <Badge
                   variant="secondary"
-                  className={`text-[10px] px-2 py-0.5 font-medium ${
-                    categoryStyles[holiday.category] || "bg-gray-100 text-gray-600"
-                  }`}
+                  className="text-[10px] px-2 py-0.5 font-medium"
+                  style={getBadgeStyle(getCategoryColor(holiday.category))}
                 >
-                  {holiday.category}
+                  {getCategoryLabel(holiday.category)}
                 </Badge>
-              </motion.div>
+              </motion.button>
             );
           })
         )}
@@ -125,8 +184,8 @@ export function CalendarWidget() {
           View full calendar <ExternalLink className="w-3 h-3" />
         </button>
         <div className="flex items-center gap-2">
-          {isDemo && (
-            <span className="text-[10px] text-brand-grey/60 italic">demo</span>
+          {isEmpty && (
+            <span className="text-[10px] text-brand-grey/60 italic">no data</span>
           )}
           <button
             onClick={() => refetch()}
@@ -137,6 +196,38 @@ export function CalendarWidget() {
           </button>
         </div>
       </div>
+
+      <Dialog open={!!selectedHoliday} onOpenChange={(open) => !open && setSelectedHoliday(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-semibold text-gray-900">Holiday Details</DialogTitle>
+          </DialogHeader>
+          {selectedHoliday && (
+            <div className="space-y-3 text-sm">
+              <div>
+                <div className="text-xs text-brand-grey">Title</div>
+                <div className="font-semibold text-gray-900 break-words">{selectedHoliday.title}</div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <div className="text-xs text-brand-grey">Date</div>
+                  <div className="text-gray-800">{formatDate(selectedHoliday.date)}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-brand-grey">Category</div>
+                  <Badge
+                    variant="secondary"
+                    className="mt-1 text-[10px] px-2 py-0.5 font-medium"
+                    style={getBadgeStyle(getCategoryColor(selectedHoliday.category))}
+                  >
+                    {getCategoryLabel(selectedHoliday.category)}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

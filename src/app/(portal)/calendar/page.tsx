@@ -3,7 +3,7 @@
 
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronLeft,
@@ -20,6 +20,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useCalendar, type CalendarHoliday } from "@/hooks/useCalendar";
 import { useSounds } from "@/components/shared/SoundProvider";
 
@@ -32,11 +38,11 @@ const CATEGORIES = [
   { key: "observance", label: "Observance", icon: Star, color: "#9333ea" },
 ] as const;
 
-const CATEGORY_STYLES: Record<string, { bg: string; text: string; dot: string }> = {
-  federal: { bg: "bg-blue-50", text: "text-blue-700", dot: "bg-blue-500" },
-  company: { bg: "bg-brand-blue/5", text: "text-brand-blue", dot: "bg-brand-blue" },
-  fun: { bg: "bg-green-50", text: "text-green-700", dot: "bg-green-500" },
-  observance: { bg: "bg-purple-50", text: "text-purple-700", dot: "bg-purple-500" },
+const DEFAULT_CATEGORY_COLORS: Record<string, string> = {
+  federal: "#1e40af",
+  company: "#06427F",
+  fun: "#16a34a",
+  observance: "#9333ea",
 };
 
 const MONTH_NAMES = [
@@ -68,17 +74,54 @@ function daysUntil(dateStr: string): number {
   return Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 }
 
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const cleaned = hex.replace("#", "").trim();
+  if (!/^[0-9a-fA-F]{6}$/.test(cleaned)) return null;
+  return {
+    r: parseInt(cleaned.slice(0, 2), 16),
+    g: parseInt(cleaned.slice(2, 4), 16),
+    b: parseInt(cleaned.slice(4, 6), 16),
+  };
+}
+
+function getBadgeStyle(color: string) {
+  const rgb = hexToRgb(color);
+  if (!rgb) return { backgroundColor: "#f3f4f6", color: "#374151" };
+  return {
+    backgroundColor: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.14)`,
+    color,
+  };
+}
+
 // ── Page Component ───────────────────────────────────────
 
 export default function CalendarPage() {
-  const { holidays, isLoading, isDemo, refetch } = useCalendar(100);
   const { playClick } = useSounds();
 
   const today = new Date();
   const [viewMonth, setViewMonth] = useState(today.getMonth());
   const [viewYear, setViewYear] = useState(today.getFullYear());
+  const { holidays, isLoading, isEmpty, refetch } = useCalendar({ year: viewYear });
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [selectedHoliday, setSelectedHoliday] = useState<CalendarHoliday | null>(null);
+  const [categoryColors, setCategoryColors] = useState<Record<string, string>>(DEFAULT_CATEGORY_COLORS);
+
+  useEffect(() => {
+    let isMounted = true;
+    fetch("/api/calendar/settings?key=category_colors")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!isMounted || !data) return;
+        setCategoryColors((prev) => ({ ...prev, ...data }));
+      })
+      .catch(() => undefined);
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const getCategoryColor = (category: string) => categoryColors[category] || DEFAULT_CATEGORY_COLORS[category] || "#6b7280";
 
   const todayStr = today.toISOString().split("T")[0];
 
@@ -173,8 +216,8 @@ export default function CalendarPage() {
           <h1 className="text-2xl font-bold text-gray-900">Company Calendar</h1>
           <p className="text-sm text-brand-grey mt-0.5">
             Federal holidays, company events & fun days
-            {isDemo && (
-              <span className="ml-2 text-[10px] text-brand-grey/60 italic">(demo data)</span>
+            {isEmpty && (
+              <span className="ml-2 text-[10px] text-brand-grey/60 italic">(no holidays — add them in Admin)</span>
             )}
           </p>
         </div>
@@ -278,7 +321,7 @@ export default function CalendarPage() {
             <div className="grid grid-cols-7 gap-1">
               {gridCells.map((day, idx) => {
                 if (day === null) {
-                  return <div key={`empty-${idx}`} className="h-24 rounded-lg bg-gray-50/50" />;
+                  return <div key={`empty-${idx}`} className="h-28 rounded-lg bg-gray-50/50" />;
                 }
                 const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
                 const dayHolidays = holidaysByDate[dateStr] || [];
@@ -292,7 +335,7 @@ export default function CalendarPage() {
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 0.15, delay: idx * 0.008 }}
-                    className={`h-24 rounded-lg border p-1.5 transition-all ${
+                    className={`min-h-28 rounded-lg border p-1.5 transition-all ${
                       isToday
                         ? "border-brand-blue bg-brand-blue/5 ring-1 ring-brand-blue/20"
                         : isPast
@@ -308,24 +351,25 @@ export default function CalendarPage() {
                       {day}
                       {isToday && <span className="ml-1 text-[9px] text-brand-blue font-bold">TODAY</span>}
                     </div>
-                    <div className="space-y-0.5 overflow-hidden">
-                      {dayHolidays.slice(0, 2).map((h) => {
-                        const style = CATEGORY_STYLES[h.category] || CATEGORY_STYLES.federal;
+                    <div className="space-y-0.5">
+                      {dayHolidays.map((h) => {
+                        const categoryColor = getCategoryColor(h.category);
                         return (
-                          <div
+                          <button
                             key={h.id}
-                            className={`text-[10px] font-medium truncate rounded px-1 py-0.5 ${style.bg} ${style.text}`}
-                            title={h.title}
+                            type="button"
+                            onClick={() => {
+                              setSelectedHoliday(h);
+                              playClick();
+                            }}
+                            className="w-full text-left text-[10px] font-medium rounded px-1 py-0.5 whitespace-normal break-words leading-tight hover:opacity-90"
+                            style={getBadgeStyle(categoryColor)}
+                            title={`${h.title} (click for details)`}
                           >
                             {h.title}
-                          </div>
+                          </button>
                         );
                       })}
-                      {dayHolidays.length > 2 && (
-                        <div className="text-[9px] text-brand-grey pl-1">
-                          +{dayHolidays.length - 2} more
-                        </div>
-                      )}
                     </div>
                   </motion.div>
                 );
@@ -349,7 +393,7 @@ export default function CalendarPage() {
               </div>
             ) : (
               monthHolidays.map((h, i) => {
-                const style = CATEGORY_STYLES[h.category] || CATEGORY_STYLES.federal;
+                const categoryColor = getCategoryColor(h.category);
                 const days = daysUntil(h.date);
                 const isToday = days === 0;
                 const isPast = days < 0;
@@ -360,9 +404,13 @@ export default function CalendarPage() {
                     initial={{ opacity: 0, x: -12 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.25, delay: i * 0.04 }}
-                    className={`flex items-center gap-4 bg-white rounded-xl border border-gray-200 shadow-sm px-5 py-4 hover:shadow-md transition-shadow ${
+                    className={`flex items-center gap-4 bg-white rounded-xl border border-gray-200 shadow-sm px-5 py-4 hover:shadow-md transition-shadow cursor-pointer ${
                       isToday ? "ring-1 ring-brand-blue/20" : ""
                     } ${isPast ? "opacity-50" : ""}`}
+                    onClick={() => {
+                      setSelectedHoliday(h);
+                      playClick();
+                    }}
                   >
                     {/* Date block */}
                     <div className="text-center min-w-[50px]">
@@ -375,7 +423,7 @@ export default function CalendarPage() {
                     </div>
 
                     {/* Color bar */}
-                    <div className={`w-1 h-12 rounded-full ${style.dot}`} />
+                    <div className="w-1 h-12 rounded-full" style={{ backgroundColor: categoryColor }} />
 
                     {/* Details */}
                     <div className="flex-1 min-w-0">
@@ -395,7 +443,8 @@ export default function CalendarPage() {
                       )}
                       <Badge
                         variant="secondary"
-                        className={`text-[10px] px-2 py-0.5 font-medium ${style.bg} ${style.text}`}
+                        className="text-[10px] px-2 py-0.5 font-medium"
+                        style={getBadgeStyle(categoryColor)}
                       >
                         {h.category}
                       </Badge>
@@ -416,6 +465,38 @@ export default function CalendarPage() {
         </span>
         <span>{monthHolidays.length} in {MONTH_NAMES[viewMonth]}</span>
       </div>
+
+      <Dialog open={!!selectedHoliday} onOpenChange={(open) => !open && setSelectedHoliday(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-semibold text-gray-900">Holiday Details</DialogTitle>
+          </DialogHeader>
+          {selectedHoliday && (
+            <div className="space-y-3 text-sm">
+              <div>
+                <div className="text-xs text-brand-grey">Title</div>
+                <div className="font-semibold text-gray-900 break-words">{selectedHoliday.title}</div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <div className="text-xs text-brand-grey">Date</div>
+                  <div className="text-gray-800">{formatDate(selectedHoliday.date)}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-brand-grey">Category</div>
+                  <Badge
+                    variant="secondary"
+                    className="mt-1 text-[10px] px-2 py-0.5 font-medium"
+                    style={getBadgeStyle(getCategoryColor(selectedHoliday.category))}
+                  >
+                    {selectedHoliday.category}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 }
