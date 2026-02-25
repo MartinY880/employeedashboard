@@ -33,10 +33,12 @@ const TRENDING_THRESHOLD = 15;
 function IdeaCard({
   idea,
   onVote,
+  userVote,
   isTrending,
 }: {
   idea: Idea;
   onVote: (id: string, dir: "up" | "down") => void;
+  userVote?: "up" | "down";
   isTrending?: boolean;
 }) {
   const { playClick } = useSounds();
@@ -63,8 +65,12 @@ function IdeaCard({
             playClick();
             onVote(idea.id, "up");
           }}
-          className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-brand-blue hover:bg-brand-blue/10 rounded transition-colors"
-          title="Upvote"
+          className={`w-6 h-6 flex items-center justify-center rounded transition-colors ${
+            userVote === "up"
+              ? "text-brand-blue bg-brand-blue/10"
+              : "text-gray-400 hover:text-brand-blue hover:bg-brand-blue/10"
+          }`}
+          title={userVote === "up" ? "Remove upvote" : userVote === "down" ? "Switch to upvote" : "Upvote"}
         >
           <ChevronUp className="w-4 h-4" />
         </button>
@@ -80,8 +86,12 @@ function IdeaCard({
             playClick();
             onVote(idea.id, "down");
           }}
-          className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
-          title="Downvote"
+          className={`w-6 h-6 flex items-center justify-center rounded transition-colors ${
+            userVote === "down"
+              ? "text-red-500 bg-red-50"
+              : "text-gray-400 hover:text-red-500 hover:bg-red-50"
+          }`}
+          title={userVote === "down" ? "Remove downvote" : userVote === "up" ? "Switch to downvote" : "Downvote"}
         >
           <ChevronDown className="w-4 h-4" />
         </button>
@@ -244,7 +254,7 @@ function SubmitIdeaForm({
 /* ─── Main Be Brilliant Widget ─────────────────────────── */
 
 export function BeBrilliantWidget() {
-  const { ideas, isLoading, submitIdea, voteIdea } = useIdeas();
+  const { ideas, isLoading, submitIdea, voteIdea, userVotesByIdea } = useIdeas();
   const { playSuccess, playClick } = useSounds();
   const [showForm, setShowForm] = useState(false);
   const [justSubmitted, setJustSubmitted] = useState(false);
@@ -269,9 +279,11 @@ export function BeBrilliantWidget() {
   }, []);
 
   const handleVote = useCallback(
-    (id: string, dir: "up" | "down") => {
-      voteIdea(id, dir);
-      triggerDebouncedSort();
+    async (id: string, dir: "up" | "down") => {
+      const didVote = await voteIdea(id, dir);
+      if (didVote) {
+        triggerDebouncedSort();
+      }
     },
     [voteIdea, triggerDebouncedSort]
   );
@@ -400,6 +412,7 @@ export function BeBrilliantWidget() {
                   key={idea.id}
                   idea={idea}
                   onVote={handleVote}
+                  userVote={userVotesByIdea[idea.id]}
                   isTrending
                 />
               ))}
@@ -418,7 +431,12 @@ export function BeBrilliantWidget() {
           <div className="space-y-2">
             <AnimatePresence mode="popLayout">
               {freshIdeas.map((idea) => (
-                <IdeaCard key={idea.id} idea={idea} onVote={handleVote} />
+                <IdeaCard
+                  key={idea.id}
+                  idea={idea}
+                  onVote={handleVote}
+                  userVote={userVotesByIdea[idea.id]}
+                />
               ))}
             </AnimatePresence>
           </div>

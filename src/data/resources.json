@@ -1,0 +1,101 @@
+[
+  {
+    "id": "res-1",
+    "title": "Employee Handbook",
+    "description": "Company policies, procedures, and guidelines",
+    "href": "#",
+    "category": "HR & Policies",
+    "sortOrder": 0,
+    "active": true,
+    "kind": "link",
+    "document": null
+  },
+  {
+    "id": "res-2",
+    "title": "Benefits Portal",
+    "description": "Health insurance, 401k, and employee benefits",
+    "href": "#",
+    "category": "HR & Policies",
+    "sortOrder": 1,
+    "active": true,
+    "kind": "link",
+    "document": null
+  },
+  {
+    "id": "res-3",
+    "title": "Compliance Training",
+    "description": "Required annual compliance and regulatory courses",
+    "href": "#",
+    "category": "Training",
+    "sortOrder": 2,
+    "active": true,
+    "kind": "link",
+    "document": null
+  },
+  {
+    "id": "res-4",
+    "title": "Learning Portal",
+    "description": "Professional development and skill-building courses",
+    "href": "#",
+    "category": "Training",
+    "sortOrder": 3,
+    "active": true,
+    "kind": "link",
+    "document": null
+  },
+  {
+    "id": "res-5",
+    "title": "IT Help Desk",
+    "description": "Submit tickets for technical support and questions",
+    "href": "#",
+    "category": "Support",
+    "sortOrder": 4,
+    "active": true,
+    "kind": "link",
+    "document": null
+  },
+  {
+    "id": "res-6",
+    "title": "Document Templates",
+    "description": "Loan forms, disclosures, and processing templates",
+    "href": "#",
+    "category": "Documents",
+    "sortOrder": 5,
+    "active": true,
+    "kind": "link",
+    "document": null
+  },
+  {
+    "id": "res-7",
+    "title": "Compliance Resources",
+    "description": "RESPA, TILA, and regulatory reference materials",
+    "href": "#",
+    "category": "Documents",
+    "sortOrder": 6,
+    "active": true,
+    "kind": "link",
+    "document": null
+  },
+  {
+    "id": "res-8",
+    "title": "Office Directory",
+    "description": "Branch locations, hours, and contact information",
+    "href": "#",
+    "category": "Company",
+    "sortOrder": 7,
+    "active": true,
+    "kind": "link",
+    "document": null
+  },
+  {
+    "id": "res-9",
+    "title": "Team Org Chart",
+    "description": "Interactive organizational chart",
+    "href": "/directory",
+    "category": "Company",
+    "sortOrder": 8,
+    "active": true,
+    "kind": "link",
+    "document": null
+  }
+]

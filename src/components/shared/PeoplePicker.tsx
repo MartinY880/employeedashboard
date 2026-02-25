@@ -24,6 +24,8 @@ interface PeoplePickerProps {
   placeholder?: string;
   className?: string;
   selectedName?: string;
+  /** Email address to exclude from results (e.g. current user) */
+  excludeEmail?: string;
 }
 
 export function PeoplePicker({
@@ -33,6 +35,7 @@ export function PeoplePicker({
   placeholder = "Search name or email @mtgpros.com...",
   className = "",
   selectedName,
+  excludeEmail,
 }: PeoplePickerProps) {
   const [query, setQuery] = useState(selectedName || value || "");
   const [results, setResults] = useState<PersonResult[]>([]);
@@ -68,7 +71,11 @@ export function PeoplePicker({
           jobTitle: u.jobTitle,
           department: u.department,
         })
-      );
+      ).filter((u: PersonResult) => {
+        if (!excludeEmail) return true;
+        const email = (u.mail || u.userPrincipalName || "").toLowerCase();
+        return email !== excludeEmail.toLowerCase();
+      });
       setResults(users);
       setIsOpen(users.length > 0);
       setSelectedIndex(-1);

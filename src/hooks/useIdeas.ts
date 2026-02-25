@@ -6,8 +6,12 @@
 import { useState, useEffect, useCallback } from "react";
 import type { Idea } from "@/types";
 
+type VoteDirection = "up" | "down";
+
 export function useIdeas() {
   const [ideas, setIdeas] = useState<Idea[]>([]);
+  const [votedIdeaIds, setVotedIdeaIds] = useState<string[]>([]);
+  const [userVotesByIdea, setUserVotesByIdea] = useState<Record<string, VoteDirection>>({});
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchIdeas = useCallback(async () => {
@@ -15,6 +19,8 @@ export function useIdeas() {
       const res = await fetch("/api/ideas");
       const data = await res.json();
       setIdeas(data.ideas || []);
+      setVotedIdeaIds(data.votedIdeaIds || []);
+      setUserVotesByIdea(data.userVotesByIdea || {});
     } catch (error) {
       console.error("Failed to fetch ideas:", error);
     } finally {
@@ -47,14 +53,45 @@ export function useIdeas() {
 
   const voteIdea = useCallback(
     async (id: string, direction: "up" | "down") => {
+      const currentVote = userVotesByIdea[id];
+      const nextVote = currentVote === direction ? null : direction;
+
+      const getDelta = (fromVote?: VoteDirection, toVote?: VoteDirection | null) => {
+        const from = fromVote ?? null;
+        const to = toVote ?? null;
+        if (from === to) return 0;
+        if (from === null && to === "up") return 1;
+        if (from === null && to === "down") return -1;
+        if (from === "up" && to === null) return -1;
+        if (from === "down" && to === null) return 1;
+        if (from === "up" && to === "down") return -2;
+        if (from === "down" && to === "up") return 2;
+        return 0;
+      };
+
+      const delta = getDelta(currentVote, nextVote);
+
       // Optimistic update
       setIdeas((prev) =>
         prev.map((idea) =>
           idea.id === id
-            ? { ...idea, votes: idea.votes + (direction === "up" ? 1 : -1) }
+            ? { ...idea, votes: idea.votes + delta }
             : idea
         )
       );
+      setUserVotesByIdea((prev) => {
+        const next = { ...prev };
+        if (nextVote === null) {
+          delete next[id];
+        } else {
+          next[id] = nextVote;
+        }
+        return next;
+      });
+      setVotedIdeaIds((prev) => {
+        if (nextVote === null) return prev.filter((ideaId) => ideaId !== id);
+        return prev.includes(id) ? prev : [...prev, id];
+      });
 
       try {
         const res = await fetch("/api/ideas", {
@@ -68,23 +105,52 @@ export function useIdeas() {
           setIdeas((prev) =>
             prev.map((idea) =>
               idea.id === id
-                ? { ...idea, votes: idea.votes + (direction === "up" ? -1 : 1) }
+                ? { ...idea, votes: idea.votes - delta }
                 : idea
             )
           );
+          setUserVotesByIdea((prev) => {
+            const next = { ...prev };
+            if (!currentVote) {
+              delete next[id];
+            } else {
+              next[id] = currentVote;
+            }
+            return next;
+          });
+          setVotedIdeaIds((prev) => {
+            if (!currentVote) return prev.filter((ideaId) => ideaId !== id);
+            return prev.includes(id) ? prev : [...prev, id];
+          });
+          return false;
         }
+        return true;
       } catch {
         // Revert on error
         setIdeas((prev) =>
           prev.map((idea) =>
             idea.id === id
-              ? { ...idea, votes: idea.votes + (direction === "up" ? -1 : 1) }
+              ? { ...idea, votes: idea.votes - delta }
               : idea
           )
         );
+        setUserVotesByIdea((prev) => {
+          const next = { ...prev };
+          if (!currentVote) {
+            delete next[id];
+          } else {
+            next[id] = currentVote;
+          }
+          return next;
+        });
+        setVotedIdeaIds((prev) => {
+          if (!currentVote) return prev.filter((ideaId) => ideaId !== id);
+          return prev.includes(id) ? prev : [...prev, id];
+        });
+        return false;
       }
     },
-    []
+    [userVotesByIdea]
   );
 
   const updateIdeaStatus = useCallback(
@@ -119,6 +185,8 @@ export function useIdeas() {
     isLoading,
     submitIdea,
     voteIdea,
+    votedIdeaIds,
+    userVotesByIdea,
     updateIdeaStatus,
     deleteIdea,
     refetch: fetchIdeas,

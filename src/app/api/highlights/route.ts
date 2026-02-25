@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/logto";
 import { hasPermission, PERMISSIONS } from "@/lib/rbac";
+import { createNotification } from "@/lib/notifications";
 
 /* ------------------------------------------------------------------ */
 /*  Demo data (used when DB table doesn't exist yet)                  */
@@ -110,6 +111,30 @@ export async function POST(req: NextRequest) {
         endDate: endDate ? new Date(endDate) : null,
       },
     });
+
+    // Notify the highlighted employee (if we can find them by email in the User table)
+    if (employeeId) {
+      // employeeId may be a Graph/directory ID — try to find a user with matching directory ID
+      const recipient = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { logtoId: employeeId },
+            { email: employeeId },
+            { logtoId: `directory-${employeeId}` },
+          ],
+        },
+      });
+      if (recipient) {
+        createNotification({
+          recipientUserId: recipient.id,
+          type: "HIGHLIGHT",
+          title: "You're in the spotlight! \u2B50",
+          message: `You've been featured as an Employee Highlight: "${title}"`,
+          metadata: { highlightId: highlight.id, title },
+        }).catch((err) => console.error("[Highlights] notification error:", err));
+      }
+    }
+
     return NextResponse.json(highlight, { status: 201 });
   } catch {
     const newHighlight: DemoHighlight = {

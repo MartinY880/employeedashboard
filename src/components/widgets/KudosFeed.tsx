@@ -32,8 +32,17 @@ export function KudosFeed() {
   const [selectedBadge, setSelectedBadge] = useState<PraiseBadgeKey>("mvp");
   const [isSending, setIsSending] = useState(false);
   const [showCompose, setShowCompose] = useState(false);
+  const [currentUserEmail, setCurrentUserEmail] = useState("");
   const prevCountRef = useRef(kudos.length);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Fetch current user email to exclude from recipient picker
+  useEffect(() => {
+    fetch("/api/me")
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => { if (data?.email) setCurrentUserEmail(data.email); })
+      .catch(() => {});
+  }, []);
 
   // Play sound when new kudos arrive (after initial load)
   useEffect(() => {
@@ -161,6 +170,7 @@ export function KudosFeed() {
                   setRecipientName("");
                 }}
                 placeholder="Search colleague @mtgpros.com..."
+                excludeEmail={currentUserEmail}
               />
             </div>
 

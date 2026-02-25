@@ -16,8 +16,11 @@ import {
   Globe,
   Paintbrush,
   Check,
+  Mail,
+  TestTube,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useSounds } from "@/components/shared/SoundProvider";
 import { toast } from "sonner";
 
@@ -27,6 +30,24 @@ interface BrandingData {
   faviconData: string | null;
 }
 
+interface SmtpSettings {
+  host: string;
+  port: string;
+  user: string;
+  pass: string;
+  from: string;
+  fromName: string;
+}
+
+const DEFAULT_SMTP: SmtpSettings = {
+  host: "",
+  port: "587",
+  user: "",
+  pass: "",
+  from: "",
+  fromName: "ProConnect",
+};
+
 export default function AdminBrandingPage() {
   const { playClick } = useSounds();
   const [branding, setBranding] = useState<BrandingData>({
@@ -34,8 +55,12 @@ export default function AdminBrandingPage() {
     logoData: null,
     faviconData: null,
   });
+  const [smtpSettings, setSmtpSettings] = useState<SmtpSettings>(DEFAULT_SMTP);
+  const [initialSmtpSettings, setInitialSmtpSettings] = useState<SmtpSettings>(DEFAULT_SMTP);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [testEmail, setTestEmail] = useState("");
+  const [isSendingTest, setIsSendingTest] = useState(false);
 
   // Preview states
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -54,6 +79,9 @@ export default function AdminBrandingPage() {
       if (res.ok) {
         const data = await res.json();
         setBranding(data);
+        const smtp = { ...DEFAULT_SMTP, ...(data.smtpSettings || {}) };
+        setSmtpSettings(smtp);
+        setInitialSmtpSettings(smtp);
       }
     } catch {
       // keep defaults
@@ -126,6 +154,12 @@ export default function AdminBrandingPage() {
       if (faviconFile) formData.append("favicon", faviconFile);
       if (removeLogo) formData.append("removeLogo", "true");
       if (removeFavicon) formData.append("removeFavicon", "true");
+      formData.append("smtpHost", smtpSettings.host);
+      formData.append("smtpPort", smtpSettings.port);
+      formData.append("smtpUser", smtpSettings.user);
+      formData.append("smtpPass", smtpSettings.pass);
+      formData.append("smtpFrom", smtpSettings.from);
+      formData.append("smtpFromName", smtpSettings.fromName);
 
       const res = await fetch("/api/branding", {
         method: "POST",
@@ -144,6 +178,8 @@ export default function AdminBrandingPage() {
       setFaviconPreview(null);
       setRemoveLogo(false);
       setRemoveFavicon(false);
+      setSmtpSettings({ ...DEFAULT_SMTP, ...(updated.smtpSettings || {}) });
+      setInitialSmtpSettings({ ...DEFAULT_SMTP, ...(updated.smtpSettings || {}) });
       if (logoInputRef.current) logoInputRef.current.value = "";
       if (faviconInputRef.current) faviconInputRef.current.value = "";
 
@@ -175,7 +211,27 @@ export default function AdminBrandingPage() {
     logoFile !== null ||
     faviconFile !== null ||
     removeLogo ||
-    removeFavicon;
+    removeFavicon ||
+    JSON.stringify(smtpSettings) !== JSON.stringify(initialSmtpSettings);
+
+  async function handleSendTestEmail() {
+    if (!testEmail) return;
+    setIsSendingTest(true);
+    try {
+      const res = await fetch("/api/calendar/export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "test", email: testEmail }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to send test email");
+      toast.success("Test email sent");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to send test email");
+    } finally {
+      setIsSendingTest(false);
+    }
+  }
 
   if (isLoading) {
     return (
@@ -400,6 +456,96 @@ export default function AdminBrandingPage() {
               </div>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* SMTP Settings */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Mail className="w-5 h-5 text-brand-blue" />
+          <h2 className="text-lg font-bold text-gray-900">Email / SMTP Settings</h2>
+        </div>
+        <p className="text-sm text-brand-grey mb-4">
+          Shared email configuration used by calendar exports and future platform email features.
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs font-medium text-gray-600 mb-1 block">SMTP Host</label>
+            <Input
+              placeholder="smtp.sendgrid.net"
+              value={smtpSettings.host}
+              onChange={(e) => setSmtpSettings({ ...smtpSettings, host: e.target.value })}
+              className="text-sm"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-600 mb-1 block">Port</label>
+            <Input
+              placeholder="587"
+              value={smtpSettings.port}
+              onChange={(e) => setSmtpSettings({ ...smtpSettings, port: e.target.value })}
+              className="text-sm"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-600 mb-1 block">Username</label>
+            <Input
+              placeholder="apikey"
+              value={smtpSettings.user}
+              onChange={(e) => setSmtpSettings({ ...smtpSettings, user: e.target.value })}
+              className="text-sm"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-600 mb-1 block">Password</label>
+            <Input
+              type="password"
+              placeholder="••••••••"
+              value={smtpSettings.pass}
+              onChange={(e) => setSmtpSettings({ ...smtpSettings, pass: e.target.value })}
+              className="text-sm"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-600 mb-1 block">From Email</label>
+            <Input
+              type="email"
+              placeholder="calendar@company.com"
+              value={smtpSettings.from}
+              onChange={(e) => setSmtpSettings({ ...smtpSettings, from: e.target.value })}
+              className="text-sm"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-600 mb-1 block">From Name</label>
+            <Input
+              placeholder="ProConnect"
+              value={smtpSettings.fromName}
+              onChange={(e) => setSmtpSettings({ ...smtpSettings, fromName: e.target.value })}
+              className="text-sm"
+            />
+          </div>
+        </div>
+
+        <div className="mt-4 flex items-center gap-2">
+          <Input
+            type="email"
+            placeholder="test@example.com"
+            value={testEmail}
+            onChange={(e) => setTestEmail(e.target.value)}
+            className="text-sm max-w-[280px]"
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSendTestEmail}
+            disabled={isSendingTest || !testEmail || !smtpSettings.host}
+            className="gap-1.5"
+          >
+            {isSendingTest ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <TestTube className="w-3.5 h-3.5" />}
+            Send Test
+          </Button>
         </div>
       </div>
 

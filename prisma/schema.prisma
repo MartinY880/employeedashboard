@@ -22,9 +22,10 @@ model User {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  kudosSent     KudosMessage[] @relation("KudosAuthor")
-  kudosReceived KudosMessage[] @relation("KudosRecipient")
-  alertsCreated Alert[]
+  kudosSent      KudosMessage[]  @relation("KudosAuthor")
+  kudosReceived  KudosMessage[]  @relation("KudosRecipient")
+  alertsCreated  Alert[]
+  notifications  Notification[]
 
   @@map("users")
 }
@@ -72,10 +73,24 @@ model Idea {
   status      IdeaStatus @default(ACTIVE)
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
+  votesBy     IdeaVote[]
 
   @@index([status, votes])
   @@index([createdAt])
   @@map("ideas")
+}
+
+model IdeaVote {
+  id           String        @id @default(cuid())
+  ideaId       String
+  voterLogtoId String
+  direction    VoteDirection
+  createdAt    DateTime      @default(now())
+  idea         Idea          @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+
+  @@unique([ideaId, voterLogtoId])
+  @@index([voterLogtoId])
+  @@map("idea_votes")
 }
 
 model QuickLink {
@@ -181,6 +196,11 @@ enum IdeaStatus {
   ARCHIVED
 }
 
+enum VoteDirection {
+  UP
+  DOWN
+}
+
 enum TournamentStatus {
   SETUP
   IN_PROGRESS
@@ -191,6 +211,69 @@ enum MatchStatus {
   PENDING
   IN_PROGRESS
   COMPLETED
+}
+
+// ─── Notifications ────────────────────────────────────────
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  message   String
+  read      Boolean          @default(false)
+  metadata  String?          @db.Text // JSON blob for extra context (link, sender, etc.)
+  createdAt DateTime         @default(now())
+
+  @@index([userId, read, createdAt])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+enum NotificationType {
+  KUDOS
+  HIGHLIGHT
+  IDEA_SELECTED
+}
+
+// ─── Calendar / Holidays ──────────────────────────────────
+
+model Holiday {
+  id        String   @id @default(cuid())
+  title     String
+  date      String   // Format: YYYY-MM-DD
+  category  String   // federal, fun, company
+  color     String   @default("#06427F")
+  source    String   @default("custom") // custom, nager, calendarific, etc.
+  visible   Boolean  @default(true)
+  recurring Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([date])
+  @@index([category])
+  @@index([visible])
+  @@map("holidays")
+}
+
+model CalendarSyncLog {
+  id       String   @id @default(cuid())
+  source   String   // nager, calendarific, etc.
+  status   String   // success, error
+  message  String?
+  syncedAt DateTime @default(now())
+
+  @@index([syncedAt])
+  @@map("calendar_sync_logs")
+}
+
+model CalendarSetting {
+  id        String   @id @default("singleton")
+  data      String   @default("{}") @db.Text // JSON blob for category labels, API configs, etc.
+  updatedAt DateTime @updatedAt
+
+  @@map("calendar_settings")
 }
 
 // ─── OOO Email Forwarding Schedule ────────────────────────

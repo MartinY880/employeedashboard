@@ -1,29 +1,17 @@
 // ProConnect — Stats API Route
-// Aggregates counts from calendar proxy, alerts, kudos, and directory
+// Aggregates counts from local holidays DB, alerts, kudos, and directory
 // Returns all 4 stat card values in a single response
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-const CALENDAR_API_URL = process.env.CALENDAR_API_URL || "http://localhost:4000";
-
 async function getUpcomingHolidayCount(): Promise<number> {
   try {
-    const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
-    const year = new Date().getFullYear().toString();
-
-    const response = await fetch(`${CALENDAR_API_URL}/api/holidays?year=${year}`, {
-      next: { revalidate: 300 },
-      signal: AbortSignal.timeout(5000),
+    const today = new Date().toISOString().split("T")[0];
+    return await prisma.holiday.count({
+      where: { visible: true, date: { gte: today } },
     });
-
-    if (!response.ok) return 0;
-
-    const holidays: { date: string; visible: boolean }[] = await response.json();
-    // Count holidays from today onwards
-    return holidays.filter((h) => h.date >= today).length;
   } catch {
-    // Calendar service may not be running — return 0
     return 0;
   }
 }
