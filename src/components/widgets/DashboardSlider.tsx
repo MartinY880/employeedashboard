@@ -8,11 +8,14 @@ export interface DashboardSliderMedia {
   src: string;
 }
 
+export type DashboardSliderObjectFit = "cover" | "contain" | "fill";
+
 interface DashboardSliderProps {
   media: DashboardSliderMedia[];
   height: number;
   transitionMs: number;
   style: DashboardSliderStyle;
+  objectFit?: DashboardSliderObjectFit;
 }
 
 export function DashboardSlider({
@@ -20,6 +23,7 @@ export function DashboardSlider({
   height,
   transitionMs,
   style,
+  objectFit = "cover",
 }: DashboardSliderProps) {
   const sanitizedMedia = useMemo(
     () => media
@@ -82,6 +86,9 @@ export function DashboardSlider({
     return null;
   }
 
+  const fitClass = objectFit === "contain" ? "object-contain" : objectFit === "fill" ? "object-fill" : "object-cover";
+  const bgClass = objectFit === "contain" ? "bg-gray-100" : "";
+
   function renderSlide(item: DashboardSliderMedia, index: number, absolute = false) {
     const shouldLoad = loadedIndices.has(index);
 
@@ -90,7 +97,7 @@ export function DashboardSlider({
         <video
           key={`${item.type}-${index}`}
           src={shouldLoad ? item.src : undefined}
-          className={absolute ? "absolute inset-0 h-full w-full object-cover transition-opacity duration-500" : "h-full w-full shrink-0 object-cover"}
+          className={absolute ? `absolute inset-0 h-full w-full ${fitClass} transition-opacity duration-500` : `h-full w-full shrink-0 ${fitClass}`}
           style={absolute ? { opacity: index === currentIndex ? 1 : 0 } : undefined}
           autoPlay={shouldLoad}
           muted
@@ -106,7 +113,7 @@ export function DashboardSlider({
         key={`${item.type}-${index}`}
         src={shouldLoad ? item.src : undefined}
         alt={`Dashboard slider media ${index + 1}`}
-        className={absolute ? "absolute inset-0 h-full w-full object-cover transition-opacity duration-500" : "h-full w-full shrink-0 object-cover"}
+        className={absolute ? `absolute inset-0 h-full w-full ${fitClass} transition-opacity duration-500` : `h-full w-full shrink-0 ${fitClass}`}
         style={absolute ? { opacity: index === currentIndex ? 1 : 0 } : undefined}
         loading={index === 0 ? "eager" : "lazy"}
         decoding={index === 0 ? "sync" : "async"}
@@ -116,7 +123,7 @@ export function DashboardSlider({
 
   return (
     <div ref={containerRef} className="w-full rounded-xl overflow-hidden border border-gray-200 shadow-sm bg-white">
-      <div className="relative w-full" style={{ height: `${Math.max(120, height)}px` }}>
+      <div className={`relative w-full ${bgClass}`} style={{ height: `${Math.max(120, height)}px` }}>
         {!isVisible ? (
           <div className="h-full w-full bg-gray-50 animate-pulse" />
         ) : style === "fade" ? (

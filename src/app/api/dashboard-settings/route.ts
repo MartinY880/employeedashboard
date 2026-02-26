@@ -23,6 +23,7 @@ interface DashboardSliderSettings {
   height: number;
   transitionMs: number;
   style: "slide" | "fade";
+  objectFit: "cover" | "contain" | "fill";
 }
 
 const DEFAULT_DASHBOARD_VISIBILITY: DashboardVisibilitySettings = {
@@ -36,6 +37,7 @@ const DEFAULT_DASHBOARD_SLIDER: DashboardSliderSettings = {
   height: 240,
   transitionMs: 4000,
   style: "slide",
+  objectFit: "cover",
 };
 
 function normalizeDashboardSliderSettings(input: unknown): DashboardSliderSettings {
@@ -66,6 +68,7 @@ function normalizeDashboardSliderSettings(input: unknown): DashboardSliderSettin
     height: Number.isFinite(raw.height) ? Math.max(120, Math.min(720, Number(raw.height))) : DEFAULT_DASHBOARD_SLIDER.height,
     transitionMs: Number.isFinite(raw.transitionMs) ? Math.max(1000, Math.min(30000, Number(raw.transitionMs))) : DEFAULT_DASHBOARD_SLIDER.transitionMs,
     style: raw.style === "fade" ? "fade" : "slide",
+    objectFit: (raw.objectFit === "contain" || raw.objectFit === "fill") ? raw.objectFit : "cover",
   };
 }
 

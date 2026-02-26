@@ -12,6 +12,7 @@ interface SliderConfig {
   height: number;
   transitionMs: number;
   style: "slide" | "fade";
+  objectFit: "cover" | "contain" | "fill";
 }
 
 const DEFAULT_VIS = { showCompanyPillars: true, showTournamentBracketLive: true };
@@ -21,6 +22,7 @@ const DEFAULT_SLIDER_CONFIG: SliderConfig = {
   height: 240,
   transitionMs: 4000,
   style: "slide",
+  objectFit: "cover",
 };
 
 export default async function DashboardPage() {
@@ -61,6 +63,7 @@ export default async function DashboardPage() {
             ? Math.max(1000, Math.min(30000, Number(raw.transitionMs)))
             : 4000,
           style: raw.style === "fade" ? "fade" : "slide",
+          objectFit: (raw.objectFit === "contain" || raw.objectFit === "fill") ? raw.objectFit : "cover",
         };
       } catch {
         /* keep defaults */
