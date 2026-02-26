@@ -3,7 +3,7 @@
 
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import {
@@ -23,7 +23,10 @@ import {
   Play,
   Square,
   Medal,
+  Eye,
+  EyeOff,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -88,6 +91,45 @@ export default function AdminTournamentPage() {
   const [newName, setNewName] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [creating, setCreating] = useState(false);
+
+  // Dashboard visibility toggle
+  const [showOnDashboard, setShowOnDashboard] = useState<boolean | null>(null);
+  const [togglingVisibility, setTogglingVisibility] = useState(false);
+
+  useEffect(() => {
+    async function fetchVisibility() {
+      try {
+        const res = await fetch("/api/dashboard-settings/visibility");
+        if (res.ok) {
+          const data = await res.json();
+          setShowOnDashboard(data.showTournamentBracketLive !== false);
+        }
+      } catch { /* keep null */ }
+    }
+    fetchVisibility();
+  }, []);
+
+  async function toggleVisibility() {
+    const next = !showOnDashboard;
+    setTogglingVisibility(true);
+    try {
+      const res = await fetch("/api/dashboard-settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: "showTournamentBracketLive", value: next }),
+      });
+      if (res.ok) {
+        setShowOnDashboard(next);
+        toast.success(next ? "Tournament Banner shown on dashboard" : "Tournament Banner hidden from dashboard");
+      } else {
+        toast.error("Failed to update visibility");
+      }
+    } catch {
+      toast.error("Failed to update visibility");
+    } finally {
+      setTogglingVisibility(false);
+    }
+  }
 
   // If a tournament is selected, show the detail view
   if (selectedTournamentId) {
@@ -156,16 +198,34 @@ export default function AdminTournamentPage() {
             </p>
           </div>
         </div>
-        <Button
-          onClick={() => {
-            playClick();
-            setShowCreateDialog(true);
-          }}
-          className="bg-brand-blue hover:bg-brand-blue/90"
-        >
-          <Plus className="w-4 h-4 mr-1" />
-          New Tournament
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={toggleVisibility}
+            disabled={showOnDashboard === null || togglingVisibility}
+            className={showOnDashboard === false ? "border-red-200 text-red-600 hover:bg-red-50" : ""}
+          >
+            {showOnDashboard === null || togglingVisibility ? (
+              <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+            ) : showOnDashboard ? (
+              <Eye className="w-4 h-4 mr-1.5" />
+            ) : (
+              <EyeOff className="w-4 h-4 mr-1.5" />
+            )}
+            {showOnDashboard === null ? "Loading…" : showOnDashboard ? "Banner Visible" : "Banner Hidden"}
+          </Button>
+          <Button
+            onClick={() => {
+              playClick();
+              setShowCreateDialog(true);
+            }}
+            className="bg-brand-blue hover:bg-brand-blue/90"
+          >
+            <Plus className="w-4 h-4 mr-1" />
+            New Tournament
+          </Button>
+        </div>
       </div>
 
       {/* Tournament List */}

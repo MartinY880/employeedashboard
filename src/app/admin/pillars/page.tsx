@@ -15,7 +15,10 @@ import {
   Loader2,
   CheckCircle2,
   ChevronDown,
+  Eye,
+  EyeOff,
 } from "lucide-react";
+import { toast } from "sonner";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -67,6 +70,45 @@ export default function AdminPillarsPage() {
   const [iconSearch, setIconSearch] = useState("");
   const [visibleDefaultIcons, setVisibleDefaultIcons] = useState(ICON_INITIAL_RESULTS);
   const deferredIconSearch = useDeferredValue(iconSearch);
+
+  // Dashboard visibility toggle
+  const [showOnDashboard, setShowOnDashboard] = useState<boolean | null>(null);
+  const [togglingVisibility, setTogglingVisibility] = useState(false);
+
+  useEffect(() => {
+    async function fetchVisibility() {
+      try {
+        const res = await fetch("/api/dashboard-settings/visibility");
+        if (res.ok) {
+          const data = await res.json();
+          setShowOnDashboard(data.showCompanyPillars !== false);
+        }
+      } catch { /* keep null */ }
+    }
+    fetchVisibility();
+  }, []);
+
+  async function toggleVisibility() {
+    const next = !showOnDashboard;
+    setTogglingVisibility(true);
+    try {
+      const res = await fetch("/api/dashboard-settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: "showCompanyPillars", value: next }),
+      });
+      if (res.ok) {
+        setShowOnDashboard(next);
+        toast.success(next ? "Company Pillars shown on dashboard" : "Company Pillars hidden from dashboard");
+      } else {
+        toast.error("Failed to update visibility");
+      }
+    } catch {
+      toast.error("Failed to update visibility");
+    } finally {
+      setTogglingVisibility(false);
+    }
+  }
 
   const fetchPillars = useCallback(async () => {
     try {
@@ -217,6 +259,22 @@ export default function AdminPillarsPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={toggleVisibility}
+            disabled={showOnDashboard === null || togglingVisibility}
+            className={showOnDashboard === false ? "border-red-200 text-red-600 hover:bg-red-50" : ""}
+          >
+            {showOnDashboard === null || togglingVisibility ? (
+              <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+            ) : showOnDashboard ? (
+              <Eye className="w-4 h-4 mr-1.5" />
+            ) : (
+              <EyeOff className="w-4 h-4 mr-1.5" />
+            )}
+            {showOnDashboard === null ? "Loading…" : showOnDashboard ? "Visible" : "Hidden"}
+          </Button>
           <Button variant="outline" size="sm" onClick={addPillar}>
             <Plus className="w-4 h-4 mr-1.5" />
             Add Pillar

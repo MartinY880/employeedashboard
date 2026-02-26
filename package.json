@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "redeploy": "docker-compose up -d --build --force-recreate",
+    "deploy:pm2": "npm run build && pm2 restart proconnect --update-env"
   },
   "dependencies": {
     "@azure/identity": "^4.13.0",

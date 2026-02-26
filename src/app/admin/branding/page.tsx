@@ -25,6 +25,7 @@ import {
   ArrowUp,
   ArrowDown,
   ChevronDown,
+  GripVertical,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,6 +48,12 @@ interface BrandingData {
   logoData: string | null;
   faviconData: string | null;
   topNavMenu: TopNavMenuItem[];
+  dashboardVisibility?: DashboardVisibilitySettings;
+}
+
+interface DashboardVisibilitySettings {
+  showCompanyPillars: boolean;
+  showTournamentBracketLive: boolean;
 }
 
 interface TopNavMenuItem {
@@ -90,6 +97,11 @@ const DEFAULT_SMTP: SmtpSettings = {
   fromName: "ProConnect",
 };
 
+const DEFAULT_DASHBOARD_VISIBILITY: DashboardVisibilitySettings = {
+  showCompanyPillars: true,
+  showTournamentBracketLive: true,
+};
+
 const ICON_INITIAL_RESULTS = 80;
 const ICON_LOAD_STEP = 120;
 const ICON_MAX_RESULTS = 250;
@@ -115,6 +127,8 @@ export default function AdminBrandingPage() {
   const [initialTopNavMenu, setInitialTopNavMenu] = useState<TopNavMenuItem[]>([]);
   const [smtpSettings, setSmtpSettings] = useState<SmtpSettings>(DEFAULT_SMTP);
   const [initialSmtpSettings, setInitialSmtpSettings] = useState<SmtpSettings>(DEFAULT_SMTP);
+  const [dashboardVisibility, setDashboardVisibility] = useState<DashboardVisibilitySettings>(DEFAULT_DASHBOARD_VISIBILITY);
+  const [initialDashboardVisibility, setInitialDashboardVisibility] = useState<DashboardVisibilitySettings>(DEFAULT_DASHBOARD_VISIBILITY);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [testEmail, setTestEmail] = useState("");
@@ -147,6 +161,10 @@ export default function AdminBrandingPage() {
         const smtp = { ...DEFAULT_SMTP, ...(data.smtpSettings || {}) };
         setSmtpSettings(smtp);
         setInitialSmtpSettings(smtp);
+        const visibility = { ...DEFAULT_DASHBOARD_VISIBILITY, ...(data.dashboardVisibility || {}) };
+        setDashboardVisibility(visibility);
+        setInitialDashboardVisibility(visibility);
+
       }
     } catch {
       // keep defaults
@@ -230,6 +248,7 @@ export default function AdminBrandingPage() {
         href: item.href.startsWith("/") ? item.href : `/${item.href}`,
         sortOrder: index,
       }))));
+      formData.append("dashboardVisibility", JSON.stringify(dashboardVisibility));
 
       const res = await fetch("/api/branding", {
         method: "POST",
@@ -250,6 +269,9 @@ export default function AdminBrandingPage() {
       setRemoveFavicon(false);
       setSmtpSettings({ ...DEFAULT_SMTP, ...(updated.smtpSettings || {}) });
       setInitialSmtpSettings({ ...DEFAULT_SMTP, ...(updated.smtpSettings || {}) });
+      const updatedVisibility = { ...DEFAULT_DASHBOARD_VISIBILITY, ...(updated.dashboardVisibility || {}) };
+      setDashboardVisibility(updatedVisibility);
+      setInitialDashboardVisibility(updatedVisibility);
       const updatedMenu = Array.isArray(updated.topNavMenu) ? updated.topNavMenu : [];
       setTopNavMenu(updatedMenu);
       setInitialTopNavMenu(updatedMenu);
