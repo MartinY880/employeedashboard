@@ -62,7 +62,7 @@ export const ICON_NAMES = Object.keys(ICON_MAP) as PillarIconName[];
 
 export interface PillarData {
   id: string;
-  icon: PillarIconName;
+  icon: string;
   title: string;
   message: string;
 }

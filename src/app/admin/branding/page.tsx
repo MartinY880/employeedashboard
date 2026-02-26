@@ -3,7 +3,7 @@
 
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, useDeferredValue } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
@@ -24,6 +24,7 @@ import {
   EyeOff,
   ArrowUp,
   ArrowDown,
+  ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +37,10 @@ import {
 } from "@/components/ui/select";
 import { useSounds } from "@/components/shared/SoundProvider";
 import { toast } from "sonner";
+import {
+  AVAILABLE_ICON_OPTIONS,
+  renderQuickLinkIconPreview,
+} from "@/components/widgets/QuickLinksBar";
 
 interface BrandingData {
   companyName: string;
@@ -85,6 +90,19 @@ const DEFAULT_SMTP: SmtpSettings = {
   fromName: "ProConnect",
 };
 
+const ICON_INITIAL_RESULTS = 80;
+const ICON_LOAD_STEP = 120;
+const ICON_MAX_RESULTS = 250;
+const ICON_MIN_QUERY_LENGTH = 2;
+
+function isQuickLinkIconId(value: string) {
+  return (
+    value.startsWith("lucide:") ||
+    value.startsWith("react-icons:") ||
+    value.startsWith("fontawesome:")
+  );
+}
+
 export default function AdminBrandingPage() {
   const { playClick } = useSounds();
   const [branding, setBranding] = useState<BrandingData>({
@@ -101,6 +119,10 @@ export default function AdminBrandingPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [testEmail, setTestEmail] = useState("");
   const [isSendingTest, setIsSendingTest] = useState(false);
+  const [iconMenuOpenFor, setIconMenuOpenFor] = useState<string | null>(null);
+  const [iconSearch, setIconSearch] = useState("");
+  const [visibleDefaultIcons, setVisibleDefaultIcons] = useState(ICON_INITIAL_RESULTS);
+  const deferredIconSearch = useDeferredValue(iconSearch);
 
   // Preview states
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -266,6 +288,38 @@ export default function AdminBrandingPage() {
     removeFavicon ||
     JSON.stringify(smtpSettings) !== JSON.stringify(initialSmtpSettings) ||
     menuChanged;
+
+  const filteredIconOptions = useMemo(() => {
+    if (!iconMenuOpenFor) return [];
+
+    const query = deferredIconSearch.trim().toLowerCase();
+    if (!query) return AVAILABLE_ICON_OPTIONS.slice(0, visibleDefaultIcons);
+    if (query.length < ICON_MIN_QUERY_LENGTH) return [];
+
+    return AVAILABLE_ICON_OPTIONS.filter((option) =>
+      [option.label, option.id, ...option.keywords]
+        .join(" ")
+        .toLowerCase()
+        .includes(query)
+    ).slice(0, ICON_MAX_RESULTS);
+  }, [deferredIconSearch, iconMenuOpenFor, visibleDefaultIcons]);
+
+  const hasMoreDefaultIcons = useMemo(() => {
+    const query = deferredIconSearch.trim();
+    return !query && visibleDefaultIcons < AVAILABLE_ICON_OPTIONS.length;
+  }, [deferredIconSearch, visibleDefaultIcons]);
+
+  const groupedIconOptions = useMemo(() => {
+    return {
+      lucide: filteredIconOptions.filter((option) => option.library === "lucide"),
+      reactIcons: filteredIconOptions.filter(
+        (option) => option.library === "react-icons"
+      ),
+      fontAwesome: filteredIconOptions.filter(
+        (option) => option.library === "fontawesome"
+      ),
+    };
+  }, [filteredIconOptions]);
 
   function normalizeHref(href: string): string {
     const trimmed = href.trim();
@@ -790,12 +844,164 @@ export default function AdminBrandingPage() {
                     </SelectContent>
                   </Select>
 
-                  <Input
-                    value={item.logoUrl || ""}
-                    onChange={(e) => handleMenuFieldChange(item.id, "logoUrl", e.target.value)}
-                    placeholder="https://... (optional logo image URL)"
-                    className="text-sm"
-                  />
+                  <div className="relative">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full justify-between text-sm"
+                      onClick={() => {
+                        setIconMenuOpenFor((current) => {
+                          const next = current === item.id ? null : item.id;
+                          if (next) {
+                            setVisibleDefaultIcons(ICON_INITIAL_RESULTS);
+                          } else {
+                            setIconSearch("");
+                          }
+                          return next;
+                        });
+                      }}
+                    >
+                      {item.logoUrl && isQuickLinkIconId(item.logoUrl) ? (
+                        <span className="inline-flex items-center gap-2 min-w-0">
+                          {renderQuickLinkIconPreview(item.logoUrl, "w-4 h-4")}
+                          <span className="truncate">
+                            {AVAILABLE_ICON_OPTIONS.find((option) => option.id === item.logoUrl)?.label || item.logoUrl}
+                          </span>
+                        </span>
+                      ) : (
+                        <span className="truncate text-brand-grey">
+                          Search icon (optional nav logo)
+                        </span>
+                      )}
+                      <ChevronDown className="w-4 h-4 opacity-60" />
+                    </Button>
+
+                    {iconMenuOpenFor === item.id && (
+                      <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-50 rounded-md border bg-popover text-popover-foreground shadow-md">
+                        <div className="p-1 border-b border-border">
+                          <Input
+                            placeholder="Search icons..."
+                            value={iconSearch}
+                            onChange={(e) => setIconSearch(e.target.value)}
+                            className="h-8"
+                            autoFocus
+                          />
+                        </div>
+                        <div
+                          className="max-h-64 overflow-y-auto p-1"
+                          onScroll={(e) => {
+                            if (deferredIconSearch.trim()) return;
+                            const element = e.currentTarget;
+                            const nearBottom =
+                              element.scrollTop + element.clientHeight >= element.scrollHeight - 24;
+                            if (nearBottom) {
+                              setVisibleDefaultIcons((prev) =>
+                                Math.min(prev + ICON_LOAD_STEP, AVAILABLE_ICON_OPTIONS.length)
+                              );
+                            }
+                          }}
+                        >
+                          <button
+                            type="button"
+                            className="w-full text-left px-2 py-1.5 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => {
+                              handleMenuFieldChange(item.id, "logoUrl", "");
+                              setIconMenuOpenFor(null);
+                              setIconSearch("");
+                            }}
+                          >
+                            Use default item icon
+                          </button>
+
+                          {iconSearch.trim().length === 1 && (
+                            <div className="px-2 py-1.5 text-xs text-brand-grey">
+                              Type at least 2 characters to search
+                            </div>
+                          )}
+
+                          {groupedIconOptions.lucide.length > 0 && (
+                            <>
+                              <div className="px-2 py-1 text-xs text-brand-grey">Lucide</div>
+                              {groupedIconOptions.lucide.map((icon) => (
+                                <button
+                                  key={icon.id}
+                                  type="button"
+                                  className="w-full text-left px-2 py-1.5 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground"
+                                  onMouseDown={(e) => e.preventDefault()}
+                                  onClick={() => {
+                                    handleMenuFieldChange(item.id, "logoUrl", icon.id);
+                                    setIconMenuOpenFor(null);
+                                    setIconSearch("");
+                                  }}
+                                >
+                                  <span className="inline-flex items-center gap-2">
+                                    {renderQuickLinkIconPreview(icon.id, "w-4 h-4")}
+                                    {icon.label}
+                                  </span>
+                                </button>
+                              ))}
+                            </>
+                          )}
+
+                          {groupedIconOptions.reactIcons.length > 0 && (
+                            <>
+                              <div className="px-2 py-1 text-xs text-brand-grey">React Icons</div>
+                              {groupedIconOptions.reactIcons.map((icon) => (
+                                <button
+                                  key={icon.id}
+                                  type="button"
+                                  className="w-full text-left px-2 py-1.5 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground"
+                                  onMouseDown={(e) => e.preventDefault()}
+                                  onClick={() => {
+                                    handleMenuFieldChange(item.id, "logoUrl", icon.id);
+                                    setIconMenuOpenFor(null);
+                                    setIconSearch("");
+                                  }}
+                                >
+                                  <span className="inline-flex items-center gap-2">
+                                    {renderQuickLinkIconPreview(icon.id, "w-4 h-4")}
+                                    {icon.label}
+                                  </span>
+                                </button>
+                              ))}
+                            </>
+                          )}
+
+                          {groupedIconOptions.fontAwesome.length > 0 && (
+                            <>
+                              <div className="px-2 py-1 text-xs text-brand-grey">Font Awesome</div>
+                              {groupedIconOptions.fontAwesome.map((icon) => (
+                                <button
+                                  key={icon.id}
+                                  type="button"
+                                  className="w-full text-left px-2 py-1.5 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground"
+                                  onMouseDown={(e) => e.preventDefault()}
+                                  onClick={() => {
+                                    handleMenuFieldChange(item.id, "logoUrl", icon.id);
+                                    setIconMenuOpenFor(null);
+                                    setIconSearch("");
+                                  }}
+                                >
+                                  <span className="inline-flex items-center gap-2">
+                                    {renderQuickLinkIconPreview(icon.id, "w-4 h-4")}
+                                    {icon.label}
+                                  </span>
+                                </button>
+                              ))}
+                            </>
+                          )}
+
+                          {filteredIconOptions.length === 0 && iconSearch.trim().length !== 1 && (
+                            <div className="px-2 py-1.5 text-xs text-brand-grey">No icons found</div>
+                          )}
+                          {hasMoreDefaultIcons && (
+                            <div className="px-2 py-1.5 text-xs text-brand-grey">Scroll to load more icons…</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             ))

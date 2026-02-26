@@ -14,6 +14,9 @@ export interface DirectoryNode {
   employeeType?: string | null;
   department: string | null;
   officeLocation: string | null;
+  businessPhone?: string | null;
+  mobilePhone?: string | null;
+  faxNumber?: string | null;
   photoUrl?: string;
   directReports?: DirectoryNode[];
 }

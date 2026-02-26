@@ -7,9 +7,10 @@
 import { motion } from "framer-motion";
 import { useSounds } from "@/components/shared/SoundProvider";
 import { ICON_MAP, type PillarIconName } from "@/lib/pillar-icons";
+import { renderQuickLinkIconPreview } from "@/components/widgets/QuickLinksBar";
 
 interface PillarCardProps {
-  iconName: PillarIconName;
+  iconName: string;
   title: string;
   message: string;
   index?: number;
@@ -19,7 +20,7 @@ interface PillarCardProps {
 
 export function PillarCard({ iconName, title, message, index = 0, titleSize = 14, messageSize = 11 }: PillarCardProps) {
   const { playPop } = useSounds();
-  const Icon = ICON_MAP[iconName] ?? ICON_MAP.Shield;
+  const LegacyIcon = ICON_MAP[iconName as PillarIconName];
 
   return (
     <motion.div
@@ -43,7 +44,13 @@ export function PillarCard({ iconName, title, message, index = 0, titleSize = 14
       <div className="absolute -bottom-4 -left-4 w-16 h-16 bg-white/[0.04] rounded-full" />
 
       {/* Icon */}
-      <Icon className="w-5 h-5 opacity-60 mb-2 relative z-10 shrink-0" />
+      {LegacyIcon ? (
+        <LegacyIcon className="w-5 h-5 opacity-60 mb-2 relative z-10 shrink-0" />
+      ) : (
+        <span className="opacity-60 mb-2 relative z-10 shrink-0">
+          {renderQuickLinkIconPreview(iconName, "w-5 h-5")}
+        </span>
+      )}
 
       {/* Title */}
       <div
