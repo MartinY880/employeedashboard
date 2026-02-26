@@ -963,16 +963,16 @@ export default function AdminCalendarPage() {
       const cells: React.ReactNode[] = [];
       for (let i = 0; i < 7; i++) {
         if ((weeks.length === 0 && i < startingDay) || currentDay > daysInMonth) {
-          cells.push(<td key={`e-${i}`} className="border border-gray-200/80 h-24 bg-slate-50/50" />);
+          cells.push(<td key={`e-${i}`} className="border border-gray-200 dark:border-gray-700/80 h-24 bg-slate-50/50" />);
         } else {
           const dayH = byDay[currentDay] || [];
           const d = currentDay;
           const isTodayCell = isCurrentMonth && d === todayDate;
           const isWeekend = i === 0 || i === 6;
           cells.push(
-            <td key={d} className={`border border-gray-200/80 h-24 align-top p-0 w-[14.28%] ${isTodayCell ? "bg-blue-50/80" : isWeekend ? "bg-slate-50/30" : "bg-white"}`}>
+            <td key={d} className={`border border-gray-200 dark:border-gray-700/80 h-24 align-top p-0 w-[14.28%] ${isTodayCell ? "bg-blue-50/80" : isWeekend ? "bg-slate-50/30" : "bg-white dark:bg-gray-900"}`}>
               <div className="px-1.5 pt-1 pb-0.5 flex items-center">
-                <span className={`text-xs font-bold leading-none ${isTodayCell ? "bg-brand-blue text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px]" : isWeekend ? "text-gray-400" : "text-gray-700"}`}>{d}</span>
+                <span className={`text-xs font-bold leading-none ${isTodayCell ? "bg-brand-blue text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px]" : isWeekend ? "text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500" : "text-gray-700 dark:text-gray-300"}`}>{d}</span>
               </div>
               <div className="px-1 space-y-0.5">
                 {dayH.map((h) => (
@@ -995,7 +995,7 @@ export default function AdminCalendarPage() {
       weeks.push(<tr key={weekKey++}>{cells}</tr>);
     }
     return (
-      <div className="rounded-xl overflow-hidden border border-gray-200/80 shadow-sm">
+      <div className="rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700/80 shadow-sm">
         <table className="w-full border-collapse table-fixed text-xs">
           <thead>
             <tr className="bg-brand-blue text-white">
@@ -1029,11 +1029,11 @@ export default function AdminCalendarPage() {
       {/* ── Header ──────────────────────────────────────────── */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link href="/admin" className="p-2 rounded-lg hover:bg-gray-100 transition-colors">
+          <Link href="/admin" className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 dark:hover:bg-gray-800 dark:bg-gray-800 transition-colors">
             <ArrowLeft className="w-4 h-4 text-brand-grey" />
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
               <CalendarDays className="w-6 h-6 text-purple-500" />
               Calendar Management
             </h1>
@@ -1074,13 +1074,13 @@ export default function AdminCalendarPage() {
               key={s.label}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-3"
+              className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 p-4 flex items-center gap-3"
             >
               <div className={`w-9 h-9 ${s.color} rounded-lg flex items-center justify-center`}>
                 <s.icon className="w-4 h-4 text-white" />
               </div>
               <div>
-                <div className="text-xl font-bold text-gray-900">{s.value}</div>
+                <div className="text-xl font-bold text-gray-900 dark:text-gray-100">{s.value}</div>
                 <div className="text-xs text-brand-grey">{s.label}</div>
               </div>
             </motion.div>
@@ -1089,7 +1089,7 @@ export default function AdminCalendarPage() {
       )}
 
       {/* ── Tabs ────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-1 border-b border-gray-200">
+      <div className="flex flex-wrap items-center gap-1 border-b border-gray-200 dark:border-gray-700">
         {([
           { key: "holidays" as TabKey, label: "Holidays", icon: CalendarDays },
           { key: "settings" as TabKey, label: "Settings", icon: Settings },
@@ -1102,7 +1102,7 @@ export default function AdminCalendarPage() {
             className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap ${
               activeTab === tab.key
                 ? "border-brand-blue text-brand-blue"
-                : "border-transparent text-brand-grey hover:text-gray-700"
+                : "border-transparent text-brand-grey hover:text-gray-700 dark:hover:text-gray-300 dark:text-gray-300 dark:hover:text-gray-300 dark:text-gray-300"
             }`}
           >
             <tab.icon className="w-3.5 h-3.5" />
@@ -1147,10 +1147,10 @@ export default function AdminCalendarPage() {
           </div>
 
           {/* Table */}
-          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 overflow-hidden">
             <Table className="table-fixed [&_th]:whitespace-normal [&_td]:whitespace-normal">
               <TableHeader>
-                <TableRow className="bg-gray-50/80">
+                <TableRow className="bg-gray-50 dark:bg-gray-800/80">
                   <TableHead className="w-10"></TableHead>
                   <TableHead>Title</TableHead>
                   <TableHead>Date</TableHead>
@@ -1182,14 +1182,14 @@ export default function AdminCalendarPage() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className={`border-b border-gray-50 hover:bg-gray-50/50 transition-colors ${
+                        className={`border-b border-gray-50 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800 dark:hover:bg-gray-800 dark:bg-gray-800/50 transition-colors ${
                           !h.visible ? "opacity-50" : ""
                         }`}
                       >
                         <TableCell>
                           <div className="w-3 h-3 rounded-full" style={{ backgroundColor: h.color }} />
                         </TableCell>
-                        <TableCell className="font-medium text-gray-900 break-words">{h.title}</TableCell>
+                        <TableCell className="font-medium text-gray-900 dark:text-gray-100 break-words">{h.title}</TableCell>
                         <TableCell className="text-sm text-brand-grey">{formatDate(h.date)}</TableCell>
                         <TableCell>
                           <Badge
@@ -1202,8 +1202,8 @@ export default function AdminCalendarPage() {
                         </TableCell>
                         <TableCell className="text-xs text-brand-grey break-words">{h.source}</TableCell>
                         <TableCell className="text-center">
-                          <button onClick={() => toggleVisibility(h)} className="p-1 hover:bg-gray-100 rounded transition-colors">
-                            {h.visible ? <Eye className="w-4 h-4 text-green-600" /> : <EyeOff className="w-4 h-4 text-gray-400" />}
+                          <button onClick={() => toggleVisibility(h)} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 dark:hover:bg-gray-800 dark:bg-gray-800 rounded transition-colors">
+                            {h.visible ? <Eye className="w-4 h-4 text-green-600" /> : <EyeOff className="w-4 h-4 text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500" />}
                           </button>
                         </TableCell>
                         <TableCell className="text-center">
@@ -1229,7 +1229,7 @@ export default function AdminCalendarPage() {
 
           {/* Bulk Actions */}
           {holidays.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-gray-100">
+            <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
               <span className="text-xs text-brand-grey font-medium">Bulk Delete:</span>
               {/* Per-source buttons */}
               {Array.from(new Set(holidays.map((h) => h.source))).filter((s) => s !== "custom").map((source) => (
@@ -1276,11 +1276,11 @@ export default function AdminCalendarPage() {
           )}
 
           {/* ── Holiday API Sources ──────────────────────────── */}
-          <div className="bg-white rounded-xl border border-gray-100 p-5">
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 p-5">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Globe className="w-4 h-4 text-brand-blue" />
-                <h3 className="font-semibold text-gray-900">Holiday API Sources</h3>
+                <h3 className="font-semibold text-gray-900 dark:text-gray-100">Holiday API Sources</h3>
               </div>
               <Button size="sm" onClick={openAddApi} className="gap-1.5 bg-brand-blue hover:bg-brand-blue/90">
                 <Plus className="w-3.5 h-3.5" />
@@ -1298,13 +1298,13 @@ export default function AdminCalendarPage() {
                   <div
                     key={api.id}
                     className={`flex items-center gap-4 p-3 rounded-lg border transition-colors ${
-                      api.enabled ? "border-gray-200 bg-white" : "border-gray-100 bg-gray-50 opacity-60"
+                      api.enabled ? "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900" : "border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800 opacity-60"
                     }`}
                   >
                     <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: api.color }} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-sm text-gray-900 truncate">{api.name}</span>
+                        <span className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">{api.name}</span>
                         <Badge variant="secondary" className="text-[10px]">{API_TYPE_LABELS[api.type] || api.type}</Badge>
                         <Badge
                           variant="secondary"
@@ -1324,7 +1324,7 @@ export default function AdminCalendarPage() {
                         title={api.enabled ? "Disable" : "Enable"}
                         onClick={() => toggleApiEnabled(api.id)}
                       >
-                        {api.enabled ? <Power className="w-3.5 h-3.5 text-green-600" /> : <PowerOff className="w-3.5 h-3.5 text-gray-400" />}
+                        {api.enabled ? <Power className="w-3.5 h-3.5 text-green-600" /> : <PowerOff className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500" />}
                       </Button>
                       <Button
                         variant="ghost"
@@ -1360,10 +1360,10 @@ export default function AdminCalendarPage() {
           </div>
 
           {/* ── Category Labels ──────────────────────────────── */}
-          <div className="bg-white rounded-xl border border-gray-100 p-5">
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 p-5">
             <div className="flex items-center gap-2 mb-4">
               <Tag className="w-4 h-4 text-purple-500" />
-              <h3 className="font-semibold text-gray-900">Category Labels</h3>
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100">Category Labels</h3>
             </div>
             <p className="text-xs text-brand-grey mb-4">
               Customize the display names and colors for holiday categories.
@@ -1371,7 +1371,7 @@ export default function AdminCalendarPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {(["federal", "fun", "company"] as const).map((key) => (
                 <div key={key}>
-                  <label className="text-xs font-medium text-gray-600 mb-1 block capitalize flex items-center gap-1.5">
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1 block capitalize flex items-center gap-1.5">
                     <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: categoryColors[key] }} />
                     {key}
                   </label>
@@ -1385,7 +1385,7 @@ export default function AdminCalendarPage() {
                       type="color"
                       value={categoryColors[key]}
                       onChange={(e) => setCategoryColors({ ...categoryColors, [key]: e.target.value })}
-                      className="w-9 h-9 rounded border border-gray-200 cursor-pointer"
+                      className="w-9 h-9 rounded border border-gray-200 dark:border-gray-700 cursor-pointer"
                     />
                     <Input
                       value={categoryColors[key]}
@@ -1414,10 +1414,10 @@ export default function AdminCalendarPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-100 p-5">
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 p-5">
             <div className="flex items-center gap-2 mb-4">
               <Upload className="w-4 h-4 text-brand-blue" />
-              <h3 className="font-semibold text-gray-900">Calendar Export Logo</h3>
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100">Calendar Export Logo</h3>
             </div>
             <p className="text-xs text-brand-grey mb-4">
               Upload a custom logo for calendar PDF export and calendar email header. This logo is used instead of Site Branding.
@@ -1433,7 +1433,7 @@ export default function AdminCalendarPage() {
               />
 
               {currentCalendarExportLogo ? (
-                <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 bg-gray-50 dark:bg-gray-800">
                   <img
                     src={currentCalendarExportLogo}
                     alt="Calendar export logo preview"
@@ -1488,11 +1488,11 @@ export default function AdminCalendarPage() {
           )}
 
           {/* Month/Year Selector */}
-          <div className="bg-white rounded-xl border border-gray-100 p-5">
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 p-5">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <CalendarDays className="w-4 h-4 text-purple-500" />
-                <h3 className="font-semibold text-gray-900">Calendar Preview</h3>
+                <h3 className="font-semibold text-gray-900 dark:text-gray-100">Calendar Preview</h3>
               </div>
               <div className="flex items-center gap-2">
                 <Button
@@ -1506,7 +1506,7 @@ export default function AdminCalendarPage() {
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </Button>
-                <span className="text-sm font-medium text-gray-900 min-w-[140px] text-center">
+                <span className="text-sm font-medium text-gray-900 dark:text-gray-100 min-w-[140px] text-center">
                   {MONTH_NAMES[exportMonth]} {exportYear}
                 </span>
                 <Button
@@ -1524,7 +1524,7 @@ export default function AdminCalendarPage() {
             </div>
 
             {/* Preview Grid */}
-            <div id="calendar-preview" className="bg-white">
+            <div id="calendar-preview" className="bg-white dark:bg-gray-900">
               {renderCalendarGrid()}
               {exportHolidays.length === 0 && (
                 <p className="text-center text-sm text-brand-grey py-6">No visible holidays for this month.</p>
@@ -1532,9 +1532,9 @@ export default function AdminCalendarPage() {
             </div>
 
             {/* Legend */}
-            <div className="flex items-center gap-4 mt-3 pt-3 border-t border-gray-100 justify-center">
+            <div className="flex items-center gap-4 mt-3 pt-3 border-t border-gray-100 dark:border-gray-800 justify-center">
               {(["federal", "fun", "company"] as const).map((key) => (
-                <span key={key} className="flex items-center gap-1.5 text-xs text-gray-600">
+                <span key={key} className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500">
                   <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: categoryColors[key] }} />
                   {categoryLabels[key]}
                 </span>
@@ -1551,10 +1551,10 @@ export default function AdminCalendarPage() {
           </div>
 
           {/* ── Send via Email ───────────────────────────────── */}
-          <div className="bg-white rounded-xl border border-gray-100 p-5">
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 p-5">
             <div className="flex items-center gap-2 mb-4">
               <Send className="w-4 h-4 text-brand-blue" />
-              <h3 className="font-semibold text-gray-900">Send Calendar via Email</h3>
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100">Send Calendar via Email</h3>
             </div>
             <div className="flex items-center gap-2 p-3 bg-yellow-50 text-yellow-700 rounded-lg text-sm mb-4">
               <AlertTriangle className="w-4 h-4 flex-shrink-0" />
@@ -1563,17 +1563,17 @@ export default function AdminCalendarPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-3">
                 <div>
-                  <label className="text-xs font-medium text-gray-600 mb-1 block">Recipients (one per line or comma-separated)</label>
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1 block">Recipients (one per line or comma-separated)</label>
                   <textarea
                     value={exportRecipients}
                     onChange={(e) => setExportRecipients(e.target.value)}
                     placeholder={"john@company.com\njane@company.com"}
                     rows={4}
-                    className="w-full rounded-md border border-gray-200 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/20 focus:border-brand-blue"
+                    className="w-full rounded-md border border-gray-200 dark:border-gray-700 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/20 focus:border-brand-blue"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-gray-600 mb-1 block">Subject</label>
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1 block">Subject</label>
                   <Input
                     value={exportSubject}
                     onChange={(e) => setExportSubject(e.target.value)}
@@ -1583,7 +1583,7 @@ export default function AdminCalendarPage() {
               </div>
               <div className="space-y-3">
                 <div>
-                  <label className="text-xs font-medium text-gray-600 mb-1 block">Header Text (optional)</label>
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1 block">Header Text (optional)</label>
                   <Input
                     value={exportHeaderText}
                     onChange={(e) => setExportHeaderText(e.target.value)}
@@ -1592,7 +1592,7 @@ export default function AdminCalendarPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-gray-600 mb-1 block">Footer Text (optional)</label>
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1 block">Footer Text (optional)</label>
                   <Input
                     value={exportFooterText}
                     onChange={(e) => setExportFooterText(e.target.value)}
@@ -1602,7 +1602,7 @@ export default function AdminCalendarPage() {
                 </div>
                 <div className="flex items-center gap-4">
                   <div>
-                    <label className="text-xs font-medium text-gray-600 mb-1 block">Layout</label>
+                    <label className="text-xs font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1 block">Layout</label>
                     <Select value={exportLayout} onValueChange={(v) => setExportLayout(v as "list" | "calendar")}>
                       <SelectTrigger className="w-[140px] h-9">
                         <SelectValue />
@@ -1635,10 +1635,10 @@ export default function AdminCalendarPage() {
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       {activeTab === "sync" && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 overflow-hidden">
             <Table>
               <TableHeader>
-                <TableRow className="bg-gray-50/80">
+                <TableRow className="bg-gray-50 dark:bg-gray-800/80">
                   <TableHead>Source</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Message</TableHead>
@@ -1694,7 +1694,7 @@ export default function AdminCalendarPage() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">Title</label>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">Title</label>
               <Input
                 placeholder="e.g. Independence Day"
                 value={formData.title}
@@ -1702,7 +1702,7 @@ export default function AdminCalendarPage() {
               />
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">Date</label>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">Date</label>
               <Input
                 type="date"
                 value={formData.date}
@@ -1711,7 +1711,7 @@ export default function AdminCalendarPage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Category</label>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">Category</label>
                 <Select
                   value={formData.category}
                   onValueChange={(v) =>
@@ -1727,13 +1727,13 @@ export default function AdminCalendarPage() {
                 </Select>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Color</label>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">Color</label>
                 <div className="flex items-center gap-2">
                   <input
                     type="color"
                     value={formData.color}
                     onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                    className="w-9 h-9 rounded border border-gray-200 cursor-pointer"
+                    className="w-9 h-9 rounded border border-gray-200 dark:border-gray-700 cursor-pointer"
                   />
                   <Input
                     value={formData.color}
@@ -1751,7 +1751,7 @@ export default function AdminCalendarPage() {
                   onChange={(e) => setFormData({ ...formData, visible: e.target.checked })}
                   className="w-4 h-4 rounded border-gray-300 text-brand-blue focus:ring-brand-blue"
                 />
-                <span className="text-sm text-gray-700">Visible to employees</span>
+                <span className="text-sm text-gray-700 dark:text-gray-300">Visible to employees</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -1760,7 +1760,7 @@ export default function AdminCalendarPage() {
                   onChange={(e) => setFormData({ ...formData, recurring: e.target.checked })}
                   className="w-4 h-4 rounded border-gray-300 text-brand-blue focus:ring-brand-blue"
                 />
-                <span className="text-sm text-gray-700">Recurring yearly</span>
+                <span className="text-sm text-gray-700 dark:text-gray-300">Recurring yearly</span>
               </label>
             </div>
           </div>
@@ -1789,7 +1789,7 @@ export default function AdminCalendarPage() {
               Delete Holiday
             </DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-gray-600 py-2">
+          <p className="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 py-2">
             Are you sure you want to delete{" "}
             <strong>{deletingHoliday?.title}</strong> ({deletingHoliday?.date})?
             This cannot be undone.
@@ -1823,7 +1823,7 @@ export default function AdminCalendarPage() {
           <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto">
             <div className="grid grid-cols-2 gap-3">
               <div className="col-span-2">
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Name</label>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">Name</label>
                 <Input
                   placeholder="e.g. Calendarific (US Fun)"
                   value={apiForm.name}
@@ -1831,7 +1831,7 @@ export default function AdminCalendarPage() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Type</label>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">Type</label>
                 <Select value={apiForm.type} onValueChange={(v) => setApiForm({ ...apiForm, type: v as ApiConfig["type"] })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -1843,7 +1843,7 @@ export default function AdminCalendarPage() {
                 </Select>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Country</label>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">Country</label>
                 <Input
                   placeholder="US"
                   value={apiForm.country}
@@ -1851,7 +1851,7 @@ export default function AdminCalendarPage() {
                 />
               </div>
               <div className="col-span-2">
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Endpoint URL</label>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">Endpoint URL</label>
                 <Input
                   placeholder="https://date.nager.at/api/v3"
                   value={apiForm.endpoint}
@@ -1860,7 +1860,7 @@ export default function AdminCalendarPage() {
               </div>
               {apiForm.type !== "nager" && (
                 <div className="col-span-2">
-                  <label className="text-sm font-medium text-gray-700 mb-1 block flex items-center gap-1.5">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block flex items-center gap-1.5">
                     <Key className="w-3.5 h-3.5" /> API Key
                   </label>
                   <Input
@@ -1872,7 +1872,7 @@ export default function AdminCalendarPage() {
                 </div>
               )}
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Category</label>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">Category</label>
                 <Select value={apiForm.category} onValueChange={(v) => setApiForm({ ...apiForm, category: v, color: categoryColors[v as keyof CategoryColors] || apiForm.color })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -1881,13 +1881,13 @@ export default function AdminCalendarPage() {
                 </Select>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Color</label>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">Color</label>
                 <div className="flex items-center gap-2">
                   <input
                     type="color"
                     value={apiForm.color}
                     onChange={(e) => setApiForm({ ...apiForm, color: e.target.value })}
-                    className="w-9 h-9 rounded border border-gray-200 cursor-pointer"
+                    className="w-9 h-9 rounded border border-gray-200 dark:border-gray-700 cursor-pointer"
                   />
                   <Input
                     value={apiForm.color}
@@ -1898,7 +1898,7 @@ export default function AdminCalendarPage() {
               </div>
               {(apiForm.type === "calendarific") && (
                 <div className="col-span-2">
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">Type Filter (e.g. observance, national)</label>
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">Type Filter (e.g. observance, national)</label>
                   <Input
                     placeholder="observance"
                     value={apiForm.typeFilter}
@@ -1909,7 +1909,7 @@ export default function AdminCalendarPage() {
               {apiForm.type === "custom" && (
                 <>
                   <div>
-                    <label className="text-sm font-medium text-gray-700 mb-1 block">Date Field</label>
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">Date Field</label>
                     <Input
                       placeholder="date"
                       value={apiForm.dateField || ""}
@@ -1917,7 +1917,7 @@ export default function AdminCalendarPage() {
                     />
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-700 mb-1 block">Title Field</label>
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">Title Field</label>
                     <Input
                       placeholder="name"
                       value={apiForm.titleField || ""}
@@ -1925,7 +1925,7 @@ export default function AdminCalendarPage() {
                     />
                   </div>
                   <div className="col-span-2">
-                    <label className="text-sm font-medium text-gray-700 mb-1 block">Response Path (dot-separated)</label>
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">Response Path (dot-separated)</label>
                     <Input
                       placeholder="response.holidays"
                       value={apiForm.responsePathToHolidays || ""}
@@ -1942,7 +1942,7 @@ export default function AdminCalendarPage() {
                     onChange={(e) => setApiForm({ ...apiForm, enabled: e.target.checked })}
                     className="w-4 h-4 rounded border-gray-300 text-brand-blue focus:ring-brand-blue"
                   />
-                  <span className="text-sm text-gray-700">Enabled (include in sync)</span>
+                  <span className="text-sm text-gray-700 dark:text-gray-300">Enabled (include in sync)</span>
                 </label>
               </div>
             </div>

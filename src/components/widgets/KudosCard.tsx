@@ -195,15 +195,15 @@ export function KudosCard({
             </AvatarFallback>
           </Avatar>
           <div className="text-xs min-w-0 flex-1">
-            <span className="font-bold text-gray-800">{authorName}</span>
-            <span className="text-gray-400 mx-1">→</span>
+            <span className="font-bold text-gray-800 dark:text-gray-200">{authorName}</span>
+            <span className="text-gray-400 dark:text-gray-500 mx-1">→</span>
             <span className="font-bold text-brand-blue">@{recipientName}</span>
           </div>
           <span className="text-[10px] text-gray-400 shrink-0">{timeAgo}</span>
         </div>
 
         {/* Message */}
-        <p className="text-[13px] text-gray-700 leading-relaxed mb-3 pl-9 italic">
+        <p className="text-[13px] text-gray-700 dark:text-gray-300 leading-relaxed mb-3 pl-9 italic">
           &ldquo;{message}&rdquo;
         </p>
 
@@ -223,13 +223,13 @@ export function KudosCard({
                 className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
                   isActive
                     ? `${r.activeBg} ring-1 ${r.ring} shadow-sm`
-                    : `bg-white/80 ${r.bg}`
+                    : `bg-white/80 dark:bg-gray-800/80 ${r.bg}`
                 }`}
                 title={r.label}
               >
                 <span className="text-sm leading-none">{r.emoji}</span>
                 {count > 0 && (
-                  <span className={`tabular-nums text-[11px] ${isActive ? "font-bold" : "text-gray-500"}`}>
+                  <span className={`tabular-nums text-[11px] ${isActive ? "font-bold" : "text-gray-500 dark:text-gray-400"}`}>
                     {count}
                   </span>
                 )}

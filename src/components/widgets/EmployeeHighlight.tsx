@@ -37,13 +37,13 @@ export function EmployeeHighlight() {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100 border-t-[3px] border-t-amber-400">
-          <div className="h-4 w-32 bg-gray-200 rounded animate-pulse" />
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+        <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 border-t-[3px] border-t-amber-400">
+          <div className="h-4 w-32 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
         </div>
         <div className="p-4 space-y-2">
-          <div className="h-4 w-24 bg-gray-100 rounded animate-pulse" />
-          <div className="h-3 w-full bg-gray-100 rounded animate-pulse" />
+          <div className="h-4 w-24 bg-gray-100 dark:bg-gray-700 rounded animate-pulse" />
+          <div className="h-3 w-full bg-gray-100 dark:bg-gray-700 rounded animate-pulse" />
         </div>
       </div>
     );
@@ -61,12 +61,12 @@ export function EmployeeHighlight() {
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: "easeOut" }}
-        className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden"
+        className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden"
       >
         {/* Header */}
-        <div className="px-4 py-2.5 bg-gradient-to-r from-amber-50 to-yellow-50 border-b border-amber-100 border-t-[3px] border-t-amber-400 flex items-center gap-2">
+        <div className="px-4 py-2.5 bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-950/40 dark:to-yellow-950/30 border-b border-amber-100 dark:border-amber-900 border-t-[3px] border-t-amber-400 flex items-center gap-2">
           <Star className="w-4 h-4 text-amber-500 fill-amber-400" />
-          <h3 className="text-sm font-bold text-amber-700 tracking-wide uppercase">
+          <h3 className="text-sm font-bold text-amber-700 dark:text-amber-400 tracking-wide uppercase">
             Employee Highlight
           </h3>
           <Sparkles className="w-3.5 h-3.5 text-amber-400 ml-auto" />
@@ -86,18 +86,18 @@ export function EmployeeHighlight() {
 
           {/* Info */}
           <div className="flex-1 min-w-0">
-            <h4 className="text-sm font-bold text-gray-900 leading-tight">
+            <h4 className="text-sm font-bold text-gray-900 dark:text-gray-100 leading-tight">
               {highlight.employeeName}
             </h4>
             {(highlight.jobTitle || highlight.department) && (
-              <p className="text-[11px] text-gray-400 mt-0.5">
+              <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">
                 {highlight.jobTitle}{highlight.department ? ` · ${highlight.department}` : ""}
               </p>
             )}
             <p className="text-xs font-semibold text-amber-600 mt-0.5">
               ⭐ {highlight.title}
             </p>
-            <p className="text-xs text-gray-600 mt-1.5 leading-relaxed line-clamp-3">
+            <p className="text-xs text-gray-600 dark:text-gray-400 mt-1.5 leading-relaxed line-clamp-3">
               {highlight.subtitle}
             </p>
           </div>

@@ -58,7 +58,7 @@ export default function ResourceDocumentViewPage() {
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">{payload?.title || "Document Viewer"}</h1>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">{payload?.title || "Document Viewer"}</h1>
             {payload?.description ? (
               <p className="text-sm text-brand-grey">{payload.description}</p>
             ) : null}
@@ -83,20 +83,20 @@ export default function ResourceDocumentViewPage() {
       ) : null}
 
       {!isLoading && error ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-10 text-center">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-10 text-center">
           <FileText className="w-8 h-8 mx-auto text-brand-grey/40 mb-3" />
           <p className="text-sm text-brand-grey">{error}</p>
         </div>
       ) : null}
 
       {!isLoading && payload?.mode === "pdf" && payload.fileUrl ? (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
           <iframe title={payload.fileName} src={payload.fileUrl} className="w-full h-[75vh]" />
         </div>
       ) : null}
 
       {!isLoading && payload?.mode === "docx" ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
           <article
             className="prose prose-sm max-w-none"
             dangerouslySetInnerHTML={{ __html: payload.html || "" }}
@@ -107,21 +107,21 @@ export default function ResourceDocumentViewPage() {
       {!isLoading && payload?.mode === "table" ? (
         <div className="space-y-2">
           {payload.truncated ? (
-            <div className="text-xs text-brand-grey bg-white border border-gray-200 rounded-lg px-3 py-2">
+            <div className="text-xs text-brand-grey bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2">
               Showing preview of first {payload.previewRows || 0} rows
               {payload.totalRows ? ` out of ${payload.totalRows.toLocaleString()}` : ""} and up to {payload.previewCols || 0} columns.
               Use Download for the full file.
             </div>
           ) : null}
-          <div className="bg-white rounded-xl border border-gray-200 overflow-auto">
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-auto">
             <table className="min-w-full text-xs">
               <tbody>
                 {(payload.rows || []).map((row, rowIndex) => (
-                  <tr key={rowIndex} className={rowIndex === 0 ? "bg-gray-50" : ""}>
+                  <tr key={rowIndex} className={rowIndex === 0 ? "bg-gray-50 dark:bg-gray-800" : ""}>
                     {row.map((cell, cellIndex) => (
                       <td
                         key={`${rowIndex}-${cellIndex}`}
-                        className="px-3 py-2 border-b border-gray-100 whitespace-nowrap"
+                        className="px-3 py-2 border-b border-gray-100 dark:border-gray-800 whitespace-nowrap"
                       >
                         {cell}
                       </td>

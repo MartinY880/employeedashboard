@@ -42,30 +42,6 @@ services:
       AZURE_TENANT_ID: ${AZURE_TENANT_ID}
       AZURE_CLIENT_ID: ${AZURE_CLIENT_ID}
       AZURE_CLIENT_SECRET: ${AZURE_CLIENT_SECRET}
-      CALENDAR_API_URL: http://calendar:4000
-      OOO_API_URL: http://ooo:80
-
-  # ─── Calendar API (mproscalendar) ───────────────────────
-  calendar:
-    build:
-      context: ./external/mproscalendar
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    ports:
-      - "4000:4000"
-    environment:
-      PORT: 4000
-      DATABASE_URL: postgresql://proconnect:${POSTGRES_PASSWORD:-changeme}@db:5432/proconnect
-
-  # ─── OOO App (ooo-app) ─────────────────────────────────
-  ooo:
-    build:
-      context: ./external/ooo-app
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    ports:
-      - "5173:80"
-
   # ─── Logto Auth Server ─────────────────────────────────
   logto:
     image: svhd/logto:latest

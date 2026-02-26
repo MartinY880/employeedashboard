@@ -31,7 +31,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
                 d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
             </svg>
           </div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Access Denied</h2>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">Access Denied</h2>
           <p className="text-brand-grey text-sm">You do not have admin privileges to view this page.</p>
         </div>
       </PortalShell>

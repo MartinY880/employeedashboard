@@ -257,7 +257,7 @@ export function QuickLinksBar() {
   if (isLoading || links.length === 0) return null;
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm px-4 py-2.5 flex items-center justify-center gap-1 overflow-x-auto scrollbar-thin">
+    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm px-4 py-2.5 flex items-center justify-center gap-1 overflow-x-auto scrollbar-thin">
       <span className="text-[10px] font-bold text-brand-grey uppercase tracking-wider shrink-0 mr-2">
         Quick Links
       </span>
@@ -272,7 +272,7 @@ export function QuickLinksBar() {
               initial={{ opacity: 0, y: -4 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.03 }}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-gray-700 hover:bg-brand-blue/5 hover:text-brand-blue transition-colors shrink-0"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-brand-blue/5 hover:text-brand-blue transition-colors shrink-0"
             >
               {renderQuickLinkIconPreview(link.icon, "w-3.5 h-3.5")}
               {link.label}

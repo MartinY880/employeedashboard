@@ -122,7 +122,7 @@ export function DashboardSlider({
   }
 
   return (
-    <div ref={containerRef} className="w-full rounded-xl overflow-hidden border border-gray-200 shadow-sm bg-white">
+    <div ref={containerRef} className="w-full rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm bg-white dark:bg-gray-900">
       <div className={`relative w-full ${bgClass}`} style={{ height: `${Math.max(120, height)}px` }}>
         {!isVisible ? (
           <div className="h-full w-full bg-gray-50 animate-pulse" />
@@ -138,7 +138,7 @@ export function DashboardSlider({
         )}
       </div>
       {sanitizedMedia.length > 1 ? (
-        <div className="flex items-center justify-center gap-1.5 py-2 bg-white">
+        <div className="flex items-center justify-center gap-1.5 py-2 bg-white dark:bg-gray-900">
           {sanitizedMedia.map((_, index) => (
             <button
               key={index}

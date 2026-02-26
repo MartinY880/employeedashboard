@@ -57,7 +57,7 @@ interface IdeaItem {
 const STATUS_STYLES: Record<string, string> = {
   ACTIVE: "bg-blue-100 text-blue-700",
   SELECTED: "bg-emerald-100 text-emerald-700",
-  ARCHIVED: "bg-gray-100 text-gray-500",
+  ARCHIVED: "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500",
 };
 
 const STATUS_ICON: Record<string, React.ReactNode> = {
@@ -160,7 +160,7 @@ export default function AdminIdeasPage() {
         <div className="flex items-center gap-3">
           <Link
             href="/admin"
-            className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-gray-100 transition-colors"
+            className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 dark:hover:bg-gray-800 dark:bg-gray-800 transition-colors"
           >
             <ArrowLeft className="w-4 h-4 text-brand-grey" />
           </Link>
@@ -168,7 +168,7 @@ export default function AdminIdeasPage() {
             <Lightbulb className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Ideas Moderation</h1>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Ideas Moderation</h1>
             <p className="text-xs text-brand-grey">
               {ideas.length} total &middot; {activeCount} active &middot; {selectedCount} selected
             </p>
@@ -189,7 +189,7 @@ export default function AdminIdeasPage() {
             className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
               filterStatus === f.value
                 ? "bg-brand-blue text-white"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-200"
             }`}
           >
             {f.label}
@@ -199,7 +199,7 @@ export default function AdminIdeasPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
         {isLoading ? (
           <div className="p-6 space-y-3">
             {Array.from({ length: 5 }).map((_, i) => (
@@ -239,13 +239,13 @@ export default function AdminIdeasPage() {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, x: -20 }}
                       transition={{ duration: 0.2, delay: i * 0.03 }}
-                      className={`border-b border-gray-100 hover:bg-gray-50/50 transition-colors ${
+                      className={`border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800 dark:hover:bg-gray-800 dark:bg-gray-800/50 transition-colors ${
                         idea.status === "ARCHIVED" ? "opacity-50" : ""
                       }`}
                     >
                       <TableCell>
                         <div>
-                          <div className="font-semibold text-sm text-gray-900 truncate max-w-[340px] flex items-center gap-1.5">
+                          <div className="font-semibold text-sm text-gray-900 dark:text-gray-100 truncate max-w-[340px] flex items-center gap-1.5">
                             {idea.title}
                             {isTrending && (
                               <span className="text-xs" title="Trending">🔥</span>
@@ -257,7 +257,7 @@ export default function AdminIdeasPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <span className="text-sm text-gray-700">{idea.authorName}</span>
+                        <span className="text-sm text-gray-700 dark:text-gray-300">{idea.authorName}</span>
                       </TableCell>
                       <TableCell>
                         <span
@@ -266,7 +266,7 @@ export default function AdminIdeasPage() {
                               ? "text-orange-600"
                               : idea.votes > 0
                               ? "text-brand-blue"
-                              : "text-gray-400"
+                              : "text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500"
                           }`}
                         >
                           {idea.votes}
@@ -326,7 +326,7 @@ export default function AdminIdeasPage() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-7 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 gap-1"
+                              className="h-7 text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 dark:text-gray-300 dark:hover:text-gray-300 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 dark:hover:bg-gray-800 dark:bg-gray-800 gap-1"
                               disabled={updatingId === idea.id}
                               onClick={() => handleStatusChange(idea, "ARCHIVED")}
                               title="Archive idea"

@@ -40,13 +40,13 @@ export function AlertCard({
   timestamp,
 }: AlertCardProps) {
   return (
-    <div className={`bg-white p-4 rounded-xl border border-gray-100 border-l-4 ${borderColor} flex gap-3.5 items-start shadow-sm hover:shadow-md transition-shadow`}>
-      <div className={`flex h-8 w-8 items-center justify-center rounded-lg bg-gray-50 shrink-0 mt-0.5`}>
+    <div className={`bg-white dark:bg-gray-900 p-4 rounded-xl border border-gray-100 dark:border-gray-700 border-l-4 ${borderColor} flex gap-3.5 items-start shadow-sm hover:shadow-md transition-shadow`}>
+      <div className={`flex h-8 w-8 items-center justify-center rounded-lg bg-gray-50 dark:bg-gray-800 shrink-0 mt-0.5`}>
         <Icon className={`w-4 h-4 ${iconColor}`} />
       </div>
       <div className="text-sm leading-relaxed min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
-          <div className="font-semibold text-gray-800 mb-0.5">{title}</div>
+          <div className="font-semibold text-gray-800 dark:text-gray-200 mb-0.5">{title}</div>
           {badge}
         </div>
         <div className="text-brand-grey text-[13px]">{content}</div>

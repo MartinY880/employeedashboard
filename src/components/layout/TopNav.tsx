@@ -6,7 +6,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { LayoutDashboard, Users, CalendarDays, BookOpen, LogOut, Bell, ShieldCheck, Volume2, VolumeX, Trophy, Award, Star, Lightbulb, CheckCheck, Trash2, Link2, PanelTop, Settings } from "lucide-react";
+import { LayoutDashboard, Users, CalendarDays, BookOpen, LogOut, Bell, ShieldCheck, Volume2, VolumeX, Trophy, Award, Star, Lightbulb, CheckCheck, Trash2, Link2, PanelTop, Settings, Moon, Sun } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -29,6 +29,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useSounds } from "@/components/shared/SoundProvider";
+import { useTheme } from "@/components/shared/ThemeProvider";
 import { useBranding } from "@/hooks/useBranding";
 import { useNotifications, type Notification } from "@/hooks/useNotifications";
 import type { AuthUser } from "@/types";
@@ -112,6 +113,7 @@ function timeAgo(dateStr: string): string {
 export function TopNav({ user }: TopNavProps) {
   const pathname = usePathname();
   const { muted, toggleMute } = useSounds();
+  const { theme, toggleTheme } = useTheme();
   const { branding } = useBranding();
   const { notifications, unreadCount, markAsRead, markAllAsRead, clearAll } = useNotifications();
   const [notifOpen, setNotifOpen] = useState(false);
@@ -125,17 +127,29 @@ export function TopNav({ user }: TopNavProps) {
 
   return (
     <header
-      className="sticky top-0 z-50 flex items-center border-b border-gray-200 bg-white/95 backdrop-blur-sm px-3 sm:px-6 shadow-sm"
+      className="sticky top-0 z-50 flex items-center border-b border-gray-200 dark:border-gray-700 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm px-3 sm:px-6 shadow-sm"
     >
       {/* Logo */}
       <Link href="/dashboard" className="mr-4 sm:mr-10 flex items-center group shrink-0">
         {branding.logoData ? (
-          <img
-            src={branding.logoData}
-            alt="Logo"
-            className="w-auto object-contain transition-transform group-hover:scale-105"
-            style={{ height: 'clamp(48px, 8vw, 72px)', maxWidth: 'clamp(240px, 28vw, 420px)' }}
-          />
+          <>
+            {/* Light-mode logo (or only logo if no dark variant) */}
+            <img
+              src={branding.logoData}
+              alt="Logo"
+              className={`w-auto object-contain transition-transform group-hover:scale-105 ${branding.darkLogoData ? "dark:hidden" : ""}`}
+              style={{ height: 'clamp(48px, 8vw, 72px)', maxWidth: 'clamp(240px, 28vw, 420px)' }}
+            />
+            {/* Dark-mode logo (only rendered when a dark variant exists) */}
+            {branding.darkLogoData && (
+              <img
+                src={branding.darkLogoData}
+                alt="Logo"
+                className="hidden dark:block w-auto object-contain transition-transform group-hover:scale-105"
+                style={{ height: 'clamp(48px, 8vw, 72px)', maxWidth: 'clamp(240px, 28vw, 420px)' }}
+              />
+            )}
+          </>
         ) : (
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-blue text-white font-bold text-sm transition-transform group-hover:scale-105">
             MP
@@ -156,8 +170,8 @@ export function TopNav({ user }: TopNavProps) {
               href={href}
               className={`relative flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
                 isActive
-                  ? "text-brand-blue bg-blue-50"
-                  : "text-brand-grey hover:text-brand-blue hover:bg-gray-50"
+                  ? "text-brand-blue bg-blue-50 dark:bg-blue-950"
+                  : "text-brand-grey hover:text-brand-blue hover:bg-gray-50 dark:hover:bg-gray-800"
               }`}
             >
               {useIconLibraryLogo ? (
@@ -182,7 +196,7 @@ export function TopNav({ user }: TopNavProps) {
           <TooltipTrigger asChild>
             <button
               onClick={toggleMute}
-              className="flex h-9 w-9 items-center justify-center rounded-lg text-brand-grey hover:text-brand-blue hover:bg-gray-100 transition-all"
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-brand-grey hover:text-brand-blue hover:bg-gray-100 dark:hover:bg-gray-800 transition-all"
             >
               {muted ? <VolumeX className="w-[18px] h-[18px]" /> : <Volume2 className="w-[18px] h-[18px]" />}
             </button>
@@ -190,11 +204,11 @@ export function TopNav({ user }: TopNavProps) {
           <TooltipContent>{muted ? "Unmute sounds" : "Mute sounds"}</TooltipContent>
         </Tooltip>
 
-        <div className="w-px h-6 bg-gray-200 mx-1" />
+        <div className="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1" />
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="relative flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-gray-50 transition-colors outline-none">
+            <button className="relative flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors outline-none">
               <Avatar className="h-8 w-8 border-2 border-brand-blue/20">
                 <AvatarImage
                   src={avatarSrc}
@@ -210,7 +224,7 @@ export function TopNav({ user }: TopNavProps) {
                   <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500" />
                 </span>
               )}
-              <span className="text-sm font-medium text-gray-700 hidden lg:block">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300 hidden lg:block">
                 {user.name}
               </span>
             </button>
@@ -243,6 +257,16 @@ export function TopNav({ user }: TopNavProps) {
                 </span>
               )}
             </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={toggleTheme}
+              className="cursor-pointer"
+            >
+              {theme === "dark" ? (
+                <><Sun className="w-4 h-4 mr-2" />Light Mode</>
+              ) : (
+                <><Moon className="w-4 h-4 mr-2" />Dark Mode</>
+              )}
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
               <form action={signOutAction} className="w-full">
@@ -259,7 +283,7 @@ export function TopNav({ user }: TopNavProps) {
       {/* Notifications Lightbox */}
       <Dialog open={notifOpen} onOpenChange={setNotifOpen}>
         <DialogContent className="sm:max-w-md max-h-[80vh] flex flex-col p-0 gap-0">
-          <DialogHeader className="px-5 pt-5 pb-3 border-b">
+          <DialogHeader className="px-5 pt-5 pb-3 border-b dark:border-gray-700">
             <div className="flex items-center justify-between">
               <DialogTitle className="flex items-center gap-2">
                 <Bell className="w-5 h-5 text-brand-blue" />
@@ -294,15 +318,15 @@ export function TopNav({ user }: TopNavProps) {
                 <button
                   key={n.id}
                   onClick={() => { if (!n.read) markAsRead([n.id]); }}
-                  className={`w-full flex items-start gap-3 px-5 py-3.5 text-left hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0 ${
-                    !n.read ? "bg-blue-50/60" : ""
+                  className={`w-full flex items-start gap-3 px-5 py-3.5 text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors border-b border-gray-100 dark:border-gray-700 last:border-0 ${
+                    !n.read ? "bg-blue-50/60 dark:bg-blue-950/40" : ""
                   }`}
                 >
-                  <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 shrink-0">
+                  <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 shrink-0">
                     {getNotificationIcon(n.type)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className={`text-sm leading-snug ${!n.read ? "font-semibold text-gray-900" : "text-gray-700"}`}>
+                    <p className={`text-sm leading-snug ${!n.read ? "font-semibold text-gray-900 dark:text-gray-100" : "text-gray-700 dark:text-gray-300"}`}>
                       {n.title}
                     </p>
                     <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{n.message}</p>
@@ -315,7 +339,7 @@ export function TopNav({ user }: TopNavProps) {
                   )}
                 </button>
               ))}
-              <div className="px-5 py-3 border-t bg-gray-50">
+              <div className="px-5 py-3 border-t bg-gray-50 dark:bg-gray-800 dark:border-gray-700">
                 <button
                   onClick={() => clearAll()}
                   className="w-full flex items-center justify-center gap-1.5 text-xs text-red-500 hover:text-red-600 font-medium py-1.5 rounded-md hover:bg-red-50 transition-colors"

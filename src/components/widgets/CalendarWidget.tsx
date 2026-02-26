@@ -140,7 +140,7 @@ export function CalendarWidget() {
                 initial={{ opacity: 0, x: -12 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.3, delay: i * 0.06 }}
-                className={`w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-50 transition-colors group ${
+                className={`w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors group ${
                   isToday ? "bg-brand-blue/5" : ""
                 }`}
               >
@@ -150,7 +150,7 @@ export function CalendarWidget() {
                 />
                 <Calendar className="w-4 h-4 text-brand-grey shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-gray-800 truncate">
+                  <div className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
                     {holiday.title}
                   </div>
                   <div className="text-xs text-brand-grey">
@@ -193,7 +193,7 @@ export function CalendarWidget() {
           )}
           <button
             onClick={() => refetch()}
-            className="p-1 rounded hover:bg-gray-100 transition-colors"
+            className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
             title="Refresh"
           >
             <RefreshCw className="w-3 h-3 text-brand-grey" />
@@ -204,18 +204,18 @@ export function CalendarWidget() {
       <Dialog open={!!selectedHoliday} onOpenChange={(open) => !open && setSelectedHoliday(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-lg font-semibold text-gray-900">Holiday Details</DialogTitle>
+            <DialogTitle className="text-lg font-semibold text-gray-900 dark:text-gray-100">Holiday Details</DialogTitle>
           </DialogHeader>
           {selectedHoliday && (
             <div className="space-y-3 text-sm">
               <div>
                 <div className="text-xs text-brand-grey">Title</div>
-                <div className="font-semibold text-gray-900 break-words">{selectedHoliday.title}</div>
+                <div className="font-semibold text-gray-900 dark:text-gray-100 break-words">{selectedHoliday.title}</div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <div className="text-xs text-brand-grey">Date</div>
-                  <div className="text-gray-800">{formatDate(selectedHoliday.date)}</div>
+                  <div className="text-gray-800 dark:text-gray-200">{formatDate(selectedHoliday.date)}</div>
                 </div>
                 <div>
                   <div className="text-xs text-brand-grey">Category</div>

@@ -102,7 +102,7 @@ export default function ResourcesPage() {
     >
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Resources</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Resources</h1>
         <p className="text-sm text-brand-grey mt-0.5">
           Quick links to company tools, training, and documents
         </p>
@@ -124,7 +124,7 @@ export default function ResourcesPage() {
       )}
 
       {!isLoading && categories.length === 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-sm text-brand-grey">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-8 text-center text-sm text-brand-grey">
           No resources are currently available.
         </div>
       )}
@@ -156,14 +156,14 @@ export default function ResourcesPage() {
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.2, delay: catIdx * 0.08 + i * 0.04 }}
-                    className="group flex items-start gap-3.5 bg-white rounded-xl border border-gray-200 shadow-sm p-4 hover:shadow-md hover:border-brand-blue/30 transition-all"
+                    className="group flex items-start gap-3.5 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-4 hover:shadow-md hover:border-brand-blue/30 transition-all"
                   >
                     <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${colorClass} text-white shrink-0 group-hover:scale-105 transition-transform`}>
                       <Icon className="w-5 h-5" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-sm font-semibold text-gray-800 group-hover:text-brand-blue transition-colors">
+                        <span className="text-sm font-semibold text-gray-800 dark:text-gray-200 group-hover:text-brand-blue transition-colors">
                           {resource.title}
                         </span>
                         <ExternalLink className="w-3 h-3 text-brand-grey opacity-0 group-hover:opacity-100 transition-opacity" />

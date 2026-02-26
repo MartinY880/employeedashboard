@@ -78,7 +78,7 @@ export function DirectorySearchBar() {
     <>
       {/* Search bar */}
       <div ref={containerRef} className="relative">
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm flex items-center px-3 py-2 gap-2">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex items-center px-3 py-2 gap-2">
           <Search className="w-4 h-4 text-brand-grey/50 shrink-0" />
           <input
             ref={inputRef}
@@ -90,7 +90,7 @@ export function DirectorySearchBar() {
               setShowResults(true);
             }}
             onFocus={() => { if (query.trim()) setShowResults(true); }}
-            className="flex-1 text-sm bg-transparent outline-none placeholder:text-brand-grey/50"
+            className="flex-1 text-sm bg-transparent outline-none placeholder:text-brand-grey/50 dark:text-gray-200"
             disabled={isLoading}
           />
           {query && (
@@ -114,7 +114,7 @@ export function DirectorySearchBar() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}
               transition={{ duration: 0.15 }}
-              className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl border border-gray-200 shadow-lg z-50 overflow-hidden"
+              className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg z-50 overflow-hidden"
             >
               {results.length === 0 ? (
                 <div className="px-4 py-5 text-center text-xs text-brand-grey">
@@ -129,7 +129,7 @@ export function DirectorySearchBar() {
                       animate={{ opacity: 1 }}
                       transition={{ delay: i * 0.03 }}
                       onClick={() => handleSelectPerson(person)}
-                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 hover:bg-brand-blue/5 transition-colors text-left"
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 hover:bg-brand-blue/5 dark:hover:bg-gray-800 transition-colors text-left"
                     >
                       <Avatar className="h-8 w-8 shrink-0">
                         <AvatarImage
@@ -141,7 +141,7 @@ export function DirectorySearchBar() {
                         </AvatarFallback>
                       </Avatar>
                       <div className="min-w-0 flex-1">
-                        <div className="font-semibold text-sm text-gray-800 truncate">
+                        <div className="font-semibold text-sm text-gray-800 dark:text-gray-200 truncate">
                           {person.displayName}
                         </div>
                         <div className="text-[11px] text-brand-grey truncate">
@@ -173,7 +173,7 @@ export function DirectorySearchBar() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.92, y: 20 }}
               transition={{ type: "spring", stiffness: 400, damping: 30 }}
-              className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden"
+              className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header band */}
@@ -188,7 +188,7 @@ export function DirectorySearchBar() {
 
               {/* Avatar overlap */}
               <div className="relative -mt-8 flex justify-center">
-                <Avatar className="h-16 w-16 ring-4 ring-white shadow-lg">
+                <Avatar className="h-16 w-16 ring-4 ring-white dark:ring-gray-900 shadow-lg">
                   <AvatarImage
                     src={`/api/directory/photo?userId=${encodeURIComponent(selectedPerson.id)}&name=${encodeURIComponent(selectedPerson.displayName)}&size=120x120`}
                     alt={selectedPerson.displayName}
@@ -201,7 +201,7 @@ export function DirectorySearchBar() {
 
               {/* Info */}
               <div className="px-6 pt-3 pb-6 text-center">
-                <h2 className="text-lg font-bold text-gray-900">
+                <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">
                   {selectedPerson.displayName}
                 </h2>
                 <p className="text-sm text-brand-grey mt-0.5">
@@ -223,7 +223,7 @@ export function DirectorySearchBar() {
                   {selectedPerson.officeLocation && (
                     <div className="flex items-center gap-3 text-sm">
                       <NMLSIcon className="w-4 h-4 text-brand-grey shrink-0" />
-                      <span className="text-gray-700">{selectedPerson.officeLocation}</span>
+                      <span className="text-gray-700 dark:text-gray-300">{selectedPerson.officeLocation}</span>
                     </div>
                   )}
                   {selectedPerson.businessPhone && (

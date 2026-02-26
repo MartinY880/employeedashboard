@@ -196,7 +196,7 @@ export function PeoplePicker({
         ) : hasSelected ? (
           <button
             onClick={handleClear}
-            className="absolute right-2 top-1.5 p-0.5 rounded hover:bg-gray-100 transition-colors"
+            className="absolute right-2 top-1.5 p-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 transition-colors"
           >
             <X className="w-3.5 h-3.5 text-brand-grey" />
           </button>
@@ -224,7 +224,7 @@ export function PeoplePicker({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.15 }}
-            className="absolute z-50 top-9 left-0 right-0 bg-white rounded-lg border border-gray-200 shadow-lg overflow-hidden max-h-48 overflow-y-auto"
+            className="absolute z-50 top-9 left-0 right-0 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden max-h-48 overflow-y-auto"
           >
             {results.map((person, i) => (
               <button
@@ -234,7 +234,7 @@ export function PeoplePicker({
                 className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors ${
                   i === selectedIndex
                     ? "bg-brand-blue/5"
-                    : "hover:bg-gray-50"
+                    : "hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800"
                 }`}
               >
                 <div className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-blue/10 shrink-0">
@@ -247,7 +247,7 @@ export function PeoplePicker({
                   </span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs font-medium text-gray-800 truncate">
+                  <div className="text-xs font-medium text-gray-800 dark:text-gray-200 truncate">
                     {person.displayName}
                   </div>
                   <div className="text-[10px] text-brand-grey truncate">

@@ -243,7 +243,7 @@ export default function AdminPillarsPage() {
         <div className="flex items-center gap-3">
           <Link
             href="/admin"
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 hover:text-brand-blue hover:border-brand-blue/30 transition-all"
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 hover:text-brand-blue hover:border-brand-blue/30 transition-all"
           >
             <ArrowLeft className="w-4 h-4" />
           </Link>
@@ -251,7 +251,7 @@ export default function AdminPillarsPage() {
             <Shield className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Company Pillars</h1>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Company Pillars</h1>
             <p className="text-sm text-brand-grey">
               Edit the pillar cards displayed on the dashboard
             </p>
@@ -303,11 +303,11 @@ export default function AdminPillarsPage() {
       </div>
 
       {/* Header Editor */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 space-y-3">
-        <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">Pillar Header Banner</h3>
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-4 space-y-3">
+        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Pillar Header Banner</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 block">
+            <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1 block">
               Title
             </label>
             <Input
@@ -321,7 +321,7 @@ export default function AdminPillarsPage() {
             />
           </div>
           <div>
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 block">
+            <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1 block">
               Subtitle
             </label>
             <Input
@@ -338,11 +338,11 @@ export default function AdminPillarsPage() {
 
         {/* Max Width Slider */}
         <div>
-          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 block">
+          <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1 block">
             Container Width — {header.maxWidth ?? 1400}px
           </label>
           <div className="flex items-center gap-3">
-            <span className="text-xs text-gray-400 w-10">600</span>
+            <span className="text-xs text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 w-10">600</span>
             <input
               type="range"
               min={600}
@@ -355,21 +355,21 @@ export default function AdminPillarsPage() {
               }}
               className="flex-1 h-2 accent-brand-blue cursor-pointer"
             />
-            <span className="text-xs text-gray-400 w-10 text-right">1920</span>
+            <span className="text-xs text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 w-10 text-right">1920</span>
           </div>
         </div>
 
         {/* Font Size Controls */}
-        <div className="border-t border-gray-100 pt-3 mt-1">
-          <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Font Sizes</h4>
+        <div className="border-t border-gray-100 dark:border-gray-800 pt-3 mt-1">
+          <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Font Sizes</h4>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {/* Banner Title Size */}
             <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 block">
+              <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1 block">
                 Banner Title — {header.bannerTitleSize ?? 14}px
               </label>
               <div className="flex items-center gap-3">
-                <span className="text-xs text-gray-400 w-6">8</span>
+                <span className="text-xs text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 w-6">8</span>
                 <input
                   type="range"
                   min={8}
@@ -382,17 +382,17 @@ export default function AdminPillarsPage() {
                   }}
                   className="flex-1 h-2 accent-brand-blue cursor-pointer"
                 />
-                <span className="text-xs text-gray-400 w-6 text-right">28</span>
+                <span className="text-xs text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 w-6 text-right">28</span>
               </div>
             </div>
 
             {/* Banner Subtitle Size */}
             <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 block">
+              <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1 block">
                 Banner Subtitle — {header.bannerSubtitleSize ?? 11}px
               </label>
               <div className="flex items-center gap-3">
-                <span className="text-xs text-gray-400 w-6">8</span>
+                <span className="text-xs text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 w-6">8</span>
                 <input
                   type="range"
                   min={8}
@@ -405,17 +405,17 @@ export default function AdminPillarsPage() {
                   }}
                   className="flex-1 h-2 accent-brand-blue cursor-pointer"
                 />
-                <span className="text-xs text-gray-400 w-6 text-right">24</span>
+                <span className="text-xs text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 w-6 text-right">24</span>
               </div>
             </div>
 
             {/* Card Title Size */}
             <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 block">
+              <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1 block">
                 Card Titles — {header.cardTitleSize ?? 14}px
               </label>
               <div className="flex items-center gap-3">
-                <span className="text-xs text-gray-400 w-6">8</span>
+                <span className="text-xs text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 w-6">8</span>
                 <input
                   type="range"
                   min={8}
@@ -428,17 +428,17 @@ export default function AdminPillarsPage() {
                   }}
                   className="flex-1 h-2 accent-brand-blue cursor-pointer"
                 />
-                <span className="text-xs text-gray-400 w-6 text-right">24</span>
+                <span className="text-xs text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 w-6 text-right">24</span>
               </div>
             </div>
 
             {/* Card Message Size */}
             <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 block">
+              <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1 block">
                 Card Messages — {header.cardMessageSize ?? 11}px
               </label>
               <div className="flex items-center gap-3">
-                <span className="text-xs text-gray-400 w-6">8</span>
+                <span className="text-xs text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 w-6">8</span>
                 <input
                   type="range"
                   min={8}
@@ -451,7 +451,7 @@ export default function AdminPillarsPage() {
                   }}
                   className="flex-1 h-2 accent-brand-blue cursor-pointer"
                 />
-                <span className="text-xs text-gray-400 w-6 text-right">20</span>
+                <span className="text-xs text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 w-6 text-right">20</span>
               </div>
             </div>
           </div>
@@ -494,11 +494,11 @@ export default function AdminPillarsPage() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, x: -100 }}
                 transition={{ duration: 0.25, delay: index * 0.03 }}
-                className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 hover:shadow-md hover:border-brand-blue/15 transition-all"
+                className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-4 hover:shadow-md hover:border-brand-blue/15 transition-all"
               >
                 <div className="flex items-start gap-3">
                   {/* Drag handle */}
-                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing shrink-0 mt-1">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 cursor-grab active:cursor-grabbing shrink-0 mt-1">
                     <GripVertical className="w-4 h-4" />
                   </div>
 
@@ -512,7 +512,7 @@ export default function AdminPillarsPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {/* Icon selector */}
                       <div>
-                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 block">
+                        <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1 block">
                           Icon
                         </label>
                         <div className="relative">
@@ -656,7 +656,7 @@ export default function AdminPillarsPage() {
 
                       {/* Title */}
                       <div>
-                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 block">
+                        <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1 block">
                           Title
                         </label>
                         <Input
@@ -672,7 +672,7 @@ export default function AdminPillarsPage() {
 
                     {/* Message */}
                     <div>
-                      <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 block">
+                      <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1 block">
                         Message
                       </label>
                       <Textarea
@@ -692,7 +692,7 @@ export default function AdminPillarsPage() {
                     variant="ghost"
                     size="sm"
                     onClick={() => setDeleteId(pillar.id)}
-                    className="text-gray-400 hover:text-red-500 hover:bg-red-50 shrink-0 mt-1"
+                    className="text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 hover:text-red-500 hover:bg-red-50 shrink-0 mt-1"
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>

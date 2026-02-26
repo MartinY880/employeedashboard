@@ -213,7 +213,7 @@ export default function CalendarPage() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Company Calendar</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Company Calendar</h1>
           <p className="text-sm text-brand-grey mt-0.5">
             Federal holidays, company events & fun days
             {isEmpty && (
@@ -222,17 +222,17 @@ export default function CalendarPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex border border-gray-200 rounded-lg overflow-hidden">
+          <div className="flex border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
             <button
               onClick={() => { setViewMode("grid"); playClick(); }}
-              className={`p-2 transition-colors ${viewMode === "grid" ? "bg-brand-blue text-white" : "bg-white text-brand-grey hover:bg-gray-50"}`}
+              className={`p-2 transition-colors ${viewMode === "grid" ? "bg-brand-blue text-white" : "bg-white dark:bg-gray-900 text-brand-grey hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800 dark:hover:bg-gray-800 dark:bg-gray-800"}`}
               title="Grid view"
             >
               <LayoutGrid className="w-4 h-4" />
             </button>
             <button
               onClick={() => { setViewMode("list"); playClick(); }}
-              className={`p-2 transition-colors ${viewMode === "list" ? "bg-brand-blue text-white" : "bg-white text-brand-grey hover:bg-gray-50"}`}
+              className={`p-2 transition-colors ${viewMode === "list" ? "bg-brand-blue text-white" : "bg-white dark:bg-gray-900 text-brand-grey hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800 dark:hover:bg-gray-800 dark:bg-gray-800"}`}
               title="List view"
             >
               <List className="w-4 h-4" />
@@ -240,7 +240,7 @@ export default function CalendarPage() {
           </div>
           <button
             onClick={() => refetch()}
-            className="p-2 rounded-lg hover:bg-gray-100 transition-colors text-brand-grey"
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 dark:hover:bg-gray-800 dark:bg-gray-800 transition-colors text-brand-grey"
             title="Refresh"
           >
             <RefreshCw className="w-4 h-4" />
@@ -260,7 +260,7 @@ export default function CalendarPage() {
               className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all border ${
                 isActive
                   ? "bg-brand-blue text-white border-brand-blue shadow-sm"
-                  : "bg-white text-brand-grey border-gray-200 hover:border-brand-blue/40 hover:text-brand-blue"
+                  : "bg-white dark:bg-gray-900 text-brand-grey border-gray-200 dark:border-gray-700 hover:border-brand-blue/40 hover:text-brand-blue"
               }`}
             >
               <Icon className="w-3.5 h-3.5" />
@@ -271,12 +271,12 @@ export default function CalendarPage() {
       </div>
 
       {/* Month Navigation */}
-      <div className="flex items-center justify-between bg-white rounded-xl border border-gray-200 shadow-sm px-4 py-3">
+      <div className="flex items-center justify-between bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm px-4 py-3">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={goToPrevMonth} className="h-8 w-8">
             <ChevronLeft className="w-4 h-4" />
           </Button>
-          <h2 className="text-lg font-bold text-gray-900 min-w-[180px] text-center">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 min-w-[180px] text-center">
             {MONTH_NAMES[viewMonth]} {viewYear}
           </h2>
           <Button variant="ghost" size="icon" onClick={goToNextMonth} className="h-8 w-8">
@@ -316,7 +316,7 @@ export default function CalendarPage() {
             <div className="grid grid-cols-7 gap-1">
               {gridCells.map((day, idx) => {
                 if (day === null) {
-                  return <div key={`empty-${idx}`} className="h-28 rounded-lg bg-gray-50/50" />;
+                  return <div key={`empty-${idx}`} className="h-28 rounded-lg bg-gray-50 dark:bg-gray-800/50" />;
                 }
                 const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
                 const dayHolidays = holidaysByDate[dateStr] || [];
@@ -334,14 +334,14 @@ export default function CalendarPage() {
                       isToday
                         ? "border-brand-blue bg-brand-blue/5 ring-1 ring-brand-blue/20"
                         : isPast
-                          ? "border-gray-100 bg-gray-50/50 opacity-60"
+                          ? "border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 opacity-60"
                           : isWeekend
-                            ? "border-gray-100 bg-gray-50/30"
-                            : "border-gray-100 bg-white hover:border-gray-200 hover:shadow-sm"
+                            ? "border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/30"
+                            : "border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 hover:border-gray-200 dark:border-gray-700 hover:shadow-sm"
                     }`}
                   >
                     <div className={`text-xs font-semibold mb-1 ${
-                      isToday ? "text-brand-blue" : isPast ? "text-gray-400" : "text-gray-700"
+                      isToday ? "text-brand-blue" : isPast ? "text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500" : "text-gray-700 dark:text-gray-300"
                     }`}>
                       {day}
                       {isToday && <span className="ml-1 text-[9px] text-brand-blue font-bold">TODAY</span>}
@@ -382,7 +382,7 @@ export default function CalendarPage() {
             className="space-y-2"
           >
             {monthHolidays.length === 0 ? (
-              <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+              <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-8 text-center">
                 <Calendar className="w-10 h-10 text-brand-grey/30 mx-auto mb-3" />
                 <p className="text-sm text-brand-grey">No events in {MONTH_NAMES[viewMonth]}</p>
               </div>
@@ -399,7 +399,7 @@ export default function CalendarPage() {
                     initial={{ opacity: 0, x: -12 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.25, delay: i * 0.04 }}
-                    className={`flex items-center gap-4 bg-white rounded-xl border border-gray-200 shadow-sm px-5 py-4 hover:shadow-md transition-shadow cursor-pointer ${
+                    className={`flex items-center gap-4 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm px-5 py-4 hover:shadow-md transition-shadow cursor-pointer ${
                       isToday ? "ring-1 ring-brand-blue/20" : ""
                     } ${isPast ? "opacity-50" : ""}`}
                     onClick={() => {
@@ -409,7 +409,7 @@ export default function CalendarPage() {
                   >
                     {/* Date block */}
                     <div className="text-center min-w-[50px]">
-                      <div className="text-2xl font-bold text-gray-800">
+                      <div className="text-2xl font-bold text-gray-800 dark:text-gray-200">
                         {new Date(h.date + "T00:00:00").getDate()}
                       </div>
                       <div className="text-[10px] font-semibold text-brand-grey uppercase">
@@ -422,7 +422,7 @@ export default function CalendarPage() {
 
                     {/* Details */}
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-gray-800">{h.title}</div>
+                      <div className="text-sm font-semibold text-gray-800 dark:text-gray-200">{h.title}</div>
                       <div className="text-xs text-brand-grey">{formatDate(h.date)}</div>
                     </div>
 
@@ -455,18 +455,18 @@ export default function CalendarPage() {
       <Dialog open={!!selectedHoliday} onOpenChange={(open) => !open && setSelectedHoliday(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-lg font-semibold text-gray-900">Holiday Details</DialogTitle>
+            <DialogTitle className="text-lg font-semibold text-gray-900 dark:text-gray-100">Holiday Details</DialogTitle>
           </DialogHeader>
           {selectedHoliday && (
             <div className="space-y-3 text-sm">
               <div>
                 <div className="text-xs text-brand-grey">Title</div>
-                <div className="font-semibold text-gray-900 break-words">{selectedHoliday.title}</div>
+                <div className="font-semibold text-gray-900 dark:text-gray-100 break-words">{selectedHoliday.title}</div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <div className="text-xs text-brand-grey">Date</div>
-                  <div className="text-gray-800">{formatDate(selectedHoliday.date)}</div>
+                  <div className="text-gray-800 dark:text-gray-200">{formatDate(selectedHoliday.date)}</div>
                 </div>
                 <div>
                   <div className="text-xs text-brand-grey">Category</div>

@@ -58,6 +58,7 @@ const demoBranding = {
   id: "singleton",
   companyName: "MortgagePros",
   logoData: null as string | null,
+  darkLogoData: null as string | null,
   faviconData: null as string | null,
   updatedAt: new Date().toISOString(),
 };
@@ -141,9 +142,11 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const companyName = formData.get("companyName") as string | null;
     const logoFile = formData.get("logo") as File | null;
+    const darkLogoFile = formData.get("darkLogo") as File | null;
     const faviconFile = formData.get("favicon") as File | null;
     const removeLogo = formData.get("removeLogo") === "true";
     const removeFavicon = formData.get("removeFavicon") === "true";
+    const removeDarkLogo = formData.get("removeDarkLogo") === "true";
     const smtpSettings: SmtpSettings = {
       host: ((formData.get("smtpHost") as string | null) || "").trim(),
       port: ((formData.get("smtpPort") as string | null) || "587").trim(),
@@ -199,6 +202,7 @@ export async function POST(request: Request) {
 
     // Convert files to base64 data URLs
     let logoData: string | null | undefined = undefined;
+    let darkLogoData: string | null | undefined = undefined;
     let faviconData: string | null | undefined = undefined;
 
     if (removeLogo) {
@@ -207,6 +211,14 @@ export async function POST(request: Request) {
       const bytes = await logoFile.arrayBuffer();
       const base64 = Buffer.from(bytes).toString("base64");
       logoData = `data:${logoFile.type};base64,${base64}`;
+    }
+
+    if (removeDarkLogo) {
+      darkLogoData = null;
+    } else if (darkLogoFile && darkLogoFile.size > 0) {
+      const bytes = await darkLogoFile.arrayBuffer();
+      const base64 = Buffer.from(bytes).toString("base64");
+      darkLogoData = `data:${darkLogoFile.type};base64,${base64}`;
     }
 
     if (removeFavicon) {
@@ -222,6 +234,7 @@ export async function POST(request: Request) {
     const updatePayload: Record<string, any> = {};
     if (companyName !== null && companyName !== undefined) updatePayload.companyName = companyName;
     if (logoData !== undefined) updatePayload.logoData = logoData;
+    if (darkLogoData !== undefined) updatePayload.darkLogoData = darkLogoData;
     if (faviconData !== undefined) updatePayload.faviconData = faviconData;
 
     try {
@@ -233,6 +246,7 @@ export async function POST(request: Request) {
             id: "singleton",
             companyName: companyName || "MortgagePros",
             logoData: logoData ?? null,
+            darkLogoData: darkLogoData ?? null,
             faviconData: faviconData ?? null,
           },
         }),
@@ -259,6 +273,7 @@ export async function POST(request: Request) {
       // DB unavailable — update demo branding
       if (companyName) demoBranding.companyName = companyName;
       if (logoData !== undefined) demoBranding.logoData = logoData;
+      if (darkLogoData !== undefined) demoBranding.darkLogoData = darkLogoData;
       if (faviconData !== undefined) demoBranding.faviconData = faviconData;
       demoBranding.updatedAt = new Date().toISOString();
 

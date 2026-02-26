@@ -74,7 +74,7 @@ export function KudosFeed() {
     return (
       <div className="space-y-3">
         {[...Array(3)].map((_, i) => (
-          <div key={i} className="rounded-xl border border-gray-100 overflow-hidden">
+          <div key={i} className="rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden">
             <Skeleton className="h-10 w-full" />
             <div className="p-3.5 space-y-2">
               <div className="flex items-center gap-2">
@@ -111,7 +111,7 @@ export function KudosFeed() {
           animate={{ opacity: 1, height: "auto" }}
           exit={{ opacity: 0, height: 0 }}
           transition={{ duration: 0.25 }}
-          className="bg-white rounded-xl border border-brand-blue/20 shadow-sm overflow-hidden"
+          className="bg-white dark:bg-gray-900 rounded-xl border border-brand-blue/20 shadow-sm overflow-hidden"
         >
           <div className="bg-brand-blue px-3.5 py-2">
             <div className="text-[11px] font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
@@ -123,7 +123,7 @@ export function KudosFeed() {
           <div className="p-3 space-y-2.5">
             {/* Badge Picker */}
             <div>
-              <label className="text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-1.5 block">
+              <label className="text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5 block">
                 Choose Award
               </label>
               <div className="grid grid-cols-3 gap-1.5">
@@ -146,7 +146,7 @@ export function KudosFeed() {
                       <span className="h-4 w-4 inline-flex items-center justify-center">
                         <span className={`text-sm leading-none ${b.emojiScale}`}>{b.emoji}</span>
                       </span>
-                      <span className={`text-[10px] font-bold leading-tight whitespace-nowrap ${isSelected ? "text-white" : "text-gray-700"}`}>
+                      <span className={`text-[10px] font-bold leading-tight whitespace-nowrap ${isSelected ? "text-white" : "text-gray-700 dark:text-gray-300"}`}>
                         {b.label}
                       </span>
                     </motion.button>
@@ -157,7 +157,7 @@ export function KudosFeed() {
 
             {/* Recipient Picker */}
             <div>
-              <label className="text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-1 block">
+              <label className="text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1 block">
                 To
               </label>
               <PeoplePicker

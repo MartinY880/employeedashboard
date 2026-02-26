@@ -220,8 +220,8 @@ const DEPT_COLORS: Record<string, string> = {
 };
 
 function getDeptColor(dept: string | null) {
-  if (!dept) return "bg-gray-100 text-gray-600";
-  return DEPT_COLORS[dept] || "bg-gray-100 text-gray-600";
+  if (!dept) return "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500";
+  return DEPT_COLORS[dept] || "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500";
 }
 
 /* ------------------------------------------------------------------ */
@@ -257,7 +257,7 @@ function ProfileDialog({
               {getInitials(user.displayName)}
             </AvatarFallback>
           </Avatar>
-          <h3 className="text-lg font-semibold text-gray-900">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
             {user.displayName}
           </h3>
           {user.jobTitle && (
@@ -273,7 +273,7 @@ function ProfileDialog({
           )}
         </div>
 
-        <div className="space-y-3 border-t border-gray-100 pt-4">
+        <div className="space-y-3 border-t border-gray-100 dark:border-gray-800 pt-4">
           {user.mail && (
             <div className="flex items-center gap-3 text-sm">
               <Mail className="w-4 h-4 text-brand-grey shrink-0" />
@@ -288,31 +288,31 @@ function ProfileDialog({
           {user.officeLocation && (
             <div className="flex items-center gap-3 text-sm">
               <NMLSIcon className="w-4 h-4 text-brand-grey shrink-0" />
-              <span className="text-gray-700">{user.officeLocation}</span>
+              <span className="text-gray-700 dark:text-gray-300">{user.officeLocation}</span>
             </div>
           )}
           {user.businessPhone && (
             <div className="flex items-center gap-3 text-sm">
               <Phone className="w-4 h-4 text-brand-grey shrink-0" />
-              <span className="text-gray-700">{user.businessPhone}</span>
+              <span className="text-gray-700 dark:text-gray-300">{user.businessPhone}</span>
             </div>
           )}
           {user.mobilePhone && (
             <div className="flex items-center gap-3 text-sm">
               <Smartphone className="w-4 h-4 text-brand-grey shrink-0" />
-              <span className="text-gray-700">{user.mobilePhone}</span>
+              <span className="text-gray-700 dark:text-gray-300">{user.mobilePhone}</span>
             </div>
           )}
           {user.faxNumber && (
             <div className="flex items-center gap-3 text-sm">
               <Printer className="w-4 h-4 text-brand-grey shrink-0" />
-              <span className="text-gray-700">{user.faxNumber}</span>
+              <span className="text-gray-700 dark:text-gray-300">{user.faxNumber}</span>
             </div>
           )}
         </div>
 
         {user.directReports && user.directReports.length > 0 && (
-          <div className="border-t border-gray-100 pt-4 mt-2">
+          <div className="border-t border-gray-100 dark:border-gray-800 pt-4 mt-2">
             <p className="text-xs font-semibold text-brand-grey uppercase tracking-wider mb-2">
               Direct Reports ({user.directReports.length})
             </p>
@@ -327,7 +327,7 @@ function ProfileDialog({
                       {getInitials(dr.displayName)}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="text-gray-700 truncate">
+                  <span className="text-gray-700 dark:text-gray-300 truncate">
                     {dr.displayName}
                   </span>
                   <span className="text-xs text-brand-grey ml-auto shrink-0">
@@ -393,7 +393,7 @@ function OrgChartNode({
       >
         <button
           onClick={() => onSelect(node)}
-          className="group flex flex-col items-center bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-brand-blue/30 transition-all px-4 py-3 w-[160px] text-center"
+          className="group flex flex-col items-center bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md hover:border-brand-blue/30 transition-all px-4 py-3 w-[160px] text-center"
         >
           <Avatar className="h-12 w-12 mb-1.5 ring-2 ring-white shadow-sm">
             <AvatarImage
@@ -406,7 +406,7 @@ function OrgChartNode({
               {getInitials(node.displayName)}
             </AvatarFallback>
           </Avatar>
-          <span className="font-semibold text-xs text-gray-900 group-hover:text-brand-blue transition-colors truncate w-full">
+          <span className="font-semibold text-xs text-gray-900 dark:text-gray-100 group-hover:text-brand-blue transition-colors truncate w-full">
             {node.displayName}
           </span>
           <span className="text-[10px] text-brand-grey truncate w-full mt-0.5">
@@ -452,7 +452,7 @@ function OrgChartNode({
             className="flex flex-col items-center overflow-hidden"
           >
             {/* Vertical line down from parent */}
-            <div className="w-px h-6 bg-gray-300" />
+            <div className="w-px h-6 bg-gray-300 dark:bg-gray-600" />
 
             {/* Children layout */}
             {useEmployeeTypeGroups ? (
@@ -460,9 +460,9 @@ function OrgChartNode({
                 {groupedDirectReports.map(([groupName, reports]) => (
                   <div
                     key={`${node.id}-${groupName}`}
-                    className="border border-gray-200 rounded-lg bg-gray-50/70 px-4 py-3"
+                    className="border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800/70 px-4 py-3"
                   >
-                    <p className="text-[11px] font-semibold text-gray-700 uppercase tracking-wide text-center mb-3">
+                    <p className="text-[11px] font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide text-center mb-3">
                       {groupName}
                     </p>
                     <div className="grid grid-cols-3 gap-x-6 gap-y-8 items-start">
@@ -472,7 +472,7 @@ function OrgChartNode({
                           className="flex flex-col items-center"
                           style={{ minWidth: 180 }}
                         >
-                          <div className="w-px h-5 bg-gray-300" />
+                          <div className="w-px h-5 bg-gray-300 dark:bg-gray-600" />
                           <OrgChartNode
                             node={child}
                             onSelect={onSelect}
@@ -504,20 +504,20 @@ function OrgChartNode({
                       <div className="flex w-full">
                         <div
                           className={`h-px flex-1 ${
-                            i === 0 ? "bg-transparent" : "bg-gray-300"
+                            i === 0 ? "bg-transparent" : "bg-gray-300 dark:bg-gray-600"
                           }`}
                         />
                         <div
                           className={`h-px flex-1 ${
                             i === directReports.length - 1
                               ? "bg-transparent"
-                              : "bg-gray-300"
+                              : "bg-gray-300 dark:bg-gray-600"
                           }`}
                         />
                       </div>
                     )}
                     {/* Vertical tick down to child */}
-                    <div className="w-px h-5 bg-gray-300" />
+                    <div className="w-px h-5 bg-gray-300 dark:bg-gray-600" />
                     <OrgChartNode
                       node={child}
                       onSelect={onSelect}
@@ -666,7 +666,7 @@ export default function DirectoryPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
             Company Directory
           </h1>
           <p className="text-sm text-brand-grey mt-1">
@@ -679,7 +679,7 @@ export default function DirectoryPage() {
             <button
               onClick={handleSyncNow}
               disabled={syncBusy}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800 dark:hover:bg-gray-800 dark:bg-gray-800 disabled:opacity-60"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${syncBusy ? "animate-spin" : ""}`} />
               {syncBusy ? "Syncing" : "Sync Directory"}
@@ -687,7 +687,7 @@ export default function DirectoryPage() {
           )}
 
           {/* View Mode Toggle */}
-          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+          <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
             {[
               { id: "tree" as const, icon: Users, label: "Org Chart" },
               { id: "grid" as const, icon: LayoutGrid, label: "Grid" },
@@ -701,8 +701,8 @@ export default function DirectoryPage() {
                 }}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                   viewMode === v.id
-                    ? "bg-white text-brand-blue shadow-sm"
-                    : "text-brand-grey hover:text-gray-700"
+                    ? "bg-white dark:bg-gray-900 text-brand-blue shadow-sm"
+                    : "text-brand-grey hover:text-gray-700 dark:hover:text-gray-300 dark:text-gray-300 dark:hover:text-gray-300 dark:text-gray-300"
                 }`}
               >
                 <v.icon className="w-3.5 h-3.5" />
@@ -724,14 +724,14 @@ export default function DirectoryPage() {
             placeholder="Search by name, email, title, or department…"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 bg-white"
+            className="pl-9 bg-white dark:bg-gray-900"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery("")}
               className="absolute right-3 top-1/2 -translate-y-1/2"
             >
-              <X className="w-3.5 h-3.5 text-brand-grey hover:text-gray-700" />
+              <X className="w-3.5 h-3.5 text-brand-grey hover:text-gray-700 dark:hover:text-gray-300 dark:text-gray-300 dark:hover:text-gray-300 dark:text-gray-300" />
             </button>
           )}
         </div>
@@ -746,7 +746,7 @@ export default function DirectoryPage() {
             className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
               !selectedEmployeeType
                 ? "bg-brand-blue text-white"
-                : "bg-gray-100 text-brand-grey hover:bg-gray-200"
+                : "bg-gray-100 dark:bg-gray-800 text-brand-grey hover:bg-gray-200"
             }`}
           >
             All
@@ -763,7 +763,7 @@ export default function DirectoryPage() {
               className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
                 selectedEmployeeType === employeeType
                   ? "bg-brand-blue text-white"
-                  : "bg-gray-100 text-brand-grey hover:bg-gray-200"
+                  : "bg-gray-100 dark:bg-gray-800 text-brand-grey hover:bg-gray-200"
               }`}
             >
               {employeeType}
@@ -778,7 +778,7 @@ export default function DirectoryPage() {
           {Array.from({ length: 8 }).map((_, i) => (
             <div
               key={i}
-              className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm"
+              className="bg-white dark:bg-gray-900 p-5 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm"
             >
               <div className="flex flex-col items-center text-center">
                 <Skeleton className="h-16 w-16 rounded-full mb-3" />
@@ -820,7 +820,7 @@ export default function DirectoryPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.25, delay: i * 0.03 }}
               onClick={() => handleSelectUser(user)}
-              className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:border-brand-blue/20 transition-all text-center group"
+              className="bg-white dark:bg-gray-900 p-5 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-md hover:border-brand-blue/20 transition-all text-center group"
             >
               <Avatar className="h-16 w-16 mx-auto mb-3">
                 <AvatarImage
@@ -833,7 +833,7 @@ export default function DirectoryPage() {
                   {getInitials(user.displayName)}
                 </AvatarFallback>
               </Avatar>
-              <h3 className="font-semibold text-sm text-gray-900 group-hover:text-brand-blue transition-colors truncate">
+              <h3 className="font-semibold text-sm text-gray-900 dark:text-gray-100 group-hover:text-brand-blue transition-colors truncate">
                 {user.displayName}
               </h3>
               <p className="text-xs text-brand-grey mt-0.5 truncate">
@@ -863,9 +863,9 @@ export default function DirectoryPage() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden"
+          className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden"
         >
-          <div className="grid grid-cols-[auto_1fr_1fr_1fr_auto] gap-4 px-5 py-3 bg-gray-50 border-b border-gray-200 text-xs font-semibold text-brand-grey uppercase tracking-wider">
+          <div className="grid grid-cols-[auto_1fr_1fr_1fr_auto] gap-4 px-5 py-3 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 text-xs font-semibold text-brand-grey uppercase tracking-wider">
             <span className="w-9" />
             <span>Name</span>
             <span>Title</span>
@@ -893,7 +893,7 @@ export default function DirectoryPage() {
                 </AvatarFallback>
               </Avatar>
               <div className="min-w-0">
-                <span className="text-sm font-medium text-gray-900 group-hover:text-brand-blue transition-colors truncate block">
+                <span className="text-sm font-medium text-gray-900 dark:text-gray-100 group-hover:text-brand-blue transition-colors truncate block">
                   {user.displayName}
                 </span>
                 {user.mail && (
@@ -902,7 +902,7 @@ export default function DirectoryPage() {
                   </span>
                 )}
               </div>
-              <span className="text-sm text-gray-600 truncate">
+              <span className="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 truncate">
                 {user.jobTitle || "—"}
               </span>
               <span>
@@ -914,7 +914,7 @@ export default function DirectoryPage() {
                     {user.department}
                   </Badge>
                 ) : (
-                  <span className="text-sm text-gray-400">—</span>
+                  <span className="text-sm text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500">—</span>
                 )}
               </span>
               <span className="text-xs text-brand-grey truncate max-w-[140px]">
@@ -930,7 +930,7 @@ export default function DirectoryPage() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="bg-white rounded-xl border border-gray-200 shadow-sm p-4"
+          className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-4"
         >
           {filteredTreeUsers.length === 0 ? (
             <div className="text-center py-16">

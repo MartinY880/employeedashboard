@@ -8,6 +8,7 @@ import { useState, useEffect, useCallback } from "react";
 export interface Branding {
   companyName: string;
   logoData: string | null;
+  darkLogoData: string | null;
   faviconData: string | null;
   topNavMenu: Array<{
     id: string;
@@ -24,6 +25,7 @@ export interface Branding {
 const DEFAULT_BRANDING: Branding = {
   companyName: "MortgagePros",
   logoData: null,
+  darkLogoData: null,
   faviconData: null,
   topNavMenu: [
     { id: "dashboard", label: "Dashboard", href: "/dashboard", active: true, sortOrder: 0, iframeUrl: "", icon: "dashboard", logoUrl: "" },
@@ -47,6 +49,7 @@ async function fetchBranding(): Promise<Branding> {
   return {
     companyName: data.companyName || DEFAULT_BRANDING.companyName,
     logoData: data.logoData || null,
+    darkLogoData: data.darkLogoData || null,
     faviconData: data.faviconData || null,
     topNavMenu: Array.isArray(data.topNavMenu) && data.topNavMenu.length > 0
       ? data.topNavMenu

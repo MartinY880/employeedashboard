@@ -145,7 +145,7 @@ export default function AdminKudosPage() {
         <div className="flex items-center gap-3">
           <Link
             href="/admin"
-            className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-gray-100 transition-colors"
+            className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 dark:hover:bg-gray-800 dark:bg-gray-800 transition-colors"
           >
             <ArrowLeft className="w-4 h-4 text-brand-grey" />
           </Link>
@@ -153,7 +153,7 @@ export default function AdminKudosPage() {
             <MessageCircle className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Props Moderation</h1>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Props Moderation</h1>
             <p className="text-xs text-brand-grey">
               {kudos.length} total props messages
             </p>
@@ -171,7 +171,7 @@ export default function AdminKudosPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
         {isLoading ? (
           <div className="p-6 space-y-3">
             {Array.from({ length: 5 }).map((_, i) => (
@@ -211,7 +211,7 @@ export default function AdminKudosPage() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, x: -20 }}
                     transition={{ duration: 0.2, delay: i * 0.03 }}
-                    className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors"
+                    className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800 dark:hover:bg-gray-800 dark:bg-gray-800/50 transition-colors"
                   >
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -224,7 +224,7 @@ export default function AdminKudosPage() {
                             {getInitials(k.author?.displayName || "?")}
                           </AvatarFallback>
                         </Avatar>
-                        <span className="text-sm font-medium text-gray-800 truncate max-w-[120px]">
+                        <span className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate max-w-[120px]">
                           {k.author?.displayName || "Unknown"}
                         </span>
                       </div>
@@ -240,13 +240,13 @@ export default function AdminKudosPage() {
                             {getInitials(k.recipient?.displayName || "?")}
                           </AvatarFallback>
                         </Avatar>
-                        <span className="text-sm font-medium text-gray-800 truncate max-w-[120px]">
+                        <span className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate max-w-[120px]">
                           {k.recipient?.displayName || "Unknown"}
                         </span>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <p className="text-sm text-gray-700 truncate max-w-[320px]">
+                      <p className="text-sm text-gray-700 dark:text-gray-300 truncate max-w-[320px]">
                         {k.content}
                       </p>
                     </TableCell>
@@ -261,7 +261,7 @@ export default function AdminKudosPage() {
                         <span className="text-xs text-brand-grey block">
                           {timeAgo(k.createdAt)}
                         </span>
-                        <span className="text-[10px] text-gray-400">
+                        <span className="text-[10px] text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500">
                           {formatDate(k.createdAt)}
                         </span>
                       </div>
@@ -307,12 +307,12 @@ export default function AdminKudosPage() {
               This will permanently remove this props message from the feed:
             </p>
             {deleteTarget && (
-              <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
                 <p className="text-xs text-brand-grey mb-1">
                   <strong>{deleteTarget.author?.displayName}</strong> &rarr;{" "}
                   <strong>{deleteTarget.recipient?.displayName}</strong>
                 </p>
-                <p className="text-sm text-gray-700 italic">
+                <p className="text-sm text-gray-700 dark:text-gray-300 italic">
                   &ldquo;{deleteTarget.content}&rdquo;
                 </p>
               </div>

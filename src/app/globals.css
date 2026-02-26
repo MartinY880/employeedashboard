@@ -125,6 +125,13 @@
   --alert-red: #e74c3c;
 }
 
+.dark {
+  --brand-bg: #0f172a;
+  --brand-grey: #94a3b8;
+  --brand-white: #1e293b;
+  --brand-blue-text: #80a7db;
+}
+
 @theme inline {
   --color-brand-blue: var(--brand-blue);
   --color-brand-grey: var(--brand-grey);
@@ -141,10 +148,19 @@
     @apply bg-brand-bg text-foreground;
     font-family: var(--font-geist-sans), system-ui, sans-serif;
   }
+  /* Smooth dark mode transitions */
+  html.dark {
+    color-scheme: dark;
+  }
 }
 
 /* ─── Custom Utilities ────────────────────────────── */
 @layer utilities {
+  /* In dark mode, soften brand-blue text to improve contrast on dark backgrounds.
+     This only targets text color — backgrounds, borders, and banners keep the original brand-blue. */
+  .dark .text-brand-blue {
+    color: var(--brand-blue-text) !important;
+  }
   .scrollbar-thin {
     scrollbar-width: thin;
   }

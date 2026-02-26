@@ -238,7 +238,7 @@ export default function AdminResourcesPage() {
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <div>
-            <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
               <FolderOpen className="w-5 h-5 text-brand-blue" />
               Resources
             </h1>
@@ -260,7 +260,7 @@ export default function AdminResourcesPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
         {isLoading ? (
           <div className="p-6 space-y-3">
             {[...Array(4)].map((_, i) => (
@@ -292,7 +292,7 @@ export default function AdminResourcesPage() {
                 <TableRow key={resource.id} className={!resource.active ? "opacity-55" : ""}>
                   <TableCell>
                     <div className="space-y-0.5">
-                      <p className="text-sm font-medium text-gray-800">{resource.title}</p>
+                      <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{resource.title}</p>
                       <p className="text-xs text-brand-grey max-w-md truncate">{resource.description}</p>
                     </div>
                   </TableCell>
@@ -303,7 +303,7 @@ export default function AdminResourcesPage() {
                   </TableCell>
                   <TableCell>
                     {resource.kind === "document" ? (
-                      <div className="text-xs text-gray-700 max-w-[260px] truncate">
+                      <div className="text-xs text-gray-700 dark:text-gray-300 max-w-[260px] truncate">
                         {resource.document?.originalName || "Document"}
                       </div>
                     ) : (
@@ -319,7 +319,7 @@ export default function AdminResourcesPage() {
                     )}
                   </TableCell>
                   <TableCell>
-                    <Badge className={resource.active ? "bg-green-100 text-green-700 text-[10px]" : "bg-gray-100 text-gray-500 text-[10px]"}>
+                    <Badge className={resource.active ? "bg-green-100 text-green-700 text-[10px]" : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 text-[10px]"}>
                       {resource.active ? "Visible" : "Hidden"}
                     </Badge>
                   </TableCell>
@@ -391,7 +391,7 @@ export default function AdminResourcesPage() {
 
           <div className="space-y-3 py-2">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-gray-700">Title</label>
+              <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Title</label>
               <Input
                 value={formTitle}
                 onChange={(e) => setFormTitle(e.target.value)}
@@ -399,7 +399,7 @@ export default function AdminResourcesPage() {
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-gray-700">Description</label>
+              <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Description</label>
               <Input
                 value={formDescription}
                 onChange={(e) => setFormDescription(e.target.value)}
@@ -408,7 +408,7 @@ export default function AdminResourcesPage() {
             </div>
             {editingResource?.kind !== "document" ? (
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-gray-700">URL</label>
+                <label className="text-xs font-medium text-gray-700 dark:text-gray-300">URL</label>
                 <Input
                   value={formHref}
                   onChange={(e) => setFormHref(e.target.value)}
@@ -417,7 +417,7 @@ export default function AdminResourcesPage() {
               </div>
             ) : null}
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-gray-700">Category</label>
+              <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Category</label>
               <Input
                 value={formCategory}
                 onChange={(e) => setFormCategory(e.target.value)}
@@ -452,7 +452,7 @@ export default function AdminResourcesPage() {
 
           <div className="space-y-3 py-2">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-gray-700">Title</label>
+              <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Title</label>
               <Input
                 value={uploadTitle}
                 onChange={(e) => setUploadTitle(e.target.value)}
@@ -460,7 +460,7 @@ export default function AdminResourcesPage() {
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-gray-700">Description</label>
+              <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Description</label>
               <Input
                 value={uploadDescription}
                 onChange={(e) => setUploadDescription(e.target.value)}
@@ -468,7 +468,7 @@ export default function AdminResourcesPage() {
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-gray-700">Category</label>
+              <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Category</label>
               <Input
                 value={uploadCategory}
                 onChange={(e) => setUploadCategory(e.target.value)}
@@ -476,7 +476,7 @@ export default function AdminResourcesPage() {
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-gray-700">Document</label>
+              <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Document</label>
               <Input
                 type="file"
                 accept=".pdf,.docx,.xlsx,.csv,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
