@@ -153,9 +153,6 @@ export function DirectoryOrgChart({
             { id: data.id, displayName: data.displayName, photoUrl: data.photoUrl },
             96
           );
-          const empType = data.employeeType
-            ? `<div style="font-size:10px;color:#64748b;margin-top:2px;">${data.employeeType}</div>`
-            : "";
           const dept = data.department
             ? `<div style="font-size:10px;color:#475569;margin-top:2px;">${data.department}</div>`
             : "";
@@ -180,7 +177,6 @@ export function DirectoryOrgChart({
               <div style="min-width:0;overflow:hidden;">
                 <div style="font-size:13px;font-weight:600;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${data.displayName}</div>
                 <div style="font-size:11px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${data.jobTitle || "Team Member"}</div>
-                ${empType}
                 ${dept}
               </div>
             </div>
