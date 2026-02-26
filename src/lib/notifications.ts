@@ -131,12 +131,4 @@ export async function createNotification(input: CreateNotificationInput) {
  * Find or create a User record by logtoId, email and name.
  * Returns the DB user id.
  */
-export async function ensureDbUser(logtoId: string, email: string, displayName: string, role?: string): Promise<string> {
-  const dbRole = role === "ADMIN" || role === "SUPER_ADMIN" ? "ADMIN" : "EMPLOYEE";
-  const user = await prisma.user.upsert({
-    where: { logtoId },
-    create: { logtoId, email, displayName, role: dbRole as "ADMIN" | "EMPLOYEE" },
-    update: { displayName },
-  });
-  return user.id;
-}
+export { ensureDbUser } from "@/lib/prisma";
