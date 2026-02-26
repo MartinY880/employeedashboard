@@ -22,6 +22,7 @@ import {
   Paintbrush,
   Trophy,
   FolderOpen,
+  ImageIcon,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -166,6 +167,16 @@ const adminPages = [
     badge: "Upload",
     color: "text-brand-blue",
     bgColor: "bg-blue-50",
+    permission: PERMISSIONS.MANAGE_BRANDING,
+  },
+  {
+    title: "Dashboard Slider",
+    description: "Manage the full-width media slider on the dashboard — upload images/videos, set height, transition, and style.",
+    icon: ImageIcon,
+    href: "/admin/slider",
+    badge: "Media",
+    color: "text-indigo-500",
+    bgColor: "bg-indigo-50",
     permission: PERMISSIONS.MANAGE_BRANDING,
   },
   {

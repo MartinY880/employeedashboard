@@ -36,6 +36,7 @@ export const ROUTE_PERMISSION: Record<string, Permission> = {
   "/admin/alerts": PERMISSIONS.MANAGE_ALERTS,
   "/admin/tournament": PERMISSIONS.MANAGE_TOURNAMENT,
   "/admin/branding": PERMISSIONS.MANAGE_BRANDING,
+  "/admin/slider": PERMISSIONS.MANAGE_BRANDING,
   "/admin/kudos": PERMISSIONS.MANAGE_KUDOS,
   "/admin/pillars": PERMISSIONS.MANAGE_PILLARS,
   "/admin/ideas": PERMISSIONS.MANAGE_IDEAS,

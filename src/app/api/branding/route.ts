@@ -26,6 +26,11 @@ interface TopNavMenuItem {
   logoUrl?: string;
 }
 
+interface DashboardVisibilitySettings {
+  showCompanyPillars: boolean;
+  showTournamentBracketLive: boolean;
+}
+
 const DEFAULT_SMTP: SmtpSettings = {
   host: "",
   port: "587",
@@ -43,6 +48,11 @@ const DEFAULT_TOPNAV_MENU: TopNavMenuItem[] = [
   { id: "resources", label: "Resources", href: "/resources", active: true, sortOrder: 4, iframeUrl: "", icon: "resources", logoUrl: "" },
 ];
 
+const DEFAULT_DASHBOARD_VISIBILITY: DashboardVisibilitySettings = {
+  showCompanyPillars: true,
+  showTournamentBracketLive: true,
+};
+
 // In-memory branding for demo mode
 const demoBranding = {
   id: "singleton",
@@ -54,10 +64,11 @@ const demoBranding = {
 
 export async function GET() {
   try {
-    const [branding, smtpSetting, topNavSetting] = await Promise.all([
+    const [branding, smtpSetting, topNavSetting, dashboardVisibilitySetting] = await Promise.all([
       prisma.siteBranding.findUnique({ where: { id: "singleton" } }),
       prisma.calendarSetting.findUnique({ where: { id: "smtp_settings" } }),
       prisma.calendarSetting.findUnique({ where: { id: "topnav_menu" } }),
+      prisma.calendarSetting.findUnique({ where: { id: "dashboard_visibility" } }),
     ]);
 
     let smtpSettings = DEFAULT_SMTP;
@@ -92,14 +103,30 @@ export async function GET() {
       }
     }
 
+    let dashboardVisibility = DEFAULT_DASHBOARD_VISIBILITY;
+    if (dashboardVisibilitySetting?.data) {
+      try {
+        const parsed = JSON.parse(dashboardVisibilitySetting.data) as Partial<DashboardVisibilitySettings>;
+        dashboardVisibility = {
+          showCompanyPillars: parsed.showCompanyPillars !== false,
+          showTournamentBracketLive: parsed.showTournamentBracketLive !== false,
+        };
+      } catch {
+        dashboardVisibility = DEFAULT_DASHBOARD_VISIBILITY;
+      }
+    }
+
+    // NOTE: dashboardSlider is intentionally excluded from the GET response.
+    // It contains base64 media blobs (10+ MB) and is only managed via /api/dashboard-settings.
+    // Including it here caused 18+ MB responses that crippled page loads.
     if (branding) {
-      return NextResponse.json({ ...branding, smtpSettings, topNavMenu });
+      return NextResponse.json({ ...branding, smtpSettings, topNavMenu, dashboardVisibility });
     }
     // No DB record yet — return defaults
-    return NextResponse.json({ ...demoBranding, smtpSettings, topNavMenu });
+    return NextResponse.json({ ...demoBranding, smtpSettings, topNavMenu, dashboardVisibility });
   } catch {
     // DB unavailable — return demo branding
-    return NextResponse.json({ ...demoBranding, smtpSettings: DEFAULT_SMTP, topNavMenu: DEFAULT_TOPNAV_MENU });
+    return NextResponse.json({ ...demoBranding, smtpSettings: DEFAULT_SMTP, topNavMenu: DEFAULT_TOPNAV_MENU, dashboardVisibility: DEFAULT_DASHBOARD_VISIBILITY });
   }
 }
 
@@ -126,6 +153,7 @@ export async function POST(request: Request) {
       fromName: ((formData.get("smtpFromName") as string | null) || "ProConnect").trim(),
     };
     const topNavRaw = (formData.get("topNavMenu") as string | null) || "";
+    const dashboardVisibilityRaw = (formData.get("dashboardVisibility") as string | null) || "";
 
     let topNavMenu = DEFAULT_TOPNAV_MENU;
     if (topNavRaw) {
@@ -153,6 +181,21 @@ export async function POST(request: Request) {
         topNavMenu = DEFAULT_TOPNAV_MENU;
       }
     }
+
+    let dashboardVisibility = DEFAULT_DASHBOARD_VISIBILITY;
+    if (dashboardVisibilityRaw) {
+      try {
+        const parsed = JSON.parse(dashboardVisibilityRaw) as Partial<DashboardVisibilitySettings>;
+        dashboardVisibility = {
+          showCompanyPillars: parsed.showCompanyPillars !== false,
+          showTournamentBracketLive: parsed.showTournamentBracketLive !== false,
+        };
+      } catch {
+        dashboardVisibility = DEFAULT_DASHBOARD_VISIBILITY;
+      }
+    }
+
+
 
     // Convert files to base64 data URLs
     let logoData: string | null | undefined = undefined;
@@ -203,9 +246,15 @@ export async function POST(request: Request) {
           update: { data: JSON.stringify(topNavMenu) },
           create: { id: "topnav_menu", data: JSON.stringify(topNavMenu) },
         }),
+        prisma.calendarSetting.upsert({
+          where: { id: "dashboard_visibility" },
+          update: { data: JSON.stringify(dashboardVisibility) },
+          create: { id: "dashboard_visibility", data: JSON.stringify(dashboardVisibility) },
+        }),
+        // NOTE: dashboard_slider is NOT written here — it's managed by /api/dashboard-settings
       ]);
 
-      return NextResponse.json({ ...branding, smtpSettings, topNavMenu });
+      return NextResponse.json({ ...branding, smtpSettings, topNavMenu, dashboardVisibility });
     } catch {
       // DB unavailable — update demo branding
       if (companyName) demoBranding.companyName = companyName;
@@ -213,7 +262,7 @@ export async function POST(request: Request) {
       if (faviconData !== undefined) demoBranding.faviconData = faviconData;
       demoBranding.updatedAt = new Date().toISOString();
 
-      return NextResponse.json({ ...demoBranding, smtpSettings, topNavMenu });
+      return NextResponse.json({ ...demoBranding, smtpSettings, topNavMenu, dashboardVisibility });
     }
   } catch (err) {
     console.error("Branding POST error:", err);
