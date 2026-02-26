@@ -15,7 +15,7 @@ import { OooWidget } from "@/components/widgets/OooWidget";
 import { FeedPanel } from "@/components/widgets/FeedPanel";
 import { EmployeeHighlight } from "@/components/widgets/EmployeeHighlight";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
-import { DashboardSlider, type DashboardSliderStyle, type DashboardSliderMedia } from "@/components/widgets/DashboardSlider";
+import { DashboardSlider, type DashboardSliderStyle, type DashboardSliderMedia, type DashboardSliderObjectFit } from "@/components/widgets/DashboardSlider";
 import Link from "next/link";
 import { Trophy, ArrowRight } from "lucide-react";
 
@@ -30,6 +30,7 @@ interface SliderConfig {
   height: number;
   transitionMs: number;
   style: DashboardSliderStyle;
+  objectFit: DashboardSliderObjectFit;
 }
 
 interface DashboardClientProps {
@@ -75,6 +76,7 @@ export default function DashboardClient({ visibility, sliderConfig }: DashboardC
                 height={sliderConfig.height}
                 transitionMs={sliderConfig.transitionMs}
                 style={sliderConfig.style}
+                objectFit={sliderConfig.objectFit}
               />
             ) : (
               <div

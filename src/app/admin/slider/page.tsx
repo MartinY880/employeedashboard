@@ -39,6 +39,7 @@ interface DashboardSliderSettings {
   height: number;
   transitionMs: number;
   style: "slide" | "fade";
+  objectFit: "cover" | "contain" | "fill";
 }
 
 const DEFAULT_DASHBOARD_SLIDER: DashboardSliderSettings = {
@@ -47,6 +48,7 @@ const DEFAULT_DASHBOARD_SLIDER: DashboardSliderSettings = {
   height: 240,
   transitionMs: 4000,
   style: "slide",
+  objectFit: "cover",
 };
 
 function normalizeDashboardSliderSettings(input: unknown): DashboardSliderSettings {
@@ -77,6 +79,7 @@ function normalizeDashboardSliderSettings(input: unknown): DashboardSliderSettin
     height: Number.isFinite(raw.height) ? Math.max(120, Math.min(720, Number(raw.height))) : DEFAULT_DASHBOARD_SLIDER.height,
     transitionMs: Number.isFinite(raw.transitionMs) ? Math.max(1000, Math.min(30000, Number(raw.transitionMs))) : DEFAULT_DASHBOARD_SLIDER.transitionMs,
     style: raw.style === "fade" ? "fade" : "slide",
+    objectFit: (raw.objectFit === "contain" || raw.objectFit === "fill") ? raw.objectFit : "cover",
   };
 }
 
@@ -87,6 +90,7 @@ export default function AdminSliderPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [heightInput, setHeightInput] = useState(String(DEFAULT_DASHBOARD_SLIDER.height));
 
   const hasChanges = JSON.stringify(slider) !== JSON.stringify(initialSlider);
 
@@ -98,6 +102,7 @@ export default function AdminSliderPage() {
         const normalized = normalizeDashboardSliderSettings(data.slider);
         setSlider(normalized);
         setInitialSlider(normalized);
+        setHeightInput(String(normalized.height));
       }
     } catch { /* keep defaults */ }
     finally { setIsLoading(false); }
@@ -118,6 +123,7 @@ export default function AdminSliderPage() {
         const saved = normalizeDashboardSliderSettings(data.slider);
         setSlider(saved);
         setInitialSlider(saved);
+        setHeightInput(String(saved.height));
         toast.success("Dashboard slider saved!");
       } else {
         toast.error("Failed to save slider settings");
@@ -274,20 +280,29 @@ export default function AdminSliderPage() {
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-4">
         <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wider">Slider Settings</h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
           <div>
             <label className="text-xs font-medium text-gray-600 mb-1 block">Height (px)</label>
             <Input
               type="number"
               min={120}
               max={720}
-              value={slider.height}
-              onChange={(e) => {
-                const value = Number(e.target.value);
-                setSlider((prev) => ({
-                  ...prev,
-                  height: Number.isFinite(value) ? Math.max(120, Math.min(720, value)) : prev.height,
-                }));
+              value={heightInput}
+              onChange={(e) => setHeightInput(e.target.value)}
+              onBlur={() => {
+                const value = Number(heightInput);
+                if (Number.isFinite(value)) {
+                  const clamped = Math.max(120, Math.min(720, Math.round(value)));
+                  setSlider((prev) => ({ ...prev, height: clamped }));
+                  setHeightInput(String(clamped));
+                } else {
+                  setHeightInput(String(slider.height));
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  (e.target as HTMLInputElement).blur();
+                }
               }}
             />
           </div>
@@ -322,6 +337,24 @@ export default function AdminSliderPage() {
               <SelectContent>
                 <SelectItem value="slide">Slide</SelectItem>
                 <SelectItem value="fade">Fade</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-600 mb-1 block">Image Fit</label>
+            <Select
+              value={slider.objectFit}
+              onValueChange={(value: "cover" | "contain" | "fill") =>
+                setSlider((prev) => ({ ...prev, objectFit: value }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select fit" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="cover">Cover (crop to fill)</SelectItem>
+                <SelectItem value="contain">Contain (fit, no crop)</SelectItem>
+                <SelectItem value="fill">Fill (stretch to fit)</SelectItem>
               </SelectContent>
             </Select>
           </div>
