@@ -42,21 +42,6 @@ services:
       AZURE_TENANT_ID: ${AZURE_TENANT_ID}
       AZURE_CLIENT_ID: ${AZURE_CLIENT_ID}
       AZURE_CLIENT_SECRET: ${AZURE_CLIENT_SECRET}
-  # ─── Logto Auth Server ─────────────────────────────────
-  logto:
-    image: svhd/logto:latest
-    restart: unless-stopped
-    ports:
-      - "3301:3301"
-      - "3302:3302"
-    environment:
-      TRUST_PROXY_HEADER: "1"
-      DB_URL: postgresql://proconnect:${POSTGRES_PASSWORD:-changeme}@db:5432/logto
-      ENDPOINT: ${LOGTO_ENDPOINT:-http://localhost:3301}
-      ADMIN_ENDPOINT: http://localhost:3302
-    depends_on:
-      db:
-        condition: service_healthy
 
 volumes:
   pg_data:
