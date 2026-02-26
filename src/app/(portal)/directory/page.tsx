@@ -12,8 +12,9 @@ import {
   List,
   Mail,
   MapPin,
-  Building2,
-  Briefcase,
+  Phone,
+  Smartphone,
+  Printer,
   ChevronRight,
   X,
   RefreshCw,
@@ -31,6 +32,7 @@ import {
 import { useDirectory, type DirectoryNode } from "@/hooks/useDirectory";
 import { useSounds } from "@/components/shared/SoundProvider";
 import { DirectoryOrgChart } from "@/components/widgets/DirectoryOrgChart";
+import { NMLSIcon } from "@/components/shared/icons/NMLSIcon";
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
@@ -283,22 +285,28 @@ function ProfileDialog({
               </a>
             </div>
           )}
-          {user.department && (
-            <div className="flex items-center gap-3 text-sm">
-              <Building2 className="w-4 h-4 text-brand-grey shrink-0" />
-              <span className="text-gray-700">{user.department}</span>
-            </div>
-          )}
-          {user.jobTitle && (
-            <div className="flex items-center gap-3 text-sm">
-              <Briefcase className="w-4 h-4 text-brand-grey shrink-0" />
-              <span className="text-gray-700">{user.jobTitle}</span>
-            </div>
-          )}
           {user.officeLocation && (
             <div className="flex items-center gap-3 text-sm">
-              <MapPin className="w-4 h-4 text-brand-grey shrink-0" />
+              <NMLSIcon className="w-4 h-4 text-brand-grey shrink-0" />
               <span className="text-gray-700">{user.officeLocation}</span>
+            </div>
+          )}
+          {user.businessPhone && (
+            <div className="flex items-center gap-3 text-sm">
+              <Phone className="w-4 h-4 text-brand-grey shrink-0" />
+              <span className="text-gray-700">{user.businessPhone}</span>
+            </div>
+          )}
+          {user.mobilePhone && (
+            <div className="flex items-center gap-3 text-sm">
+              <Smartphone className="w-4 h-4 text-brand-grey shrink-0" />
+              <span className="text-gray-700">{user.mobilePhone}</span>
+            </div>
+          )}
+          {user.faxNumber && (
+            <div className="flex items-center gap-3 text-sm">
+              <Printer className="w-4 h-4 text-brand-grey shrink-0" />
+              <span className="text-gray-700">{user.faxNumber}</span>
             </div>
           )}
         </div>

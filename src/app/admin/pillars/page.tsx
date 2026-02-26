@@ -3,7 +3,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo, useDeferredValue } from "react";
 import { motion, AnimatePresence, Reorder } from "framer-motion";
 import {
   Shield,
@@ -14,18 +14,12 @@ import {
   ArrowLeft,
   Loader2,
   CheckCircle2,
+  ChevronDown,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -34,13 +28,32 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ICON_MAP, ICON_NAMES, type PillarData, type PillarIconName, type PillarHeader } from "@/lib/pillar-icons";
+import { ICON_MAP, type PillarData, type PillarIconName, type PillarHeader } from "@/lib/pillar-icons";
+import {
+  AVAILABLE_ICON_OPTIONS,
+  normalizeQuickLinkIconId,
+  renderQuickLinkIconPreview,
+} from "@/components/widgets/QuickLinksBar";
 
 const DEFAULT_HEADER: PillarHeader = {
   title: "OUR COMPANY PILLARS",
   subtitle: "The core values that drive everything we do at MortgagePros",
   maxWidth: 1400,
 };
+
+const ICON_INITIAL_RESULTS = 80;
+const ICON_LOAD_STEP = 120;
+const ICON_MAX_RESULTS = 250;
+const ICON_MIN_QUERY_LENGTH = 2;
+
+function renderPillarIconPreview(icon: string, className = "w-4 h-4") {
+  const legacyIcon = ICON_MAP[icon as PillarIconName];
+  if (legacyIcon) {
+    const LegacyIcon = legacyIcon;
+    return <LegacyIcon className={className} />;
+  }
+  return renderQuickLinkIconPreview(icon, className);
+}
 
 export default function AdminPillarsPage() {
   const [pillars, setPillars] = useState<PillarData[]>([]);
@@ -50,6 +63,10 @@ export default function AdminPillarsPage() {
   const [saved, setSaved] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
+  const [iconMenuOpenFor, setIconMenuOpenFor] = useState<string | null>(null);
+  const [iconSearch, setIconSearch] = useState("");
+  const [visibleDefaultIcons, setVisibleDefaultIcons] = useState(ICON_INITIAL_RESULTS);
+  const deferredIconSearch = useDeferredValue(iconSearch);
 
   const fetchPillars = useCallback(async () => {
     try {
@@ -128,6 +145,38 @@ export default function AdminPillarsPage() {
     setPillars(newOrder);
     setHasChanges(true);
   };
+
+  const filteredIconOptions = useMemo(() => {
+    if (!iconMenuOpenFor) return [];
+
+    const query = deferredIconSearch.trim().toLowerCase();
+    if (!query) return AVAILABLE_ICON_OPTIONS.slice(0, visibleDefaultIcons);
+    if (query.length < ICON_MIN_QUERY_LENGTH) return [];
+
+    return AVAILABLE_ICON_OPTIONS.filter((option) =>
+      [option.label, option.id, ...option.keywords]
+        .join(" ")
+        .toLowerCase()
+        .includes(query)
+    ).slice(0, ICON_MAX_RESULTS);
+  }, [deferredIconSearch, iconMenuOpenFor, visibleDefaultIcons]);
+
+  const hasMoreDefaultIcons = useMemo(() => {
+    const query = deferredIconSearch.trim();
+    return !query && visibleDefaultIcons < AVAILABLE_ICON_OPTIONS.length;
+  }, [deferredIconSearch, visibleDefaultIcons]);
+
+  const groupedIconOptions = useMemo(() => {
+    return {
+      lucide: filteredIconOptions.filter((option) => option.library === "lucide"),
+      reactIcons: filteredIconOptions.filter(
+        (option) => option.library === "react-icons"
+      ),
+      fontAwesome: filteredIconOptions.filter(
+        (option) => option.library === "fontawesome"
+      ),
+    };
+  }, [filteredIconOptions]);
 
   if (loading) {
     return (
@@ -372,7 +421,12 @@ export default function AdminPillarsPage() {
       >
         <AnimatePresence mode="popLayout">
           {pillars.map((pillar, index) => {
-            const IconPreview = ICON_MAP[pillar.icon] ?? ICON_MAP.Shield;
+            const normalizedIcon = normalizeQuickLinkIconId(pillar.icon);
+            const selectedIconOption =
+              AVAILABLE_ICON_OPTIONS.find((option) => option.id === normalizedIcon) ?? null;
+            const selectedLabel = selectedIconOption
+              ? selectedIconOption.label
+              : (pillar.icon ? `Legacy: ${pillar.icon}` : "Select an icon");
 
             return (
               <Reorder.Item
@@ -392,7 +446,7 @@ export default function AdminPillarsPage() {
 
                   {/* Icon preview */}
                   <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-brand-blue to-[#084f96] text-white shrink-0 mt-1">
-                    <IconPreview className="w-6 h-6" />
+                    {renderPillarIconPreview(pillar.icon, "w-6 h-6")}
                   </div>
 
                   {/* Fields */}
@@ -403,29 +457,143 @@ export default function AdminPillarsPage() {
                         <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 block">
                           Icon
                         </label>
-                        <Select
-                          value={pillar.icon}
-                          onValueChange={(v) =>
-                            updatePillar(pillar.id, "icon", v)
-                          }
-                        >
-                          <SelectTrigger className="h-9">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {ICON_NAMES.map((name) => {
-                              const Ic = ICON_MAP[name];
-                              return (
-                                <SelectItem key={name} value={name}>
-                                  <span className="flex items-center gap-2">
-                                    <Ic className="w-4 h-4" />
-                                    {name}
-                                  </span>
-                                </SelectItem>
-                              );
-                            })}
-                          </SelectContent>
-                        </Select>
+                        <div className="relative">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-9 w-full justify-between"
+                            onClick={() => {
+                              setIconMenuOpenFor((current) => {
+                                const next = current === pillar.id ? null : pillar.id;
+                                if (next) {
+                                  setVisibleDefaultIcons(ICON_INITIAL_RESULTS);
+                                } else {
+                                  setIconSearch("");
+                                }
+                                return next;
+                              });
+                            }}
+                          >
+                            <span className="inline-flex items-center gap-2 min-w-0">
+                              {renderPillarIconPreview(pillar.icon, "w-4 h-4")}
+                              <span className="truncate">{selectedLabel}</span>
+                            </span>
+                            <ChevronDown className="w-4 h-4 opacity-60" />
+                          </Button>
+
+                          {iconMenuOpenFor === pillar.id && (
+                            <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-50 rounded-md border bg-popover text-popover-foreground shadow-md">
+                              <div className="p-1 border-b border-border">
+                                <Input
+                                  placeholder="Search icons..."
+                                  value={iconSearch}
+                                  onChange={(e) => setIconSearch(e.target.value)}
+                                  className="h-8"
+                                  autoFocus
+                                />
+                              </div>
+                              <div
+                                className="max-h-64 overflow-y-auto p-1"
+                                onScroll={(e) => {
+                                  if (deferredIconSearch.trim()) return;
+                                  const element = e.currentTarget;
+                                  const nearBottom =
+                                    element.scrollTop + element.clientHeight >= element.scrollHeight - 24;
+                                  if (nearBottom) {
+                                    setVisibleDefaultIcons((prev) =>
+                                      Math.min(prev + ICON_LOAD_STEP, AVAILABLE_ICON_OPTIONS.length)
+                                    );
+                                  }
+                                }}
+                              >
+                                {iconSearch.trim().length === 1 && (
+                                  <div className="px-2 py-1.5 text-xs text-brand-grey">
+                                    Type at least 2 characters to search
+                                  </div>
+                                )}
+
+                                {groupedIconOptions.lucide.length > 0 && (
+                                  <>
+                                    <div className="px-2 py-1 text-xs text-brand-grey">Lucide</div>
+                                    {groupedIconOptions.lucide.map((icon) => (
+                                      <button
+                                        key={icon.id}
+                                        type="button"
+                                        className="w-full text-left px-2 py-1.5 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground"
+                                        onMouseDown={(e) => e.preventDefault()}
+                                        onClick={() => {
+                                          updatePillar(pillar.id, "icon", icon.id);
+                                          setIconMenuOpenFor(null);
+                                          setIconSearch("");
+                                        }}
+                                      >
+                                        <span className="inline-flex items-center gap-2">
+                                          {renderQuickLinkIconPreview(icon.id, "w-4 h-4")}
+                                          {icon.label}
+                                        </span>
+                                      </button>
+                                    ))}
+                                  </>
+                                )}
+
+                                {groupedIconOptions.reactIcons.length > 0 && (
+                                  <>
+                                    <div className="px-2 py-1 text-xs text-brand-grey">React Icons</div>
+                                    {groupedIconOptions.reactIcons.map((icon) => (
+                                      <button
+                                        key={icon.id}
+                                        type="button"
+                                        className="w-full text-left px-2 py-1.5 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground"
+                                        onMouseDown={(e) => e.preventDefault()}
+                                        onClick={() => {
+                                          updatePillar(pillar.id, "icon", icon.id);
+                                          setIconMenuOpenFor(null);
+                                          setIconSearch("");
+                                        }}
+                                      >
+                                        <span className="inline-flex items-center gap-2">
+                                          {renderQuickLinkIconPreview(icon.id, "w-4 h-4")}
+                                          {icon.label}
+                                        </span>
+                                      </button>
+                                    ))}
+                                  </>
+                                )}
+
+                                {groupedIconOptions.fontAwesome.length > 0 && (
+                                  <>
+                                    <div className="px-2 py-1 text-xs text-brand-grey">Font Awesome</div>
+                                    {groupedIconOptions.fontAwesome.map((icon) => (
+                                      <button
+                                        key={icon.id}
+                                        type="button"
+                                        className="w-full text-left px-2 py-1.5 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground"
+                                        onMouseDown={(e) => e.preventDefault()}
+                                        onClick={() => {
+                                          updatePillar(pillar.id, "icon", icon.id);
+                                          setIconMenuOpenFor(null);
+                                          setIconSearch("");
+                                        }}
+                                      >
+                                        <span className="inline-flex items-center gap-2">
+                                          {renderQuickLinkIconPreview(icon.id, "w-4 h-4")}
+                                          {icon.label}
+                                        </span>
+                                      </button>
+                                    ))}
+                                  </>
+                                )}
+
+                                {filteredIconOptions.length === 0 && iconSearch.trim().length !== 1 && (
+                                  <div className="px-2 py-1.5 text-xs text-brand-grey">No icons found</div>
+                                )}
+                                {hasMoreDefaultIcons && (
+                                  <div className="px-2 py-1.5 text-xs text-brand-grey">Scroll to load more icons…</div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       {/* Title */}

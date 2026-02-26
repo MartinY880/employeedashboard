@@ -34,6 +34,7 @@ import { useNotifications, type Notification } from "@/hooks/useNotifications";
 import type { AuthUser } from "@/types";
 import { hasAnyAdminPermission } from "@/lib/rbac";
 import { signOutAction } from "@/app/(auth)/sign-in/actions";
+import { renderQuickLinkIconPreview } from "@/components/widgets/QuickLinksBar";
 
 const DEFAULT_NAV_LINKS = [
   { id: "dashboard", href: "/dashboard", label: "Dashboard", active: true, sortOrder: 0, iframeUrl: "", icon: "dashboard", logoUrl: "" },
@@ -64,6 +65,14 @@ function getNavIcon(href: string, iframeUrl?: string, icon?: string) {
   if (href.startsWith("/resources")) return BookOpen;
   if (iframeUrl || href.startsWith("/embedded") || href.startsWith("/iframe")) return PanelTop;
   return Link2;
+}
+
+function isQuickLinkIconId(value: string) {
+  return (
+    value.startsWith("lucide:") ||
+    value.startsWith("react-icons:") ||
+    value.startsWith("fontawesome:")
+  );
 }
 
 interface TopNavProps {
@@ -139,6 +148,8 @@ export function TopNav({ user }: TopNavProps) {
         {navLinks.map(({ id, href, label, iframeUrl, icon, logoUrl }) => {
           const Icon = getNavIcon(href, iframeUrl, icon);
           const isActive = pathname === href || pathname.startsWith(href + "/");
+          const logoValue = String(logoUrl || "").trim();
+          const useIconLibraryLogo = logoValue.length > 0 && isQuickLinkIconId(logoValue);
           return (
             <Link
               key={id}
@@ -149,8 +160,10 @@ export function TopNav({ user }: TopNavProps) {
                   : "text-brand-grey hover:text-brand-blue hover:bg-gray-50"
               }`}
             >
-              {logoUrl ? (
-                <img src={logoUrl} alt={`${label} logo`} className="w-4 h-4 object-contain" />
+              {useIconLibraryLogo ? (
+                renderQuickLinkIconPreview(logoValue, "w-4 h-4")
+              ) : logoValue ? (
+                <img src={logoValue} alt={`${label} logo`} className="w-4 h-4 object-contain" />
               ) : (
                 <Icon className="w-4 h-4" />
               )}

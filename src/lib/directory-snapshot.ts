@@ -14,6 +14,9 @@ type SnapshotRow = {
   employeeType: string | null;
   department: string | null;
   officeLocation: string | null;
+  businessPhone: string | null;
+  mobilePhone: string | null;
+  faxNumber: string | null;
   managerId: string | null;
 };
 
@@ -37,6 +40,9 @@ function flattenTreeWithManagers(nodes: GraphUser[], managerId: string | null = 
       employeeType: node.employeeType ?? null,
       department: node.department,
       officeLocation: node.officeLocation,
+      businessPhone: node.businessPhone ?? null,
+      mobilePhone: node.mobilePhone ?? null,
+      faxNumber: node.faxNumber ?? null,
       managerId,
     });
 
@@ -61,6 +67,9 @@ function mapRowsToTree(rows: SnapshotRow[]): GraphUser[] {
       employeeType: row.employeeType,
       department: row.department,
       officeLocation: row.officeLocation,
+      businessPhone: row.businessPhone,
+      mobilePhone: row.mobilePhone,
+      faxNumber: row.faxNumber,
       managerId: row.managerId,
       directReports: [],
     });
@@ -101,10 +110,23 @@ async function ensureSnapshotTables() {
           employee_type TEXT NULL,
           department TEXT NULL,
           office_location TEXT NULL,
+          business_phone TEXT NULL,
+          mobile_phone TEXT NULL,
+          fax_number TEXT NULL,
           manager_id TEXT NULL,
           synced_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
       `);
+
+      await prisma.$executeRawUnsafe(
+        "ALTER TABLE directory_snapshots ADD COLUMN IF NOT EXISTS business_phone TEXT NULL;"
+      );
+      await prisma.$executeRawUnsafe(
+        "ALTER TABLE directory_snapshots ADD COLUMN IF NOT EXISTS mobile_phone TEXT NULL;"
+      );
+      await prisma.$executeRawUnsafe(
+        "ALTER TABLE directory_snapshots ADD COLUMN IF NOT EXISTS fax_number TEXT NULL;"
+      );
 
       await prisma.$executeRawUnsafe(`
         CREATE TABLE IF NOT EXISTS directory_snapshot_state (
@@ -170,6 +192,9 @@ export async function syncDirectorySnapshotFromGraph(): Promise<void> {
               employee_type,
               department,
               office_location,
+              business_phone,
+              mobile_phone,
+              fax_number,
               manager_id,
               synced_at
             ) VALUES (
@@ -181,6 +206,9 @@ export async function syncDirectorySnapshotFromGraph(): Promise<void> {
               ${user.employeeType},
               ${user.department},
               ${user.officeLocation},
+              ${user.businessPhone},
+              ${user.mobilePhone},
+              ${user.faxNumber},
               ${user.managerId},
               NOW()
             )
@@ -192,6 +220,9 @@ export async function syncDirectorySnapshotFromGraph(): Promise<void> {
               employee_type = EXCLUDED.employee_type,
               department = EXCLUDED.department,
               office_location = EXCLUDED.office_location,
+                business_phone = EXCLUDED.business_phone,
+                mobile_phone = EXCLUDED.mobile_phone,
+                fax_number = EXCLUDED.fax_number,
               manager_id = EXCLUDED.manager_id,
               synced_at = NOW()
           `;
@@ -243,6 +274,9 @@ export async function getSnapshotFlatUsers(): Promise<GraphUser[]> {
       employee_type AS "employeeType",
       department,
       office_location AS "officeLocation",
+      business_phone AS "businessPhone",
+      mobile_phone AS "mobilePhone",
+      fax_number AS "faxNumber",
       manager_id AS "managerId"
     FROM directory_snapshots
     ORDER BY display_name ASC
@@ -257,6 +291,9 @@ export async function getSnapshotFlatUsers(): Promise<GraphUser[]> {
     employeeType: row.employeeType,
     department: row.department,
     officeLocation: row.officeLocation,
+    businessPhone: row.businessPhone,
+    mobilePhone: row.mobilePhone,
+    faxNumber: row.faxNumber,
   }));
 }
 
@@ -273,6 +310,9 @@ export async function searchSnapshotUsers(search: string, limit = 10): Promise<G
       employee_type AS "employeeType",
       department,
       office_location AS "officeLocation",
+      business_phone AS "businessPhone",
+      mobile_phone AS "mobilePhone",
+      fax_number AS "faxNumber",
       manager_id AS "managerId"
     FROM directory_snapshots
     WHERE
@@ -292,6 +332,9 @@ export async function searchSnapshotUsers(search: string, limit = 10): Promise<G
     employeeType: row.employeeType,
     department: row.department,
     officeLocation: row.officeLocation,
+    businessPhone: row.businessPhone,
+    mobilePhone: row.mobilePhone,
+    faxNumber: row.faxNumber,
   }));
 }
 
@@ -307,6 +350,9 @@ export async function getSnapshotTreeUsers(): Promise<GraphUser[]> {
       employee_type AS "employeeType",
       department,
       office_location AS "officeLocation",
+      business_phone AS "businessPhone",
+      mobile_phone AS "mobilePhone",
+      fax_number AS "faxNumber",
       manager_id AS "managerId"
     FROM directory_snapshots
     ORDER BY display_name ASC

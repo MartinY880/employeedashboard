@@ -36,6 +36,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import * as FaBrandIcons from "@fortawesome/free-brands-svg-icons";
 import * as FaSolidIcons from "@fortawesome/free-solid-svg-icons";
+import { NMLSIcon } from "@/components/shared/icons/NMLSIcon";
 
 interface IconOption {
   id: string;
@@ -61,6 +62,7 @@ const LUCIDE_ICON_MAP: Record<string, LucideIcon> = {
   phone: Phone,
   settings: Settings,
   external: ExternalLink,
+  nmls: NMLSIcon as unknown as LucideIcon,
 };
 
 const REACT_ICON_SET_DEFS = [
@@ -134,9 +136,9 @@ const toTitleCase = (value: string) =>
 
 const LUCIDE_OPTIONS: IconOption[] = Object.keys(LUCIDE_ICON_MAP).map((name) => ({
   id: `lucide:${name}`,
-  label: toTitleCase(name),
+  label: name === "nmls" ? "NMLS" : toTitleCase(name),
   library: "lucide",
-  keywords: [name, "lucide"],
+  keywords: [name, "lucide", ...(name === "nmls" ? ["mortgage", "licensing"] : [])],
 }));
 
 const REACT_ICON_OPTIONS: IconOption[] = REACT_ICON_SET_DEFS.flatMap((setDef) => {

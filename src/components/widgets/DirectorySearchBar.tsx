@@ -6,10 +6,11 @@
 
 import { useState, useMemo, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, X, Mail, MapPin, Building2, Phone, Users } from "lucide-react";
+import { Search, X, Mail, Phone, Smartphone, Printer, Users } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useDirectory, type DirectoryNode } from "@/hooks/useDirectory";
 import { useSounds } from "@/components/shared/SoundProvider";
+import { NMLSIcon } from "@/components/shared/icons/NMLSIcon";
 import Link from "next/link";
 
 function getInitials(name: string): string {
@@ -219,23 +220,33 @@ export function DirectorySearchBar() {
                       </a>
                     </div>
                   )}
-                  {selectedPerson.department && (
-                    <div className="flex items-center gap-3 text-sm">
-                      <Building2 className="w-4 h-4 text-brand-grey shrink-0" />
-                      <span className="text-gray-700">{selectedPerson.department}</span>
-                    </div>
-                  )}
                   {selectedPerson.officeLocation && (
                     <div className="flex items-center gap-3 text-sm">
-                      <MapPin className="w-4 h-4 text-brand-grey shrink-0" />
+                      <NMLSIcon className="w-4 h-4 text-brand-grey shrink-0" />
                       <span className="text-gray-700">{selectedPerson.officeLocation}</span>
                     </div>
                   )}
-                  {selectedPerson.userPrincipalName && (
+                  {selectedPerson.businessPhone && (
                     <div className="flex items-center gap-3 text-sm">
                       <Phone className="w-4 h-4 text-brand-grey shrink-0" />
                       <span className="text-gray-700 truncate">
-                        {selectedPerson.userPrincipalName}
+                        {selectedPerson.businessPhone}
+                      </span>
+                    </div>
+                  )}
+                  {selectedPerson.mobilePhone && (
+                    <div className="flex items-center gap-3 text-sm">
+                      <Smartphone className="w-4 h-4 text-brand-grey shrink-0" />
+                      <span className="text-gray-700 truncate">
+                        {selectedPerson.mobilePhone}
+                      </span>
+                    </div>
+                  )}
+                  {selectedPerson.faxNumber && (
+                    <div className="flex items-center gap-3 text-sm">
+                      <Printer className="w-4 h-4 text-brand-grey shrink-0" />
+                      <span className="text-gray-700 truncate">
+                        {selectedPerson.faxNumber}
                       </span>
                     </div>
                   )}

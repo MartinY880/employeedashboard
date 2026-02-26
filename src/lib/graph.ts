@@ -89,6 +89,8 @@ const USER_SELECT = [
   "employeeType",
   "department",
   "officeLocation",
+  "businessPhones",
+  "mobilePhone",
   "accountEnabled",
   "assignedLicenses",
 ].join(",");
@@ -104,10 +106,39 @@ export interface GraphUser {
   employeeType?: string | null;
   department: string | null;
   officeLocation: string | null;
+  businessPhone?: string | null;
+  mobilePhone?: string | null;
+  faxNumber?: string | null;
   accountEnabled?: boolean;
   assignedLicenses?: Array<{ skuId: string }>;
   directReports?: GraphUser[];
   manager?: GraphUser | null;
+}
+
+type GraphUserWithRawPhones = GraphUser & {
+  businessPhones?: string[];
+};
+
+function normalizePhone(value: string | null | undefined): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function normalizeGraphUser(user: GraphUserWithRawPhones): GraphUser {
+  const normalizedBusinessPhones = (user.businessPhones ?? [])
+    .map((phone) => phone.trim())
+    .filter((phone) => phone.length > 0);
+
+  const businessPhone = normalizedBusinessPhones[0] ?? null;
+  const faxNumber = normalizedBusinessPhones[1] ?? null;
+
+  return {
+    ...user,
+    businessPhone,
+    mobilePhone: normalizePhone(user.mobilePhone),
+    faxNumber,
+  };
 }
 
 /**
@@ -123,7 +154,9 @@ async function fetchAllUsersFromGraph(): Promise<GraphUser[]> {
     .filter("accountEnabled eq true")
     .get();
 
-  const users: GraphUser[] = result.value || [];
+  const users: GraphUser[] = ((result.value || []) as GraphUserWithRawPhones[]).map(
+    normalizeGraphUser
+  );
 
   // Directory should only include active + licensed employees
   return users.filter((user) => {
@@ -168,10 +201,11 @@ export async function getUserWithReports(userId: string): Promise<GraphUser> {
   const client = await getGraphClient();
 
   // Get user details
-  const user: GraphUser = await client
+  const userResponse = await client
     .api(`/users/${userId}`)
     .select(USER_SELECT)
     .get();
+  const user: GraphUser = normalizeGraphUser(userResponse as GraphUserWithRawPhones);
 
   // Get direct reports
   const reportsResult = await client
@@ -179,7 +213,9 @@ export async function getUserWithReports(userId: string): Promise<GraphUser> {
     .select(USER_SELECT)
     .get();
 
-  const directReports = reportsResult.value || [];
+  const directReports = ((reportsResult.value || []) as GraphUserWithRawPhones[]).map(
+    normalizeGraphUser
+  );
 
   // Recursively get reports for each direct report (limit depth)
   user.directReports = await Promise.all(

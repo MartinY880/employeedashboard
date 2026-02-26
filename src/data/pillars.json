@@ -1,31 +1,31 @@
 [
   {
     "id": "p1",
-    "icon": "Zap",
+    "icon": "react-icons:fa:FaBolt",
     "title": "URGENCY IS EVERYTHING",
     "message": "We don’t believe in tomorrow.\nEvery call, email, and text gets answered.\nFiles move same day.\nProblems are handled immediately.\nSpeed builds trust.\nSpeed shows professionalism.\nHesitation costs deals."
   },
   {
     "id": "p2",
-    "icon": "Crown",
+    "icon": "react-icons:fa:FaCrown",
     "title": "OWN THE OUTCOME",
     "message": "We take accountability for our actions.\nNo excuses.\nNo blaming underwriting.\nNo blaming processing.\nNo blaming the client.\nIf your name is on it, you own it.\nYou fix it.\nYou protect the deal.\nOwnership builds leaders."
   },
   {
     "id": "p3",
-    "icon": "TrendingUp",
+    "icon": "react-icons:fa6:FaArrowTrendUp",
     "title": "GROW OR GET LEFT BEHIND",
     "message": "Growth is not optional.\nKeep learning.\nBuild new skills.\nLevel up constantly.\nWe don’t live in the past.\n“I did this” doesn’t matter.\nWhat you do today is what counts.\nIf you aren’t performing, you’re falling behind."
   },
   {
     "id": "p4",
-    "icon": "Megaphone",
+    "icon": "react-icons:tb:TbSpeakerphone",
     "title": "SPEAK UP. DON'T RUN.",
     "message": "We confront problems head-on.\nWe communicate openly.\nWe fix what’s off.\nStrong teams speak up.\nThey don’t gossip.\nThey don’t quit quietly.\nThey don’t just complain.\nIf you bring a problem, bring a solution.\nThat’s how we get better."
   },
   {
     "id": "p5",
-    "icon": "Handshake",
+    "icon": "react-icons:fa:FaHandshake",
     "title": "I GOT YOUR BACK",
     "message": "We win together.\nWe support each other.\nWe step in when someone is overwhelmed.\nNo one gets thrown under the bus here.\nWe respect every teammate.\nWe speak professionally.\nWe protect the standard.\nWe are one team."
   }
