@@ -2,7 +2,7 @@
 // GET: Fetch active alerts | POST: Create alert (admin)
 
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma, ensureDbUser } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/logto";
 import { hasPermission, PERMISSIONS, toDbRole } from "@/lib/rbac";
 import type { AuthUser } from "@/types";
@@ -157,17 +157,13 @@ export async function POST(request: Request) {
     }
 
     const user = authResult.user;
-    // Ensure user exists in DB (upsert for dev mode)
-    const dbUser = await prisma.user.upsert({
-      where: { logtoId: user.sub },
-      create: {
-        logtoId: user.sub,
-        email: user.email,
-        displayName: user.name,
-        role: toDbRole(user.role),
-      },
-      update: { displayName: user.name },
-    });
+    // Ensure user exists in DB (handles directory-stub merging)
+    const dbUser = await ensureDbUser(
+      user.sub,
+      user.email,
+      user.name,
+      toDbRole(user.role),
+    );
 
     const alert = await prisma.alert.create({
       data: {

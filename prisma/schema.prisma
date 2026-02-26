@@ -58,7 +58,7 @@ model KudosReaction {
   user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime          @default(now())
 
-  @@unique([kudosId, userId, reaction])
+  @@unique([kudosId, userId])
   @@index([kudosId, reaction])
   @@index([userId])
   @@map("kudos_reactions")

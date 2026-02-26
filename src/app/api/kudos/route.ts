@@ -3,7 +3,7 @@
 
 import { NextResponse } from "next/server";
 import type { KudosReactionType } from "@/generated/prisma/client";
-import { prisma } from "@/lib/prisma";
+import { prisma, ensureDbUser } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/logto";
 import { hasPermission, PERMISSIONS, toDbRole } from "@/lib/rbac";
 import { createNotification } from "@/lib/notifications";
@@ -72,6 +72,7 @@ export async function GET(request: Request) {
       ? await prisma.kudosReaction.findMany({
           where: { userId: currentUserId, kudosId: { in: kudosIds } },
           select: { kudosId: true, reaction: true },
+          orderBy: { createdAt: "desc" },
         })
       : [];
 
@@ -86,11 +87,10 @@ export async function GET(request: Request) {
 
     const myReactionsMap = new Map<string, Array<"highfive" | "uplift" | "bomb">>();
     for (const reaction of myReactionsRaw) {
-      const existing = myReactionsMap.get(reaction.kudosId) || [];
-      if (reaction.reaction === "HIGHFIVE") existing.push("highfive");
-      if (reaction.reaction === "UPLIFT") existing.push("uplift");
-      if (reaction.reaction === "BOMB") existing.push("bomb");
-      myReactionsMap.set(reaction.kudosId, existing);
+      if (myReactionsMap.has(reaction.kudosId)) continue;
+      if (reaction.reaction === "HIGHFIVE") myReactionsMap.set(reaction.kudosId, ["highfive"]);
+      if (reaction.reaction === "UPLIFT") myReactionsMap.set(reaction.kudosId, ["uplift"]);
+      if (reaction.reaction === "BOMB") myReactionsMap.set(reaction.kudosId, ["bomb"]);
     }
 
     const hydratedKudos = kudos.map((k) => ({
@@ -132,39 +132,48 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "kudosId and valid reaction are required" }, { status: 400 });
     }
 
-    const dbUser = await prisma.user.upsert({
-      where: { logtoId: authResult.user.sub },
-      create: {
-        logtoId: authResult.user.sub,
-        email: authResult.user.email,
-        displayName: authResult.user.name,
-        role: toDbRole(authResult.user.role),
-      },
-      update: { displayName: authResult.user.name },
-    });
+    const dbUser = await ensureDbUser(
+      authResult.user.sub,
+      authResult.user.email,
+      authResult.user.name,
+      toDbRole(authResult.user.role),
+    );
 
     const reactionEnum = REACTION_KEY_TO_ENUM[reaction];
 
-    const existing = await prisma.kudosReaction.findUnique({
+    const existingReactions = await prisma.kudosReaction.findMany({
       where: {
-        kudosId_userId_reaction: {
-          kudosId,
-          userId: dbUser.id,
-          reaction: reactionEnum,
-        },
+        kudosId,
+        userId: dbUser.id,
+      },
+      select: {
+        id: true,
+        reaction: true,
       },
     });
 
-    if (existing) {
-      await prisma.kudosReaction.delete({ where: { id: existing.id } });
+    const hasOnlySameReaction =
+      existingReactions.length === 1 &&
+      existingReactions[0].reaction === reactionEnum;
+
+    if (hasOnlySameReaction) {
+      await prisma.kudosReaction.delete({ where: { id: existingReactions[0].id } });
     } else {
-      await prisma.kudosReaction.create({
-        data: {
-          kudosId,
-          userId: dbUser.id,
-          reaction: reactionEnum,
-        },
-      });
+      await prisma.$transaction([
+        prisma.kudosReaction.deleteMany({
+          where: {
+            kudosId,
+            userId: dbUser.id,
+          },
+        }),
+        prisma.kudosReaction.create({
+          data: {
+            kudosId,
+            userId: dbUser.id,
+            reaction: reactionEnum,
+          },
+        }),
+      ]);
     }
 
     const groupedReactions = await prisma.kudosReaction.groupBy({
@@ -214,17 +223,13 @@ export async function POST(request: Request) {
       );
     }
 
-    // Ensure author exists in DB (upsert for dev mode)
-    const dbUser = await prisma.user.upsert({
-      where: { logtoId: authResult.user.sub },
-      create: {
-        logtoId: authResult.user.sub,
-        email: authResult.user.email,
-        displayName: authResult.user.name,
-        role: toDbRole(authResult.user.role),
-      },
-      update: { displayName: authResult.user.name },
-    });
+    // Ensure author exists in DB (handles directory-stub merging)
+    const dbUser = await ensureDbUser(
+      authResult.user.sub,
+      authResult.user.email,
+      authResult.user.name,
+      toDbRole(authResult.user.role),
+    );
 
     // Prevent self-props
     if (

@@ -123,10 +123,8 @@ export async function PATCH(request: Request) {
         return NextResponse.json({ error: "Already voted in this direction" }, { status: 409 });
       }
 
-      // Switching vote: remove old vote effect and apply new one
-      // up→down: undo +1 then apply -1 = -2
-      // down→up: undo -1 then apply +1 = +2
-      voteDelta = vote === "up" ? 2 : -2;
+      // Switching vote: only move by 1
+      voteDelta = vote === "up" ? 1 : -1;
       action = "switched";
 
       const [, idea] = await prisma.$transaction([

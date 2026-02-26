@@ -61,13 +61,7 @@ export function useIdeas() {
       if (currentVote === direction) return false;
 
       const nextVote: VoteDirection = direction;
-      // Switching: undo old vote + apply new = +/-2. Fresh vote = +/-1.
-      let delta: number;
-      if (currentVote && currentVote !== direction) {
-        delta = direction === "up" ? 2 : -2;
-      } else {
-        delta = direction === "up" ? 1 : -1;
-      }
+      const delta = direction === "up" ? 1 : -1;
       pendingVoteIdsRef.current.add(id);
 
       setIdeas((prev) =>
