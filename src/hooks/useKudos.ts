@@ -6,15 +6,22 @@
 import { useState, useEffect, useCallback } from "react";
 import type { KudosMessage } from "@/types";
 
+interface KudosResponse {
+  kudos?: KudosMessage[];
+  currentUserId?: string | null;
+}
+
 export function useKudos() {
   const [kudos, setKudos] = useState<KudosMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   const fetchKudos = useCallback(async () => {
     try {
       const res = await fetch("/api/kudos");
-      const data = await res.json();
+      const data: KudosResponse = await res.json();
       setKudos(data.kudos || []);
+      setCurrentUserId(data.currentUserId ?? null);
     } catch (error) {
       console.error("Failed to fetch kudos:", error);
     } finally {
@@ -91,5 +98,5 @@ export function useKudos() {
     []
   );
 
-  return { kudos, isLoading, sendKudos, toggleReaction, refetch: fetchKudos };
+  return { kudos, currentUserId, isLoading, sendKudos, toggleReaction, refetch: fetchKudos };
 }

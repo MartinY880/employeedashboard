@@ -38,12 +38,22 @@ function IdeaCard({
 }: {
   idea: Idea;
   onVote: (id: string, dir: "up" | "down") => void;
-  userVote?: "up" | "down";
+  userVote?: "up" | "down" | null;
   isTrending?: boolean;
 }) {
   const { playClick } = useSounds();
-  const canUpvote = userVote !== "up";
-  const canDownvote = userVote !== "down";
+  const upTitle =
+    userVote === "up"
+      ? "Remove upvote"
+      : userVote === "down"
+        ? "Switch to upvote"
+        : "Upvote";
+  const downTitle =
+    userVote === "down"
+      ? "Remove downvote"
+      : userVote === "up"
+        ? "Switch to downvote"
+        : "Downvote";
 
   const timeAgo = getTimeAgo(idea.createdAt);
 
@@ -63,21 +73,18 @@ function IdeaCard({
       {/* Vote Buttons */}
       <div className="flex flex-col items-center gap-0 shrink-0 pt-0.5">
         <button
-          disabled={!canUpvote}
+          type="button"
           onClick={() => {
             playClick();
             onVote(idea.id, "up");
           }}
-          className={`w-6 h-6 flex items-center justify-center rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+          className={`w-6 h-6 flex items-center justify-center rounded transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-brand-blue/40 ${
             userVote === "up"
               ? "text-brand-blue bg-brand-blue/10"
               : "text-gray-400 hover:text-brand-blue hover:bg-brand-blue/10"
           }`}
-          title={
-            userVote === "up"
-              ? "Already upvoted"
-              : "Upvote"
-          }
+          title={upTitle}
+          aria-pressed={userVote === "up"}
         >
           <ChevronUp className="w-4 h-4" />
         </button>
@@ -89,23 +96,18 @@ function IdeaCard({
           {idea.votes}
         </span>
         <button
-          disabled={!canDownvote}
+          type="button"
           onClick={() => {
             playClick();
             onVote(idea.id, "down");
           }}
-          className={`w-6 h-6 flex items-center justify-center rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+          className={`w-6 h-6 flex items-center justify-center rounded transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-red-400/50 ${
             userVote === "down"
               ? "text-red-500 bg-red-50"
               : "text-gray-400 hover:text-red-500 hover:bg-red-50"
           }`}
-          title={
-            userVote === "up"
-              ? "Downvote to remove your upvote"
-              : userVote === "down"
-                ? "Already downvoted"
-                : "Downvote"
-          }
+          title={downTitle}
+          aria-pressed={userVote === "down"}
         >
           <ChevronDown className="w-4 h-4" />
         </button>

@@ -19,7 +19,7 @@ function getInitials(name: string): string {
 }
 
 export function TrophyCase() {
-  const { kudos, isLoading } = useKudos();
+  const { kudos, isLoading, currentUserId } = useKudos();
 
   // Aggregate stats from all kudos
   const stats = useMemo(() => {
@@ -48,12 +48,22 @@ export function TrophyCase() {
       .slice(0, 5);
 
     // Count how many the current user received (dev user = "John Doe")
-    const myReceivedCount = kudos.filter(
-      (k) => k.recipient?.displayName === "John Doe"
-    ).length;
+    const myReceivedCount = currentUserId
+      ? kudos.filter((k) => k.recipientId === currentUserId).length
+      : 0;
 
-    return { badgeCounts, leaderboard, totalAwarded: kudos.length, myReceivedCount };
-  }, [kudos]);
+    const myGivenCount = currentUserId
+      ? kudos.filter((k) => k.authorId === currentUserId).length
+      : 0;
+
+    return {
+      badgeCounts,
+      leaderboard,
+      totalAwarded: kudos.length,
+      myReceivedCount,
+      myGivenCount,
+    };
+  }, [kudos, currentUserId]);
 
   if (isLoading) {
     return (
@@ -78,7 +88,7 @@ export function TrophyCase() {
         className="grid grid-cols-2 gap-2.5"
       >
         <div className="bg-brand-blue rounded-xl p-3.5 text-center text-white shadow-md">
-          <div className="text-2xl font-black tabular-nums">{stats.totalAwarded}</div>
+          <div className="text-2xl font-black tabular-nums">{stats.myGivenCount}</div>
           <div className="text-[10px] font-medium text-white/80 uppercase tracking-wider mt-0.5">
             Awards Given
           </div>

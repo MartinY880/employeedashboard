@@ -7,11 +7,12 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import type { Idea } from "@/types";
 
 type VoteDirection = "up" | "down";
+type VoteState = VoteDirection | null;
 
 export function useIdeas() {
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [votedIdeaIds, setVotedIdeaIds] = useState<string[]>([]);
-  const [userVotesByIdea, setUserVotesByIdea] = useState<Record<string, VoteDirection>>({});
+  const [userVotesByIdea, setUserVotesByIdea] = useState<Record<string, VoteState>>({});
   const [isLoading, setIsLoading] = useState(true);
   const pendingVoteIdsRef = useRef<Set<string>>(new Set());
 
@@ -21,7 +22,7 @@ export function useIdeas() {
       const data = await res.json();
       setIdeas(data.ideas || []);
       setVotedIdeaIds(data.votedIdeaIds || []);
-      setUserVotesByIdea(data.userVotesByIdea || {});
+      setUserVotesByIdea((data.userVotesByIdea || {}) as Record<string, VoteState>);
     } catch (error) {
       console.error("Failed to fetch ideas:", error);
     } finally {
@@ -56,12 +57,35 @@ export function useIdeas() {
     async (id: string, direction: "up" | "down") => {
       if (pendingVoteIdsRef.current.has(id)) return false;
 
-      const currentVote = userVotesByIdea[id];
-      // Allow voting if no current vote, or switching direction
-      if (currentVote === direction) return false;
+      const previousVote: VoteState = userVotesByIdea[id] ?? null;
+      let nextVote: VoteState = null;
+      let delta = 0;
 
-      const nextVote: VoteDirection = direction;
-      const delta = direction === "up" ? 1 : -1;
+      if (direction === "up") {
+        if (previousVote === "up") {
+          nextVote = null;
+          delta = -1;
+        } else if (previousVote === "down") {
+          nextVote = "up";
+          delta = 2;
+        } else {
+          nextVote = "up";
+          delta = 1;
+        }
+      } else {
+        if (previousVote === "down") {
+          nextVote = null;
+          delta = 1;
+        } else if (previousVote === "up") {
+          nextVote = "down";
+          delta = -2;
+        } else {
+          nextVote = "down";
+          delta = -1;
+        }
+      }
+
+      if (delta === 0) return false;
       pendingVoteIdsRef.current.add(id);
 
       setIdeas((prev) =>
@@ -71,9 +95,17 @@ export function useIdeas() {
             : idea
         )
       );
-      setUserVotesByIdea((prev) => ({ ...prev, [id]: nextVote }));
+      setUserVotesByIdea((prev) => {
+        const next = { ...prev } as Record<string, VoteState>;
+        if (nextVote) next[id] = nextVote;
+        else delete next[id];
+        return next;
+      });
       setVotedIdeaIds((prev) => {
-        return prev.includes(id) ? prev : [...prev, id];
+        if (nextVote) {
+          return prev.includes(id) ? prev : [...prev, id];
+        }
+        return prev.filter((ideaId) => ideaId !== id);
       });
 
       try {
@@ -92,11 +124,17 @@ export function useIdeas() {
             )
           );
           setUserVotesByIdea((prev) => {
-            const next = { ...prev };
-            delete next[id];
+            const next = { ...prev } as Record<string, VoteState>;
+            if (previousVote) next[id] = previousVote;
+            else delete next[id];
             return next;
           });
-          setVotedIdeaIds((prev) => prev.filter((ideaId) => ideaId !== id));
+          setVotedIdeaIds((prev) => {
+            if (previousVote) {
+              return prev.includes(id) ? prev : [...prev, id];
+            }
+            return prev.filter((ideaId) => ideaId !== id);
+          });
           return false;
         }
         return true;
@@ -109,11 +147,17 @@ export function useIdeas() {
           )
         );
         setUserVotesByIdea((prev) => {
-          const next = { ...prev };
-          delete next[id];
+          const next = { ...prev } as Record<string, VoteState>;
+          if (previousVote) next[id] = previousVote;
+          else delete next[id];
           return next;
         });
-        setVotedIdeaIds((prev) => prev.filter((ideaId) => ideaId !== id));
+        setVotedIdeaIds((prev) => {
+          if (previousVote) {
+            return prev.includes(id) ? prev : [...prev, id];
+          }
+          return prev.filter((ideaId) => ideaId !== id);
+        });
         return false;
       } finally {
         pendingVoteIdsRef.current.delete(id);

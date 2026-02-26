@@ -99,7 +99,7 @@ export async function GET(request: Request) {
       myReactions: myReactionsMap.get(k.id) || [],
     }));
 
-    return NextResponse.json({ kudos: hydratedKudos });
+    return NextResponse.json({ kudos: hydratedKudos, currentUserId });
   } catch (error) {
     console.error("[Kudos API] GET error:", error);
     return NextResponse.json({ error: "Failed to fetch kudos" }, { status: 500 });

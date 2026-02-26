@@ -452,11 +452,6 @@ export default function CalendarPage() {
         )}
       </AnimatePresence>
 
-      {/* Summary footer */}
-      <div className="flex items-center justify-end text-xs text-brand-grey bg-white rounded-lg border border-gray-200 px-4 py-2.5">
-        <span>{monthHolidays.length} in {MONTH_NAMES[viewMonth]}</span>
-      </div>
-
       <Dialog open={!!selectedHoliday} onOpenChange={(open) => !open && setSelectedHoliday(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
