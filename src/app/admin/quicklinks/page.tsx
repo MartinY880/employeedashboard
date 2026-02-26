@@ -272,7 +272,7 @@ export default function AdminQuickLinksPage() {
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <div>
-            <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
               <Link2 className="w-5 h-5 text-brand-blue" />
               Quick Links
             </h1>
@@ -291,7 +291,7 @@ export default function AdminQuickLinksPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
         {isLoading ? (
           <div className="p-6 space-y-3">
             {[...Array(4)].map((_, i) => (
@@ -328,7 +328,7 @@ export default function AdminQuickLinksPage() {
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ delay: i * 0.03 }}
-                    className={`border-b border-gray-100 ${!link.active ? "opacity-50" : ""}`}
+                    className={`border-b border-gray-100 dark:border-gray-800 ${!link.active ? "opacity-50" : ""}`}
                   >
                     <TableCell>
                       <div className="flex flex-col gap-0.5">
@@ -366,7 +366,7 @@ export default function AdminQuickLinksPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge className={link.active ? "bg-green-100 text-green-700 text-[10px]" : "bg-gray-100 text-gray-500 text-[10px]"}>
+                      <Badge className={link.active ? "bg-green-100 text-green-700 text-[10px]" : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 text-[10px]"}>
                         {link.active ? "Active" : "Hidden"}
                       </Badge>
                     </TableCell>
@@ -382,7 +382,7 @@ export default function AdminQuickLinksPage() {
                           {link.active ? (
                             <ToggleRight className="w-4 h-4 text-green-600" />
                           ) : (
-                            <ToggleLeft className="w-4 h-4 text-gray-400" />
+                            <ToggleLeft className="w-4 h-4 text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500" />
                           )}
                         </Button>
                         <Button
@@ -444,7 +444,7 @@ export default function AdminQuickLinksPage() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div>
-              <label className="text-xs font-medium text-gray-600 mb-1 block">
+              <label className="text-xs font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1 block">
                 Label
               </label>
               <Input
@@ -454,7 +454,7 @@ export default function AdminQuickLinksPage() {
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-600 mb-1 block">
+              <label className="text-xs font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1 block">
                 URL
               </label>
               <Input
@@ -464,7 +464,7 @@ export default function AdminQuickLinksPage() {
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-600 mb-1 block">
+              <label className="text-xs font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1 block">
                 Icon
               </label>
               <div className="relative">

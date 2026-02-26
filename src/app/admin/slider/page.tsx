@@ -213,7 +213,7 @@ export default function AdminSliderPage() {
         <div className="flex items-center gap-3">
           <Link
             href="/admin"
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 hover:text-brand-blue hover:border-brand-blue/30 transition-all"
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 hover:text-brand-blue hover:border-brand-blue/30 transition-all"
           >
             <ArrowLeft className="w-4 h-4" />
           </Link>
@@ -221,7 +221,7 @@ export default function AdminSliderPage() {
             <ImageIcon className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Dashboard Slider</h1>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Dashboard Slider</h1>
             <p className="text-sm text-brand-grey">
               Manage the full-width dashboard slider shown to all users
             </p>
@@ -248,10 +248,10 @@ export default function AdminSliderPage() {
       </div>
 
       {/* Show/Hide Toggle */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-sm font-semibold text-gray-900">Show slider on dashboard</p>
+            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Show slider on dashboard</p>
             <p className="text-xs text-brand-grey">Global show/hide for all users</p>
           </div>
           <Button
@@ -277,12 +277,12 @@ export default function AdminSliderPage() {
       </div>
 
       {/* Slider Settings */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-4">
-        <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wider">Slider Settings</h2>
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6 space-y-4">
+        <h2 className="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Slider Settings</h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
           <div>
-            <label className="text-xs font-medium text-gray-600 mb-1 block">Height (px)</label>
+            <label className="text-xs font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1 block">Height (px)</label>
             <Input
               type="number"
               min={120}
@@ -307,7 +307,7 @@ export default function AdminSliderPage() {
             />
           </div>
           <div>
-            <label className="text-xs font-medium text-gray-600 mb-1 block">Transition Time (ms)</label>
+            <label className="text-xs font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1 block">Transition Time (ms)</label>
             <Input
               type="number"
               min={1000}
@@ -324,7 +324,7 @@ export default function AdminSliderPage() {
             />
           </div>
           <div>
-            <label className="text-xs font-medium text-gray-600 mb-1 block">Transition Style</label>
+            <label className="text-xs font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1 block">Transition Style</label>
             <Select
               value={slider.style}
               onValueChange={(value: "slide" | "fade") =>
@@ -341,7 +341,7 @@ export default function AdminSliderPage() {
             </Select>
           </div>
           <div>
-            <label className="text-xs font-medium text-gray-600 mb-1 block">Image Fit</label>
+            <label className="text-xs font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1 block">Image Fit</label>
             <Select
               value={slider.objectFit}
               onValueChange={(value: "cover" | "contain" | "fill") =>
@@ -362,9 +362,9 @@ export default function AdminSliderPage() {
       </div>
 
       {/* Slider Media */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6">
         <div className="flex items-center justify-between gap-2 mb-3">
-          <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wider">
+          <h2 className="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
             Slider Media ({slider.media.length})
           </h2>
           <label>
@@ -422,15 +422,15 @@ export default function AdminSliderPage() {
                   setDraggingIndex(null);
                   setDragOverIndex(null);
                 }}
-                className={`rounded-lg border overflow-hidden bg-white transition-colors ${
-                  dragOverIndex === index ? "border-brand-blue" : "border-gray-200"
+                className={`rounded-lg border overflow-hidden bg-white dark:bg-gray-900 transition-colors ${
+                  dragOverIndex === index ? "border-brand-blue" : "border-gray-200 dark:border-gray-700"
                 }`}
               >
-                <div className="px-2.5 py-1.5 border-b border-gray-100 flex items-center justify-between bg-gray-50">
-                  <span className="text-[11px] text-gray-600 font-medium">
+                <div className="px-2.5 py-1.5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-gray-50 dark:bg-gray-800">
+                  <span className="text-[11px] text-gray-600 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 font-medium">
                     Slide {index + 1} • {mediaItem.type === "video" ? "Video" : "Image"}
                   </span>
-                  <span className="inline-flex items-center text-gray-400">
+                  <span className="inline-flex items-center text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500">
                     <GripVertical className="w-4 h-4" />
                   </span>
                 </div>

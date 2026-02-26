@@ -12,7 +12,7 @@ export default function NotFound() {
           <Search className="w-10 h-10 text-brand-blue/60" />
         </div>
         <h1 className="text-6xl font-bold text-brand-blue mb-2">404</h1>
-        <h2 className="text-lg font-semibold text-gray-900 mb-2">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
           Page Not Found
         </h2>
         <p className="text-sm text-brand-grey mb-8">

@@ -67,7 +67,7 @@ function IdeaCard({
       className={`group flex items-start gap-3 p-3 rounded-lg border transition-all hover:shadow-sm ${
         isTrending
           ? "border-orange-200 bg-gradient-to-r from-orange-50/60 to-amber-50/40 hover:border-orange-300"
-          : "border-gray-100 bg-white hover:border-gray-200"
+          : "border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-900 hover:border-gray-200 dark:hover:border-gray-600"
       }`}
     >
       {/* Vote Buttons */}
@@ -81,7 +81,7 @@ function IdeaCard({
           className={`w-6 h-6 flex items-center justify-center rounded transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-brand-blue/40 ${
             userVote === "up"
               ? "text-brand-blue bg-brand-blue/10"
-              : "text-gray-400 hover:text-brand-blue hover:bg-brand-blue/10"
+              : "text-gray-400 dark:text-gray-500 hover:text-brand-blue hover:bg-brand-blue/10"
           }`}
           title={upTitle}
           aria-pressed={userVote === "up"}
@@ -90,7 +90,7 @@ function IdeaCard({
         </button>
         <span
           className={`text-xs font-bold tabular-nums leading-none ${
-            isTrending ? "text-orange-600" : "text-gray-700"
+            isTrending ? "text-orange-600" : "text-gray-700 dark:text-gray-300"
           }`}
         >
           {idea.votes}
@@ -104,7 +104,7 @@ function IdeaCard({
           className={`w-6 h-6 flex items-center justify-center rounded transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-red-400/50 ${
             userVote === "down"
               ? "text-red-500 bg-red-50"
-              : "text-gray-400 hover:text-red-500 hover:bg-red-50"
+              : "text-gray-400 dark:text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950"
           }`}
           title={downTitle}
           aria-pressed={userVote === "down"}
@@ -116,7 +116,7 @@ function IdeaCard({
       {/* Content */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 mb-0.5">
-          <span className="text-sm font-semibold text-gray-800 truncate leading-tight">
+          <span className="text-sm font-semibold text-gray-800 dark:text-gray-200 truncate leading-tight">
             {idea.title}
           </span>
           {isTrending && (
@@ -128,8 +128,8 @@ function IdeaCard({
         <p className="text-xs text-brand-grey line-clamp-2 leading-relaxed mb-1.5">
           {idea.description}
         </p>
-        <div className="flex items-center gap-2 text-[11px] text-gray-400">
-          <span className="font-medium text-gray-500">{idea.authorName}</span>
+        <div className="flex items-center gap-2 text-[11px] text-gray-400 dark:text-gray-500">
+          <span className="font-medium text-gray-500 dark:text-gray-400">{idea.authorName}</span>
           <span>·</span>
           <span>{timeAgo}</span>
         </div>
@@ -151,7 +151,7 @@ function SelectedIdeaRow({ idea }: { idea: Idea }) {
         <Rocket className="w-3 h-3 text-emerald-600" />
       </div>
       <div className="flex-1 min-w-0">
-        <span className="text-xs font-semibold text-gray-700 truncate block">
+        <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 truncate block">
           {idea.title}
         </span>
       </div>
@@ -215,7 +215,7 @@ function SubmitIdeaForm({
         <button
           type="button"
           onClick={onCancel}
-          className="text-gray-400 hover:text-gray-600 transition-colors"
+          className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
         >
           <X className="w-3.5 h-3.5" />
         </button>
@@ -225,14 +225,14 @@ function SubmitIdeaForm({
         placeholder="Idea title..."
         value={title}
         onChange={(e) => setTitle(e.target.value)}
-        className="h-8 text-sm bg-white"
+        className="h-8 text-sm bg-white dark:bg-gray-900 dark:border-gray-700"
         maxLength={120}
       />
       <Textarea
         placeholder="Brief description..."
         value={description}
         onChange={(e) => setDescription(e.target.value)}
-        className="text-sm bg-white min-h-[60px] resize-none"
+        className="text-sm bg-white dark:bg-gray-900 dark:border-gray-700 min-h-[60px] resize-none"
         maxLength={500}
         rows={2}
       />

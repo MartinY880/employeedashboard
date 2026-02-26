@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SoundProvider } from "@/components/shared/SoundProvider";
 import { DynamicFavicon } from "@/components/shared/DynamicFavicon";
+import { ThemeProvider } from "@/components/shared/ThemeProvider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -28,17 +29,26 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('proconnect-theme');if(t==='dark')document.documentElement.classList.add('dark')}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <TooltipProvider delayDuration={300}>
-          <SoundProvider>
-            <DynamicFavicon />
-            {children}
-            <Toaster position="bottom-right" richColors />
-          </SoundProvider>
-        </TooltipProvider>
+        <ThemeProvider>
+          <TooltipProvider delayDuration={300}>
+            <SoundProvider>
+              <DynamicFavicon />
+              {children}
+              <Toaster position="bottom-right" richColors />
+            </SoundProvider>
+          </TooltipProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

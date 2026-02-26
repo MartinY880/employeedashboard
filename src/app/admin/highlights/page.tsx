@@ -112,7 +112,7 @@ function EmployeePicker({
   return (
     <div ref={containerRef} className="relative">
       <div className="relative">
-        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500" />
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -121,7 +121,7 @@ function EmployeePicker({
           className="pl-8 h-9 text-sm"
         />
         {searching && (
-          <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 animate-spin text-gray-400" />
+          <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 animate-spin text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500" />
         )}
       </div>
 
@@ -139,7 +139,7 @@ function EmployeePicker({
             initial={{ opacity: 0, y: -4 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
-            className="absolute z-50 top-full mt-1 left-0 right-0 bg-white rounded-lg border border-gray-200 shadow-lg max-h-[240px] overflow-y-auto"
+            className="absolute z-50 top-full mt-1 left-0 right-0 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 shadow-lg max-h-[240px] overflow-y-auto"
           >
             {results.map((user) => (
               <button
@@ -150,17 +150,17 @@ function EmployeePicker({
                   setQuery("");
                   setShowDropdown(false);
                 }}
-                className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 transition-colors text-left border-b border-gray-50 last:border-0"
+                className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800 dark:hover:bg-gray-800 dark:bg-gray-800 transition-colors text-left border-b border-gray-50 last:border-0"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={user.photoUrl || `/api/directory/photo?userId=${user.id}&name=${encodeURIComponent(user.displayName)}&size=48x48`}
                   alt={user.displayName}
-                  className="w-8 h-8 rounded-full object-cover border border-gray-200 flex-shrink-0"
+                  className="w-8 h-8 rounded-full object-cover border border-gray-200 dark:border-gray-700 flex-shrink-0"
                 />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{user.displayName}</p>
-                  <p className="text-xs text-gray-500 truncate">
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{user.displayName}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 truncate">
                     {user.jobTitle}{user.department ? ` · ${user.department}` : ""}
                   </p>
                 </div>
@@ -307,7 +307,7 @@ export default function AdminHighlightsPage() {
             <Star className="w-5 h-5 text-amber-500" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Employee Highlights</h1>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Employee Highlights</h1>
             <p className="text-sm text-brand-grey">Manage employee spotlights on the dashboard</p>
           </div>
         </div>
@@ -323,16 +323,16 @@ export default function AdminHighlightsPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50/60">
-                <th className="text-left px-4 py-3 font-semibold text-gray-700">Employee</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-700">Title</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-700">Subtitle</th>
-                <th className="text-center px-4 py-3 font-semibold text-gray-700">Status</th>
-                <th className="text-right px-4 py-3 font-semibold text-gray-700">Actions</th>
+              <tr className="border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/60">
+                <th className="text-left px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">Employee</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">Title</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">Subtitle</th>
+                <th className="text-center px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">Status</th>
+                <th className="text-right px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -357,7 +357,7 @@ export default function AdminHighlightsPage() {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
-                      className="border-b border-gray-50 hover:bg-gray-50/40 transition-colors"
+                      className="border-b border-gray-50 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800 dark:hover:bg-gray-800 dark:bg-gray-800/40 transition-colors"
                     >
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2.5">
@@ -365,18 +365,18 @@ export default function AdminHighlightsPage() {
                           <img
                             src={h.avatarUrl || `/api/directory/photo?userId=${h.employeeId || "none"}&name=${encodeURIComponent(h.employeeName)}&size=48x48`}
                             alt={h.employeeName}
-                            className="w-8 h-8 rounded-full object-cover border border-gray-200 flex-shrink-0"
+                            className="w-8 h-8 rounded-full object-cover border border-gray-200 dark:border-gray-700 flex-shrink-0"
                           />
                           <div>
-                            <p className="font-medium text-gray-900">{h.employeeName}</p>
+                            <p className="font-medium text-gray-900 dark:text-gray-100">{h.employeeName}</p>
                             {(h.jobTitle || h.department) && (
-                              <p className="text-xs text-gray-400">{h.jobTitle}{h.department ? ` · ${h.department}` : ""}</p>
+                              <p className="text-xs text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500">{h.jobTitle}{h.department ? ` · ${h.department}` : ""}</p>
                             )}
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-gray-700">{h.title}</td>
-                      <td className="px-4 py-3 text-gray-500 max-w-[200px] truncate">{h.subtitle}</td>
+                      <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{h.title}</td>
+                      <td className="px-4 py-3 text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 max-w-[200px] truncate">{h.subtitle}</td>
                       <td className="px-4 py-3 text-center">
                         <Badge
                           variant={h.active ? "default" : "secondary"}
@@ -397,7 +397,7 @@ export default function AdminHighlightsPage() {
                             {h.active ? (
                               <ToggleRight className="w-4 h-4 text-green-600" />
                             ) : (
-                              <ToggleLeft className="w-4 h-4 text-gray-400" />
+                              <ToggleLeft className="w-4 h-4 text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500" />
                             )}
                           </Button>
                           <Button
@@ -442,7 +442,7 @@ export default function AdminHighlightsPage() {
           </DialogHeader>
           <div className="space-y-4 mt-2">
             <div>
-              <label className="text-sm font-medium text-gray-700 block mb-1">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1">
                 Employee *
               </label>
               <EmployeePicker
@@ -451,7 +451,7 @@ export default function AdminHighlightsPage() {
               />
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700 block mb-1">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1">
                 Title *
               </label>
               <Input
@@ -461,7 +461,7 @@ export default function AdminHighlightsPage() {
               />
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700 block mb-1">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1">
                 Subtitle / Description *
               </label>
               <textarea
@@ -469,7 +469,7 @@ export default function AdminHighlightsPage() {
                 onChange={(e) => setFormSubtitle(e.target.value)}
                 placeholder="Why this employee is being highlighted…"
                 rows={3}
-                className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/30 focus:border-brand-blue resize-none"
+                className="w-full rounded-md border border-gray-200 dark:border-gray-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/30 focus:border-brand-blue resize-none"
               />
             </div>
             <div className="flex justify-end gap-2 pt-2">

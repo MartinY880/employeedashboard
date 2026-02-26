@@ -240,7 +240,7 @@ export default function AdminPage() {
           <Shield className="w-5 h-5" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Admin Dashboard</h1>
           <p className="text-sm text-brand-grey">Manage alerts, props, and portal settings</p>
         </div>
       </div>
@@ -260,7 +260,7 @@ export default function AdminPage() {
             >
               <Link
                 href={card.href}
-                className="flex items-center gap-4 bg-white rounded-xl border border-gray-200 shadow-sm p-4 hover:shadow-md hover:border-brand-blue/20 transition-all group"
+                className="flex items-center gap-4 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-4 hover:shadow-md hover:border-brand-blue/20 transition-all group"
               >
                 <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${card.color} text-white shrink-0`}>
                   <Icon className="w-6 h-6" />
@@ -273,7 +273,7 @@ export default function AdminPage() {
                     </>
                   ) : (
                     <>
-                      <div className="text-2xl font-bold text-gray-900">{value}</div>
+                      <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{value}</div>
                       <div className="text-xs text-brand-grey font-medium">{card.label}</div>
                     </>
                   )}
@@ -298,15 +298,15 @@ export default function AdminPage() {
           </div>
           <div className="flex items-center gap-1.5">
             <TrendingUp className="w-3.5 h-3.5 text-green-500" />
-            <span className="text-sm font-semibold text-gray-800">{stats.propsThisMonth} props</span>
+            <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">{stats.propsThisMonth} props</span>
           </div>
           <div className="flex items-center gap-1.5">
             <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
-            <span className="text-sm font-semibold text-gray-800">{stats.activeAlerts} active alerts</span>
+            <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">{stats.activeAlerts} active alerts</span>
           </div>
           <div className="flex items-center gap-1.5">
             <CalendarDays className="w-3.5 h-3.5 text-purple-500" />
-            <span className="text-sm font-semibold text-gray-800">{stats.upcomingHolidays} upcoming holidays</span>
+            <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">{stats.upcomingHolidays} upcoming holidays</span>
           </div>
         </motion.div>
       )}
@@ -324,14 +324,14 @@ export default function AdminPage() {
             >
               <Link
                 href={page.href}
-                className="flex items-start gap-4 bg-white rounded-xl border border-gray-200 shadow-sm p-5 hover:shadow-md hover:border-brand-blue/20 transition-all group"
+                className="flex items-start gap-4 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-5 hover:shadow-md hover:border-brand-blue/20 transition-all group"
               >
                 <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${page.bgColor} shrink-0`}>
                   <Icon className={`w-5 h-5 ${page.color}`} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <h3 className="font-bold text-gray-800 group-hover:text-brand-blue transition-colors">
+                    <h3 className="font-bold text-gray-800 dark:text-gray-200 group-hover:text-brand-blue transition-colors">
                       {page.title}
                     </h3>
                     <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{page.badge}</Badge>

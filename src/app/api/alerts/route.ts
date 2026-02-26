@@ -12,15 +12,25 @@ export async function GET(request: Request) {
     const activeOnly = searchParams.get("active") !== "false";
     const countOnly = searchParams.get("count") === "true";
 
+    // Build where clause: active alerts exclude expired ones
+    const now = new Date();
+    const activeWhere = {
+      active: true,
+      OR: [
+        { expiresAt: null },
+        { expiresAt: { gt: now } },
+      ],
+    };
+
     if (countOnly) {
       const count = await prisma.alert.count({
-        where: activeOnly ? { active: true } : undefined,
+        where: activeOnly ? activeWhere : undefined,
       });
       return NextResponse.json({ count });
     }
 
     const alerts = await prisma.alert.findMany({
-      where: activeOnly ? { active: true } : undefined,
+      where: activeOnly ? activeWhere : undefined,
       include: {
         author: {
           select: { id: true, displayName: true, avatarUrl: true },
@@ -54,6 +64,7 @@ export async function POST(request: Request) {
     const { title, content } = body;
     const type = body.type as "INFO" | "WARNING" | "BIRTHDAY" | "NEW_HIRE" | "ANNOUNCEMENT" | undefined;
     const priority = body.priority as "LOW" | "MEDIUM" | "HIGH" | "CRITICAL" | undefined;
+    const expiresAt = body.expiresAt ? new Date(body.expiresAt) : null;
 
     if (!title || !content) {
       return NextResponse.json(
@@ -76,6 +87,7 @@ export async function POST(request: Request) {
         content,
         type: type || "INFO",
         priority: priority || "LOW",
+        expiresAt,
         createdBy: dbUser.id,
       },
       include: {
@@ -113,6 +125,7 @@ export async function PATCH(request: Request) {
     if (data.type !== undefined) updateData.type = data.type;
     if (data.priority !== undefined) updateData.priority = data.priority;
     if (data.active !== undefined) updateData.active = data.active;
+    if (data.expiresAt !== undefined) updateData.expiresAt = data.expiresAt ? new Date(data.expiresAt) : null;
 
     const alert = await prisma.alert.update({
       where: { id: id as string },

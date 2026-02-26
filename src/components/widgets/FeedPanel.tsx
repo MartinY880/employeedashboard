@@ -29,9 +29,9 @@ export function FeedPanel() {
   };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
       {/* Tabs */}
-      <div className="flex border-b border-gray-200">
+      <div className="flex border-b border-gray-200 dark:border-gray-700">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
           return (
@@ -59,7 +59,7 @@ export function FeedPanel() {
       </div>
 
       {/* Content */}
-        <div className="bg-brand-bg/50 min-h-[400px] sm:min-h-[530px] max-h-[530px] sm:max-h-[620px] overflow-y-auto scrollbar-thin">
+        <div className="bg-brand-bg/50 dark:bg-gray-800/50 min-h-[400px] sm:min-h-[530px] max-h-[530px] sm:max-h-[620px] overflow-y-auto scrollbar-thin">
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}

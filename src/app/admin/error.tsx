@@ -23,7 +23,7 @@ export default function AdminError({
       <div className="flex h-16 w-16 items-center justify-center rounded-full bg-amber-50 mx-auto mb-6">
         <AlertTriangle className="w-8 h-8 text-amber-500" />
       </div>
-      <h2 className="text-xl font-bold text-gray-900 mb-2">Admin Error</h2>
+      <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">Admin Error</h2>
       <p className="text-sm text-brand-grey mb-6">
         Something went wrong in the admin panel.
       </p>

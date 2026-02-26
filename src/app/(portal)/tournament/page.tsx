@@ -58,7 +58,7 @@ const DIVISION_THEMES: Record<
 };
 
 const STATUS_BADGES: Record<string, { label: string; className: string }> = {
-  SETUP: { label: "Setup", className: "bg-gray-100 text-gray-600" },
+  SETUP: { label: "Setup", className: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500" },
   IN_PROGRESS: { label: "In Progress", className: "bg-blue-100 text-blue-700" },
   COMPLETED: { label: "Completed", className: "bg-emerald-100 text-emerald-700" },
 };
@@ -210,7 +210,7 @@ function BracketCard({ slot, lineColor }: { slot: BracketSlot; lineColor: string
 
   return (
     <div
-      className="absolute rounded-md border bg-white shadow-sm overflow-hidden select-none"
+      className="absolute rounded-md border bg-white dark:bg-gray-900 shadow-sm overflow-hidden select-none"
       style={{
         left: slot.x,
         top: slot.y,
@@ -222,7 +222,7 @@ function BracketCard({ slot, lineColor }: { slot: BracketSlot; lineColor: string
       {/* Team 1 */}
       <div
         className={`flex items-center justify-between px-2 h-1/2 border-b transition-colors ${
-          t1Winner ? "bg-emerald-50" : "bg-white"
+          t1Winner ? "bg-emerald-50" : "bg-white dark:bg-gray-900"
         }`}
         style={{ borderColor: "#f3f4f6" }}
       >
@@ -231,10 +231,10 @@ function BracketCard({ slot, lineColor }: { slot: BracketSlot; lineColor: string
           <span
             className={`text-[10px] leading-tight truncate ${
               t1Winner
-                ? "font-bold text-gray-900"
+                ? "font-bold text-gray-900 dark:text-gray-100"
                 : m?.team1
-                ? "text-gray-700"
-                : "text-gray-400 italic"
+                ? "text-gray-700 dark:text-gray-300"
+                : "text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 italic"
             }`}
           >
             {team1Name}
@@ -243,7 +243,7 @@ function BracketCard({ slot, lineColor }: { slot: BracketSlot; lineColor: string
         {m?.team1Score !== null && m?.team1Score !== undefined && (
           <span
             className={`text-[10px] font-bold tabular-nums ml-1 shrink-0 ${
-              t1Winner ? "text-emerald-600" : "text-gray-400"
+              t1Winner ? "text-emerald-600" : "text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500"
             }`}
           >
             {m.team1Score}
@@ -253,7 +253,7 @@ function BracketCard({ slot, lineColor }: { slot: BracketSlot; lineColor: string
       {/* Team 2 */}
       <div
         className={`flex items-center justify-between px-2 h-1/2 transition-colors ${
-          t2Winner ? "bg-emerald-50" : "bg-white"
+          t2Winner ? "bg-emerald-50" : "bg-white dark:bg-gray-900"
         }`}
       >
         <div className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden">
@@ -261,12 +261,12 @@ function BracketCard({ slot, lineColor }: { slot: BracketSlot; lineColor: string
           <span
             className={`text-[10px] leading-tight truncate ${
               isBye
-                ? "text-gray-400 italic"
+                ? "text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 italic"
                 : t2Winner
-                ? "font-bold text-gray-900"
+                ? "font-bold text-gray-900 dark:text-gray-100"
                 : m?.team2
-                ? "text-gray-700"
-                : "text-gray-400 italic"
+                ? "text-gray-700 dark:text-gray-300"
+                : "text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 italic"
             }`}
           >
             {team2Name}
@@ -275,7 +275,7 @@ function BracketCard({ slot, lineColor }: { slot: BracketSlot; lineColor: string
         {m?.team2Score !== null && m?.team2Score !== undefined && (
           <span
             className={`text-[10px] font-bold tabular-nums ml-1 shrink-0 ${
-              t2Winner ? "text-emerald-600" : "text-gray-400"
+              t2Winner ? "text-emerald-600" : "text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500"
             }`}
           >
             {m.team2Score}
@@ -590,11 +590,11 @@ function UnifiedTournamentBracket({
   };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-      <div className="px-5 pt-4 pb-2 flex items-center justify-end gap-1.5 border-b border-gray-100 bg-gray-50">
+    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className="px-5 pt-4 pb-2 flex items-center justify-end gap-1.5 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800">
         <button
           onClick={() => setZoomLevel((z) => Math.max(0.8, Number((z - 0.1).toFixed(2))))}
-          className="px-2 py-1 text-xs font-semibold rounded-md bg-white border border-gray-200 text-gray-700 hover:bg-gray-100"
+          className="px-2 py-1 text-xs font-semibold rounded-md bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 dark:hover:bg-gray-800 dark:bg-gray-800"
         >
           Zoom -
         </button>
@@ -604,17 +604,17 @@ function UnifiedTournamentBracket({
             setPanX(0);
             setPanY(0);
           }}
-          className="px-2 py-1 text-xs font-semibold rounded-md bg-white border border-gray-200 text-gray-700 hover:bg-gray-100"
+          className="px-2 py-1 text-xs font-semibold rounded-md bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 dark:hover:bg-gray-800 dark:bg-gray-800"
         >
           Reset
         </button>
         <button
           onClick={() => setZoomLevel((z) => Math.min(1.5, Number((z + 0.1).toFixed(2))))}
-          className="px-2 py-1 text-xs font-semibold rounded-md bg-white border border-gray-200 text-gray-700 hover:bg-gray-100"
+          className="px-2 py-1 text-xs font-semibold rounded-md bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 dark:hover:bg-gray-800 dark:bg-gray-800"
         >
           Zoom +
         </button>
-        <span className="ml-1 text-[11px] font-semibold text-gray-500 w-11 text-right">{Math.round(zoomLevel * 100)}%</span>
+        <span className="ml-1 text-[11px] font-semibold text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 w-11 text-right">{Math.round(zoomLevel * 100)}%</span>
       </div>
 
       <div
@@ -746,7 +746,7 @@ function UnifiedTournamentBracket({
         </div>
       </div>
 
-      <div className="border-t bg-gray-50 px-5 py-3 text-xs text-gray-600 flex items-center justify-between">
+      <div className="border-t bg-gray-50 dark:bg-gray-800 px-5 py-3 text-xs text-gray-600 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 flex items-center justify-between">
         <span>{DIVISIONS.reduce((acc, d) => acc + (teamsByDivision[d]?.length || 0), 0)} teams across 4 regions</span>
         <span>{allMatches.filter((m) => m.status === "COMPLETED").length}/{allMatches.length} matches complete</span>
       </div>
@@ -845,10 +845,10 @@ function TournamentContent({
     return (
       <div className="max-w-[1400px] mx-auto px-6 py-6">
         <div className="flex flex-col items-center justify-center min-h-[50vh] text-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 mb-4">
-            <Trophy className="w-8 h-8 text-gray-400" />
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 mb-4">
+            <Trophy className="w-8 h-8 text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500" />
           </div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">No Tournament Yet</h2>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">No Tournament Yet</h2>
           <p className="text-brand-grey text-sm">
             A tournament bracket will appear here once it&apos;s been set up.
           </p>
@@ -878,7 +878,7 @@ function TournamentContent({
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold text-gray-900">{tournament.name}</h1>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{tournament.name}</h1>
               <Badge className={statusBadge.className}>{statusBadge.label}</Badge>
             </div>
             {tournament.description && (
@@ -887,19 +887,19 @@ function TournamentContent({
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-800">
             <Users className="w-3.5 h-3.5 text-brand-grey" />
-            <span className="text-xs font-semibold text-gray-700">{totalTeams} Teams</span>
+            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">{totalTeams} Teams</span>
           </div>
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-800">
             <Swords className="w-3.5 h-3.5 text-brand-grey" />
-            <span className="text-xs font-semibold text-gray-700">
+            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
               {completedMatches}/{totalMatches} Matches
             </span>
           </div>
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-800">
             <Medal className="w-3.5 h-3.5 text-brand-grey" />
-            <span className="text-xs font-semibold text-gray-700">4 Regions</span>
+            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">4 Regions</span>
           </div>
         </div>
       </div>
@@ -914,7 +914,7 @@ function TournamentContent({
               className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
                 t.id === tournament.id
                   ? "bg-brand-blue text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-200"
               }`}
             >
               {t.name}
@@ -924,11 +924,11 @@ function TournamentContent({
       )}
 
       <div className="flex items-center justify-end">
-        <div className="inline-flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+        <div className="inline-flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
           <button
             onClick={() => setShowEarlyRounds(true)}
             className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
-              showEarlyRounds ? "bg-white text-gray-900 shadow-sm" : "text-gray-600 hover:text-gray-800"
+              showEarlyRounds ? "bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm" : "text-gray-600 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 hover:text-gray-800 dark:text-gray-200"
             }`}
           >
             All Rounds
@@ -936,7 +936,7 @@ function TournamentContent({
           <button
             onClick={() => setShowEarlyRounds(false)}
             className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
-              !showEarlyRounds ? "bg-white text-gray-900 shadow-sm" : "text-gray-600 hover:text-gray-800"
+              !showEarlyRounds ? "bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm" : "text-gray-600 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 hover:text-gray-800 dark:text-gray-200"
             }`}
           >
             Sweet 16+

@@ -15,7 +15,7 @@ export default async function HighlightsAdminLayout({ children }: { children: Re
     return (
       <PortalShell user={user}>
         <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Access Denied</h2>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">Access Denied</h2>
           <p className="text-brand-grey text-sm">You don&apos;t have permission to manage highlights.</p>
         </div>
       </PortalShell>

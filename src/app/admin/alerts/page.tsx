@@ -18,6 +18,7 @@ import {
   UserPlus,
   Megaphone,
   Loader2,
+  CalendarClock,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -60,6 +61,7 @@ interface AlertItem {
   type: string;
   priority: string;
   active: boolean;
+  expiresAt: string | null;
   createdBy: string;
   author?: { id: string; displayName: string };
   createdAt: string;
@@ -86,7 +88,7 @@ const TYPE_COLOR: Record<string, string> = {
 };
 
 const PRIORITY_COLOR: Record<string, string> = {
-  LOW: "bg-gray-100 text-gray-600",
+  LOW: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400",
   MEDIUM: "bg-blue-100 text-blue-600",
   HIGH: "bg-amber-100 text-amber-700",
   CRITICAL: "bg-red-100 text-red-700",
@@ -112,6 +114,7 @@ export default function AdminAlertsPage() {
   const [formContent, setFormContent] = useState("");
   const [formType, setFormType] = useState<string>("INFO");
   const [formPriority, setFormPriority] = useState<string>("LOW");
+  const [formExpiresAt, setFormExpiresAt] = useState<string>("");
 
   const fetchAlerts = useCallback(async () => {
     try {
@@ -136,6 +139,7 @@ export default function AdminAlertsPage() {
     setFormContent("");
     setFormType("INFO");
     setFormPriority("LOW");
+    setFormExpiresAt("");
     setDialogOpen(true);
   }
 
@@ -146,6 +150,7 @@ export default function AdminAlertsPage() {
     setFormContent(alert.content);
     setFormType(alert.type);
     setFormPriority(alert.priority);
+    setFormExpiresAt(alert.expiresAt ? alert.expiresAt.slice(0, 10) : "");
     setDialogOpen(true);
   }
 
@@ -162,6 +167,7 @@ export default function AdminAlertsPage() {
             content: formContent,
             type: formType,
             priority: formPriority,
+            expiresAt: formExpiresAt || null,
           }),
         });
       } else {
@@ -173,6 +179,7 @@ export default function AdminAlertsPage() {
             content: formContent,
             type: formType,
             priority: formPriority,
+            expiresAt: formExpiresAt || null,
           }),
         });
       }
@@ -236,7 +243,7 @@ export default function AdminAlertsPage() {
         <div className="flex items-center gap-3">
           <Link
             href="/admin"
-            className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-gray-100 transition-colors"
+            className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           >
             <ArrowLeft className="w-4 h-4 text-brand-grey" />
           </Link>
@@ -244,7 +251,7 @@ export default function AdminAlertsPage() {
             <AlertTriangle className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Alerts Management</h1>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Alerts Management</h1>
             <p className="text-xs text-brand-grey">
               {alerts.length} total &middot; {activeCount} active
             </p>
@@ -256,7 +263,7 @@ export default function AdminAlertsPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
         {isLoading ? (
           <div className="p-6 space-y-3">
             {Array.from({ length: 5 }).map((_, i) => (
@@ -277,6 +284,7 @@ export default function AdminAlertsPage() {
                 <TableHead>Type</TableHead>
                 <TableHead>Priority</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Expires</TableHead>
                 <TableHead>Created</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -290,13 +298,13 @@ export default function AdminAlertsPage() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, x: -20 }}
                     transition={{ duration: 0.2, delay: i * 0.03 }}
-                    className={`border-b border-gray-100 hover:bg-gray-50/50 transition-colors ${
+                    className={`border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${
                       !alert.active ? "opacity-60" : ""
                     }`}
                   >
                     <TableCell>
                       <div>
-                        <div className="font-semibold text-sm text-gray-900 truncate max-w-[340px]">
+                        <div className="font-semibold text-sm text-gray-900 dark:text-gray-100 truncate max-w-[340px]">
                           {alert.title}
                         </div>
                         <div className="text-xs text-brand-grey truncate max-w-[340px] mt-0.5">
@@ -307,7 +315,7 @@ export default function AdminAlertsPage() {
                     <TableCell>
                       <Badge
                         variant="secondary"
-                        className={`text-[10px] gap-1 ${TYPE_COLOR[alert.type] || "bg-gray-100"}`}
+                        className={`text-[10px] gap-1 ${TYPE_COLOR[alert.type] || "bg-gray-100 dark:bg-gray-800"}`}
                       >
                         {TYPE_ICON[alert.type]}
                         {alert.type}
@@ -316,7 +324,7 @@ export default function AdminAlertsPage() {
                     <TableCell>
                       <Badge
                         variant="secondary"
-                        className={`text-[10px] ${PRIORITY_COLOR[alert.priority] || "bg-gray-100"}`}
+                        className={`text-[10px] ${PRIORITY_COLOR[alert.priority] || "bg-gray-100 dark:bg-gray-800"}`}
                       >
                         {alert.priority}
                       </Badge>
@@ -333,11 +341,22 @@ export default function AdminAlertsPage() {
                           </>
                         ) : (
                           <>
-                            <ToggleLeft className="w-5 h-5 text-gray-400" />
-                            <span className="text-gray-400">Inactive</span>
+                            <ToggleLeft className="w-5 h-5 text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500" />
+                            <span className="text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500">Inactive</span>
                           </>
                         )}
                       </button>
+                    </TableCell>
+                    <TableCell>
+                      {alert.expiresAt ? (
+                        <span className={`text-xs flex items-center gap-1 ${new Date(alert.expiresAt) < new Date() ? "text-red-500" : "text-brand-grey"}`}>
+                          <CalendarClock className="w-3 h-3" />
+                          {new Date(alert.expiresAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                          {new Date(alert.expiresAt) < new Date() && <span className="text-[9px] font-semibold text-red-500 ml-1">EXPIRED</span>}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-400 dark:text-gray-500">Never</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <span className="text-xs text-brand-grey">
@@ -385,7 +404,7 @@ export default function AdminAlertsPage() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div>
-              <label className="text-xs font-medium text-gray-600 mb-1 block">Title</label>
+              <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">Title</label>
               <Input
                 value={formTitle}
                 onChange={(e) => setFormTitle(e.target.value)}
@@ -393,7 +412,7 @@ export default function AdminAlertsPage() {
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-600 mb-1 block">Content</label>
+              <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">Content</label>
               <Textarea
                 value={formContent}
                 onChange={(e) => setFormContent(e.target.value)}
@@ -403,7 +422,7 @@ export default function AdminAlertsPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-xs font-medium text-gray-600 mb-1 block">Type</label>
+                <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">Type</label>
                 <Select value={formType} onValueChange={setFormType}>
                   <SelectTrigger>
                     <SelectValue />
@@ -420,7 +439,7 @@ export default function AdminAlertsPage() {
                 </Select>
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-600 mb-1 block">Priority</label>
+                <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">Priority</label>
                 <Select value={formPriority} onValueChange={setFormPriority}>
                   <SelectTrigger>
                     <SelectValue />
@@ -434,6 +453,20 @@ export default function AdminAlertsPage() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">
+                Expiration Date <span className="text-gray-400 dark:text-gray-500 font-normal">(optional)</span>
+              </label>
+              <Input
+                type="date"
+                value={formExpiresAt}
+                onChange={(e) => setFormExpiresAt(e.target.value)}
+                min={new Date().toISOString().split("T")[0]}
+              />
+              <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">
+                Alert will automatically stop showing on this date. Leave empty for no expiration.
+              </p>
             </div>
           </div>
           <DialogFooter>

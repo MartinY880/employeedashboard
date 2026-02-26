@@ -26,6 +26,7 @@ import {
   ArrowDown,
   ChevronDown,
   GripVertical,
+  Moon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,6 +47,7 @@ import {
 interface BrandingData {
   companyName: string;
   logoData: string | null;
+  darkLogoData: string | null;
   faviconData: string | null;
   topNavMenu: TopNavMenuItem[];
   dashboardVisibility?: DashboardVisibilitySettings;
@@ -120,6 +122,7 @@ export default function AdminBrandingPage() {
   const [branding, setBranding] = useState<BrandingData>({
     companyName: "MortgagePros",
     logoData: null,
+    darkLogoData: null,
     faviconData: null,
     topNavMenu: [],
   });
@@ -140,13 +143,17 @@ export default function AdminBrandingPage() {
 
   // Preview states
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [darkLogoPreview, setDarkLogoPreview] = useState<string | null>(null);
   const [faviconPreview, setFaviconPreview] = useState<string | null>(null);
   const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [darkLogoFile, setDarkLogoFile] = useState<File | null>(null);
   const [faviconFile, setFaviconFile] = useState<File | null>(null);
   const [removeLogo, setRemoveLogo] = useState(false);
+  const [removeDarkLogo, setRemoveDarkLogo] = useState(false);
   const [removeFavicon, setRemoveFavicon] = useState(false);
 
   const logoInputRef = useRef<HTMLInputElement>(null);
+  const darkLogoInputRef = useRef<HTMLInputElement>(null);
   const faviconInputRef = useRef<HTMLInputElement>(null);
 
   const fetchBranding = useCallback(async () => {
@@ -195,6 +202,24 @@ export default function AdminBrandingPage() {
     reader.readAsDataURL(file);
   }
 
+  function handleDarkLogoSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Dark logo must be under 2MB");
+      return;
+    }
+    setDarkLogoFile(file);
+    setRemoveDarkLogo(false);
+    const reader = new FileReader();
+    reader.onload = () => setDarkLogoPreview(reader.result as string);
+    reader.readAsDataURL(file);
+  }
+
   function handleFaviconSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -220,6 +245,13 @@ export default function AdminBrandingPage() {
     if (logoInputRef.current) logoInputRef.current.value = "";
   }
 
+  function handleRemoveDarkLogo() {
+    setDarkLogoFile(null);
+    setDarkLogoPreview(null);
+    setRemoveDarkLogo(true);
+    if (darkLogoInputRef.current) darkLogoInputRef.current.value = "";
+  }
+
   function handleRemoveFavicon() {
     setFaviconFile(null);
     setFaviconPreview(null);
@@ -234,8 +266,10 @@ export default function AdminBrandingPage() {
     try {
       const formData = new FormData();
       if (logoFile) formData.append("logo", logoFile);
+      if (darkLogoFile) formData.append("darkLogo", darkLogoFile);
       if (faviconFile) formData.append("favicon", faviconFile);
       if (removeLogo) formData.append("removeLogo", "true");
+      if (removeDarkLogo) formData.append("removeDarkLogo", "true");
       if (removeFavicon) formData.append("removeFavicon", "true");
       formData.append("smtpHost", smtpSettings.host);
       formData.append("smtpPort", smtpSettings.port);
@@ -262,10 +296,13 @@ export default function AdminBrandingPage() {
       const updated = await res.json();
       setBranding(updated);
       setLogoFile(null);
+      setDarkLogoFile(null);
       setFaviconFile(null);
       setLogoPreview(null);
+      setDarkLogoPreview(null);
       setFaviconPreview(null);
       setRemoveLogo(false);
+      setRemoveDarkLogo(false);
       setRemoveFavicon(false);
       setSmtpSettings({ ...DEFAULT_SMTP, ...(updated.smtpSettings || {}) });
       setInitialSmtpSettings({ ...DEFAULT_SMTP, ...(updated.smtpSettings || {}) });
@@ -276,6 +313,7 @@ export default function AdminBrandingPage() {
       setTopNavMenu(updatedMenu);
       setInitialTopNavMenu(updatedMenu);
       if (logoInputRef.current) logoInputRef.current.value = "";
+      if (darkLogoInputRef.current) darkLogoInputRef.current.value = "";
       if (faviconInputRef.current) faviconInputRef.current.value = "";
 
       // Update favicon in browser immediately
@@ -301,12 +339,15 @@ export default function AdminBrandingPage() {
   }
 
   const currentLogo = logoPreview ?? (removeLogo ? null : branding.logoData);
+  const currentDarkLogo = darkLogoPreview ?? (removeDarkLogo ? null : branding.darkLogoData);
   const currentFavicon = faviconPreview ?? (removeFavicon ? null : branding.faviconData);
   const menuChanged = JSON.stringify(topNavMenu) !== JSON.stringify(initialTopNavMenu);
   const hasChanges =
     logoFile !== null ||
+    darkLogoFile !== null ||
     faviconFile !== null ||
     removeLogo ||
+    removeDarkLogo ||
     removeFavicon ||
     JSON.stringify(smtpSettings) !== JSON.stringify(initialSmtpSettings) ||
     menuChanged;
@@ -429,12 +470,12 @@ export default function AdminBrandingPage() {
           <div className="h-10 w-10 rounded-lg bg-gray-200 animate-pulse" />
           <div className="space-y-2">
             <div className="h-6 w-48 bg-gray-200 rounded animate-pulse" />
-            <div className="h-4 w-64 bg-gray-100 rounded animate-pulse" />
+            <div className="h-4 w-64 bg-gray-100 dark:bg-gray-800 rounded animate-pulse" />
           </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="h-64 bg-gray-100 rounded-xl animate-pulse" />
-          <div className="h-64 bg-gray-100 rounded-xl animate-pulse" />
+          <div className="h-64 bg-gray-100 dark:bg-gray-800 rounded-xl animate-pulse" />
+          <div className="h-64 bg-gray-100 dark:bg-gray-800 rounded-xl animate-pulse" />
         </div>
       </div>
     );
@@ -453,7 +494,7 @@ export default function AdminBrandingPage() {
           <Link
             href="/admin"
             onClick={playClick}
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-brand-grey hover:text-brand-blue hover:border-brand-blue/30 transition-all"
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-brand-grey hover:text-brand-blue hover:border-brand-blue/30 transition-all"
           >
             <ArrowLeft className="w-4 h-4" />
           </Link>
@@ -461,7 +502,7 @@ export default function AdminBrandingPage() {
             <Paintbrush className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Site Branding</h1>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Site Branding</h1>
             <p className="text-sm text-brand-grey">
               Customize the portal logo and favicon
             </p>
@@ -470,19 +511,19 @@ export default function AdminBrandingPage() {
       </div>
 
       {/* Logo and Favicon Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Logo Upload */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6">
           <div className="flex items-center gap-2 mb-4">
             <ImageIcon className="w-5 h-5 text-brand-blue" />
-            <h2 className="text-lg font-bold text-gray-900">Logo</h2>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Logo (Light)</h2>
           </div>
           <p className="text-sm text-brand-grey mb-4">
-            Appears in the top-left corner of the navigation bar. Recommended: square image, at least 64×64px. Max 2MB.
+            Used in light mode. Recommended: at least 64×64px. Max 2MB.
           </p>
 
           {/* Preview */}
-          <div className="flex items-center justify-center w-full h-32 rounded-lg border-2 border-dashed border-gray-200 bg-gray-50 mb-4">
+          <div className="flex items-center justify-center w-full h-32 rounded-lg border-2 border-dashed border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 mb-4">
             {currentLogo ? (
               <Image
                 src={currentLogo}
@@ -533,18 +574,78 @@ export default function AdminBrandingPage() {
           </div>
         </div>
 
+        {/* Dark Logo Upload */}
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Moon className="w-5 h-5 text-brand-blue" />
+            <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Logo (Dark)</h2>
+          </div>
+          <p className="text-sm text-brand-grey mb-4">
+            Used when dark mode is active. If empty, the light logo is used in both modes. Max 2MB.
+          </p>
+
+          {/* Preview */}
+          <div className="flex items-center justify-center w-full h-32 rounded-lg border-2 border-dashed border-gray-200 dark:border-gray-700 bg-gray-800 mb-4">
+            {currentDarkLogo ? (
+              <Image
+                src={currentDarkLogo}
+                alt="Dark logo preview"
+                width={80}
+                height={80}
+                className="object-contain max-h-24 rounded-lg"
+                unoptimized
+              />
+            ) : (
+              <div className="flex flex-col items-center text-gray-400">
+                <Moon className="w-8 h-8 mb-1 opacity-40" />
+                <span className="text-xs">No dark logo set</span>
+              </div>
+            )}
+          </div>
+
+          <input
+            ref={darkLogoInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleDarkLogoSelect}
+            className="hidden"
+          />
+
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => darkLogoInputRef.current?.click()}
+              className="flex-1"
+            >
+              <Upload className="w-4 h-4 mr-1.5" />
+              {currentDarkLogo ? "Replace" : "Upload Dark Logo"}
+            </Button>
+            {(currentDarkLogo || branding.darkLogoData) && !removeDarkLogo && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRemoveDarkLogo}
+                className="text-red-500 hover:text-red-600 hover:bg-red-50"
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
+        </div>
+
         {/* Favicon Upload */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6">
           <div className="flex items-center gap-2 mb-4">
             <Globe className="w-5 h-5 text-brand-blue" />
-            <h2 className="text-lg font-bold text-gray-900">Favicon</h2>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Favicon</h2>
           </div>
           <p className="text-sm text-brand-grey mb-4">
             The small icon shown in browser tabs. Recommended: square image, 32×32px or 64×64px. Max 1MB.
           </p>
 
           {/* Preview */}
-          <div className="flex items-center justify-center w-full h-32 rounded-lg border-2 border-dashed border-gray-200 bg-gray-50 mb-4">
+          <div className="flex items-center justify-center w-full h-32 rounded-lg border-2 border-dashed border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 mb-4">
             {currentFavicon ? (
               <div className="flex flex-col items-center gap-2">
                 <Image
@@ -555,7 +656,7 @@ export default function AdminBrandingPage() {
                   className="object-contain rounded"
                   unoptimized
                 />
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-md border border-gray-200 shadow-sm">
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-gray-900 rounded-md border border-gray-200 dark:border-gray-700 shadow-sm">
                   <Image
                     src={currentFavicon}
                     alt="Tab preview"
@@ -564,7 +665,7 @@ export default function AdminBrandingPage() {
                     className="object-contain"
                     unoptimized
                   />
-                  <span className="text-xs text-gray-600 truncate">ProConnect</span>
+                  <span className="text-xs text-gray-600 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 truncate">ProConnect</span>
                 </div>
               </div>
             ) : (
@@ -608,10 +709,10 @@ export default function AdminBrandingPage() {
       </div>
 
       {/* Live Preview */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-        <h2 className="text-lg font-bold text-gray-900 mb-4">Live Preview</h2>
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-          <div className="flex items-center gap-2.5 px-3 py-2 bg-white rounded-lg shadow-sm border border-gray-100 w-fit">
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6">
+        <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-4">Live Preview</h2>
+        <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-4">
+          <div className="flex items-center gap-2.5 px-3 py-2 bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-100 dark:border-gray-800 w-fit">
             {currentLogo ? (
               <Image
                 src={currentLogo}
@@ -630,7 +731,7 @@ export default function AdminBrandingPage() {
           {currentFavicon && (
             <div className="mt-3 flex items-center gap-2">
               <span className="text-xs text-brand-grey">Browser tab:</span>
-              <div className="flex items-center gap-1.5 px-2 py-1 bg-white rounded border border-gray-200 shadow-sm">
+              <div className="flex items-center gap-1.5 px-2 py-1 bg-white dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700 shadow-sm">
                 <Image
                   src={currentFavicon}
                   alt="Favicon"
@@ -639,7 +740,7 @@ export default function AdminBrandingPage() {
                   className="object-contain"
                   unoptimized
                 />
-                <span className="text-[11px] text-gray-500 truncate max-w-[120px]">
+                <span className="text-[11px] text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 truncate max-w-[120px]">
                   ProConnect
                 </span>
               </div>
@@ -649,10 +750,10 @@ export default function AdminBrandingPage() {
       </div>
 
       {/* SMTP Settings */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6">
         <div className="flex items-center gap-2 mb-4">
           <Mail className="w-5 h-5 text-brand-blue" />
-          <h2 className="text-lg font-bold text-gray-900">Email / SMTP Settings</h2>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Email / SMTP Settings</h2>
         </div>
         <p className="text-sm text-brand-grey mb-4">
           Shared email configuration used by calendar exports and future platform email features.
@@ -660,7 +761,7 @@ export default function AdminBrandingPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
-            <label className="text-xs font-medium text-gray-600 mb-1 block">SMTP Host</label>
+            <label className="text-xs font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1 block">SMTP Host</label>
             <Input
               placeholder="smtp.sendgrid.net"
               value={smtpSettings.host}
@@ -669,7 +770,7 @@ export default function AdminBrandingPage() {
             />
           </div>
           <div>
-            <label className="text-xs font-medium text-gray-600 mb-1 block">Port</label>
+            <label className="text-xs font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1 block">Port</label>
             <Input
               placeholder="587"
               value={smtpSettings.port}
@@ -678,7 +779,7 @@ export default function AdminBrandingPage() {
             />
           </div>
           <div>
-            <label className="text-xs font-medium text-gray-600 mb-1 block">Username</label>
+            <label className="text-xs font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1 block">Username</label>
             <Input
               placeholder="apikey"
               value={smtpSettings.user}
@@ -687,7 +788,7 @@ export default function AdminBrandingPage() {
             />
           </div>
           <div>
-            <label className="text-xs font-medium text-gray-600 mb-1 block">Password</label>
+            <label className="text-xs font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1 block">Password</label>
             <Input
               type="password"
               placeholder="••••••••"
@@ -697,7 +798,7 @@ export default function AdminBrandingPage() {
             />
           </div>
           <div>
-            <label className="text-xs font-medium text-gray-600 mb-1 block">From Email</label>
+            <label className="text-xs font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1 block">From Email</label>
             <Input
               type="email"
               placeholder="calendar@company.com"
@@ -707,7 +808,7 @@ export default function AdminBrandingPage() {
             />
           </div>
           <div>
-            <label className="text-xs font-medium text-gray-600 mb-1 block">From Name</label>
+            <label className="text-xs font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1 block">From Name</label>
             <Input
               placeholder="ProConnect"
               value={smtpSettings.fromName}
@@ -739,12 +840,12 @@ export default function AdminBrandingPage() {
       </div>
 
       {/* Top Navigation Menu */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6">
         <div className="flex items-center justify-between gap-4 mb-4">
           <div>
             <div className="flex items-center gap-2">
               <Link2 className="w-5 h-5 text-brand-blue" />
-              <h2 className="text-lg font-bold text-gray-900">Top Navigation Menu</h2>
+              <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Top Navigation Menu</h2>
             </div>
             <p className="text-sm text-brand-grey mt-1">
               Add/remove links and hide/unhide items in the top navigation bar.
@@ -758,7 +859,7 @@ export default function AdminBrandingPage() {
 
         <div className="space-y-2">
           {topNavMenu.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-gray-200 p-4 text-sm text-brand-grey">
+            <div className="rounded-lg border border-dashed border-gray-200 dark:border-gray-700 p-4 text-sm text-brand-grey">
               No menu items yet. Add one to show it in the top navigation.
             </div>
           ) : (
@@ -766,12 +867,12 @@ export default function AdminBrandingPage() {
               <div
                 key={item.id}
                 className={`rounded-lg border p-3 space-y-2 ${
-                  item.active ? "border-gray-200" : "border-gray-100 bg-gray-50"
+                  item.active ? "border-gray-200 dark:border-gray-700" : "border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800"
                 }`}
               >
                 <div className="grid grid-cols-1 md:grid-cols-[auto_1fr_1fr_auto_auto] gap-2">
                   <div className="flex items-center gap-1">
-                    <div className="h-7 min-w-7 px-2 rounded-md bg-gray-100 text-gray-600 text-xs font-semibold flex items-center justify-center">
+                    <div className="h-7 min-w-7 px-2 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 text-xs font-semibold flex items-center justify-center">
                       {index + 1}
                     </div>
                     <Button

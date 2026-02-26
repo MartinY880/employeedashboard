@@ -71,7 +71,7 @@ const DIVISION_COLORS: Record<string, string> = {
 };
 
 const STATUS_STYLES: Record<string, string> = {
-  SETUP: "bg-gray-100 text-gray-600",
+  SETUP: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500",
   IN_PROGRESS: "bg-blue-100 text-blue-700",
   COMPLETED: "bg-emerald-100 text-emerald-700",
 };
@@ -184,7 +184,7 @@ export default function AdminTournamentPage() {
         <div className="flex items-center gap-3">
           <Link
             href="/admin"
-            className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-gray-100 transition-colors"
+            className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 dark:hover:bg-gray-800 dark:bg-gray-800 transition-colors"
           >
             <ArrowLeft className="w-4 h-4 text-brand-grey" />
           </Link>
@@ -192,7 +192,7 @@ export default function AdminTournamentPage() {
             <Trophy className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Tournament Management</h1>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Tournament Management</h1>
             <p className="text-xs text-brand-grey">
               {tournaments.length} tournament{tournaments.length !== 1 ? "s" : ""}
             </p>
@@ -237,10 +237,10 @@ export default function AdminTournamentPage() {
         </div>
       ) : tournaments.length === 0 ? (
         <div className="flex flex-col items-center justify-center min-h-[40vh] text-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 mb-4">
-            <Trophy className="w-8 h-8 text-gray-400" />
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 mb-4">
+            <Trophy className="w-8 h-8 text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500" />
           </div>
-          <h2 className="text-lg font-bold text-gray-900 mb-1">No Tournaments</h2>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-1">No Tournaments</h2>
           <p className="text-sm text-brand-grey mb-4">Create your first tournament bracket to get started.</p>
           <Button
             onClick={() => setShowCreateDialog(true)}
@@ -264,7 +264,7 @@ export default function AdminTournamentPage() {
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3, delay: i * 0.06 }}
-                className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 hover:shadow-md hover:border-brand-blue/20 transition-all cursor-pointer group"
+                className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-4 hover:shadow-md hover:border-brand-blue/20 transition-all cursor-pointer group"
                 onClick={() => {
                   playClick();
                   setSelectedTournamentId(t.id);
@@ -277,7 +277,7 @@ export default function AdminTournamentPage() {
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <h3 className="font-bold text-gray-800 group-hover:text-brand-blue transition-colors">
+                        <h3 className="font-bold text-gray-800 dark:text-gray-200 group-hover:text-brand-blue transition-colors">
                           {t.name}
                         </h3>
                         <Badge className={STATUS_STYLES[t.status]}>{t.status.replace("_", " ")}</Badge>
@@ -286,10 +286,10 @@ export default function AdminTournamentPage() {
                         <p className="text-xs text-brand-grey mt-0.5">{t.description}</p>
                       )}
                       <div className="flex items-center gap-3 mt-1">
-                        <span className="text-[10px] text-gray-400 flex items-center gap-1">
+                        <span className="text-[10px] text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 flex items-center gap-1">
                           <Users className="w-3 h-3" /> {teamCount} teams
                         </span>
-                        <span className="text-[10px] text-gray-400 flex items-center gap-1">
+                        <span className="text-[10px] text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 flex items-center gap-1">
                           <Swords className="w-3 h-3" /> {matchCount} matches
                         </span>
                       </div>
@@ -323,7 +323,7 @@ export default function AdminTournamentPage() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">Name</label>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">Name</label>
               <Input
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
@@ -331,7 +331,7 @@ export default function AdminTournamentPage() {
               />
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">Description</label>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">Description</label>
               <Input
                 value={newDesc}
                 onChange={(e) => setNewDesc(e.target.value)}
@@ -554,7 +554,7 @@ function TournamentDetail({
         <div className="flex items-center gap-3">
           <button
             onClick={onBack}
-            className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-gray-100 transition-colors"
+            className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 dark:hover:bg-gray-800 dark:bg-gray-800 transition-colors"
           >
             <ArrowLeft className="w-4 h-4 text-brand-grey" />
           </button>
@@ -563,7 +563,7 @@ function TournamentDetail({
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold text-gray-900">{tournament.name}</h1>
+              <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">{tournament.name}</h1>
               <Badge className={STATUS_STYLES[tournament.status]}>{tournament.status.replace("_", " ")}</Badge>
             </div>
             <p className="text-xs text-brand-grey">
@@ -595,7 +595,7 @@ function TournamentDetail({
           <button
             onClick={() => { playClick(); setActiveTab("teams"); }}
             className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-              activeTab === "teams" ? "bg-brand-blue text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              activeTab === "teams" ? "bg-brand-blue text-white" : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-200"
             }`}
           >
             <Users className="w-3.5 h-3.5 inline mr-1" />
@@ -604,7 +604,7 @@ function TournamentDetail({
           <button
             onClick={() => { playClick(); setActiveTab("matches"); }}
             className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-              activeTab === "matches" ? "bg-brand-blue text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              activeTab === "matches" ? "bg-brand-blue text-white" : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-200"
             }`}
           >
             <Swords className="w-3.5 h-3.5 inline mr-1" />
@@ -638,7 +638,7 @@ function TournamentDetail({
 
       {/* Teams Table */}
       {activeTab === "teams" && (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>
@@ -660,15 +660,15 @@ function TournamentDetail({
               ) : (
                 filteredTeams.map((team, idx) => (
                   <TableRow key={team.id} className="group">
-                    <TableCell className="text-xs text-gray-400 font-mono">{idx + 1}</TableCell>
+                    <TableCell className="text-xs text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 font-mono">{idx + 1}</TableCell>
                     <TableCell className="font-medium text-sm">{team.player1Name}</TableCell>
                     <TableCell className="font-medium text-sm">{team.player2Name}</TableCell>
                     <TableCell>
-                      <Badge className={DIVISION_COLORS[team.division] || "bg-gray-100"}>
+                      <Badge className={DIVISION_COLORS[team.division] || "bg-gray-100 dark:bg-gray-800"}>
                         {team.division}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-sm text-gray-500">{team.seed}</TableCell>
+                    <TableCell className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500">{team.seed}</TableCell>
                     <TableCell>
                       <Button
                         variant="ghost"
@@ -686,9 +686,9 @@ function TournamentDetail({
           </Table>
 
           {/* Division summaries */}
-          <div className="border-t border-gray-100 px-4 py-3 flex items-center gap-4 flex-wrap bg-gray-50">
+          <div className="border-t border-gray-100 dark:border-gray-800 px-4 py-3 flex items-center gap-4 flex-wrap bg-gray-50 dark:bg-gray-800">
             {DIVISIONS.map((d) => (
-              <div key={d} className="flex items-center gap-1.5 text-xs text-gray-500">
+              <div key={d} className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500">
                 <Badge className={`${DIVISION_COLORS[d]} text-[10px] px-1.5 py-0`}>{d}</Badge>
                 <span>{teamsByDiv[d]?.length || 0} teams</span>
               </div>
@@ -700,7 +700,7 @@ function TournamentDetail({
       {/* Matches Table */}
       {activeTab === "matches" && (
         <div className="space-y-4">
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
             <Table>
             <TableHeader>
               <TableRow>
@@ -727,7 +727,7 @@ function TournamentDetail({
                   const isBye = !match.team2Id && match.winnerId === match.team1Id;
                   return (
                     <TableRow key={match.id} className="group">
-                      <TableCell className="text-xs text-gray-400 font-mono">{match.matchNumber}</TableCell>
+                      <TableCell className="text-xs text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 font-mono">{match.matchNumber}</TableCell>
                       <TableCell className="text-sm">
                         {match.team1 ? (
                           <button
@@ -747,7 +747,7 @@ function TournamentDetail({
                           >
                             <div className={`flex items-center gap-1 ${match.winnerId === match.team1Id ? "font-bold text-emerald-700" : ""}`}>
                               {quickSavingMatchId === match.id && match.winnerId !== match.team1Id ? (
-                                <Loader2 className="w-3 h-3 text-gray-400 animate-spin" />
+                                <Loader2 className="w-3 h-3 text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 animate-spin" />
                               ) : match.winnerId === match.team1Id ? (
                                 <Crown className="w-3 h-3 text-amber-500" />
                               ) : null}
@@ -755,13 +755,13 @@ function TournamentDetail({
                             </div>
                           </button>
                         ) : (
-                          <span className="text-gray-400">TBD</span>
+                          <span className="text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500">TBD</span>
                         )}
                       </TableCell>
-                      <TableCell className="text-center text-xs text-gray-400">vs</TableCell>
+                      <TableCell className="text-center text-xs text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500">vs</TableCell>
                       <TableCell className="text-sm">
                         {isBye ? (
-                          <span className="text-gray-400 italic">BYE</span>
+                          <span className="text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 italic">BYE</span>
                         ) : match.team2 ? (
                           <button
                             onClick={() => {
@@ -774,7 +774,7 @@ function TournamentDetail({
                           >
                             <div className={`flex items-center gap-1 ${match.winnerId === match.team2Id ? "font-bold text-emerald-700" : ""}`}>
                               {quickSavingMatchId === match.id && match.winnerId !== match.team2Id ? (
-                                <Loader2 className="w-3 h-3 text-gray-400 animate-spin" />
+                                <Loader2 className="w-3 h-3 text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 animate-spin" />
                               ) : match.winnerId === match.team2Id ? (
                                 <Crown className="w-3 h-3 text-amber-500" />
                               ) : null}
@@ -782,16 +782,16 @@ function TournamentDetail({
                             </div>
                           </button>
                         ) : (
-                          <span className="text-gray-400 italic">TBD</span>
+                          <span className="text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 italic">TBD</span>
                         )}
                       </TableCell>
                       <TableCell>
-                        <Badge className={DIVISION_COLORS[match.division] || "bg-gray-100"}>
+                        <Badge className={DIVISION_COLORS[match.division] || "bg-gray-100 dark:bg-gray-800"}>
                           {match.division}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-sm text-gray-500">R{match.round}</TableCell>
-                      <TableCell className="text-sm font-mono text-gray-600">
+                      <TableCell className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500">R{match.round}</TableCell>
+                      <TableCell className="text-sm font-mono text-gray-600 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500">
                         {match.team1Score !== null && match.team2Score !== null
                           ? `${match.team1Score} - ${match.team2Score}`
                           : "—"}
@@ -802,7 +802,7 @@ function TournamentDetail({
                             {match.winner.player1Name} / {match.winner.player2Name}
                           </span>
                         ) : (
-                          <span className="text-gray-400 text-xs">—</span>
+                          <span className="text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 text-xs">—</span>
                         )}
                       </TableCell>
                       <TableCell>
@@ -841,7 +841,7 @@ function TournamentDetail({
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">Player 1 Name</label>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">Player 1 Name</label>
               <Input
                 value={newPlayer1}
                 onChange={(e) => setNewPlayer1(e.target.value)}
@@ -849,7 +849,7 @@ function TournamentDetail({
               />
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">Player 2 Name</label>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">Player 2 Name</label>
               <Input
                 value={newPlayer2}
                 onChange={(e) => setNewPlayer2(e.target.value)}
@@ -857,7 +857,7 @@ function TournamentDetail({
               />
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">Division</label>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">Division</label>
               <Select value={newDivision} onValueChange={setNewDivision}>
                 <SelectTrigger>
                   <SelectValue />
@@ -894,15 +894,15 @@ function TournamentDetail({
           </DialogHeader>
           {editingMatch && (
             <div className="space-y-4 py-2">
-              <div className="bg-gray-50 rounded-lg p-3">
-                <div className="text-xs text-gray-500 mb-2">
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
+                <div className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-2">
                   {editingMatch.division} Region · Round {editingMatch.round} · Match {editingMatch.matchNumber}
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium">
                     {editingMatch.team1?.player1Name} / {editingMatch.team1?.player2Name}
                   </span>
-                  <span className="text-xs text-gray-400 mx-2">vs</span>
+                  <span className="text-xs text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 mx-2">vs</span>
                   <span className="text-sm font-medium">
                     {editingMatch.team2?.player1Name} / {editingMatch.team2?.player2Name}
                   </span>
@@ -910,7 +910,7 @@ function TournamentDetail({
               </div>
 
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Winner</label>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">Winner</label>
                 <Select value={matchWinner} onValueChange={setMatchWinner}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select winner..." />
@@ -933,7 +933,7 @@ function TournamentDetail({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">
                     Team 1 Score
                   </label>
                   <Input
@@ -945,7 +945,7 @@ function TournamentDetail({
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">
                     Team 2 Score
                   </label>
                   <Input

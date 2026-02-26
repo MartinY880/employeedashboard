@@ -93,7 +93,7 @@ export function TrophyCase() {
             Awards Given
           </div>
         </div>
-        <div className="bg-white rounded-xl p-3.5 text-center border-2 border-brand-blue shadow-md">
+        <div className="bg-white dark:bg-gray-900 rounded-xl p-3.5 text-center border-2 border-brand-blue shadow-md">
           <div className="text-2xl font-black tabular-nums text-brand-blue">{stats.myReceivedCount}</div>
           <div className="text-[10px] font-medium text-brand-grey uppercase tracking-wider mt-0.5">
             Awards Received
@@ -103,7 +103,7 @@ export function TrophyCase() {
 
       {/* Badge Collection Grid */}
       <div>
-        <h4 className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">
+        <h4 className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
           Badge Collection
         </h4>
         <div className="grid grid-cols-3 gap-2">
@@ -119,13 +119,13 @@ export function TrophyCase() {
                 className={`relative rounded-lg p-2.5 text-center transition-all ${
                   isUnlocked
                     ? `${b.bg} ${b.border} border shadow-sm`
-                    : "bg-gray-50 border border-gray-100 opacity-50"
+                    : "bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 opacity-50"
                 }`}
               >
                 <span className={`text-xl block mb-0.5 ${isUnlocked ? "" : "grayscale"}`}>
                   {b.emoji}
                 </span>
-                <div className={`text-[9px] font-bold uppercase leading-tight ${isUnlocked ? "text-gray-700" : "text-gray-400"}`}>
+                <div className={`text-[9px] font-bold uppercase leading-tight ${isUnlocked ? "text-gray-700 dark:text-gray-300" : "text-gray-400 dark:text-gray-500"}`}>
                   {b.label}
                 </div>
                 {isUnlocked && (
@@ -147,7 +147,7 @@ export function TrophyCase() {
       {/* Leaderboard */}
       {stats.leaderboard.length > 0 && (
         <div>
-          <h4 className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">
+          <h4 className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
             Most Awarded
           </h4>
           <div className="space-y-1.5">
@@ -162,10 +162,10 @@ export function TrophyCase() {
                   className={`flex items-center gap-2.5 px-3 py-2 rounded-lg ${
                     i === 0
                       ? "bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200"
-                      : "bg-white border border-gray-100"
+                      : "bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700"
                   }`}
                 >
-                  <span className={`text-sm font-bold ${i < 3 ? "" : "text-gray-400 text-xs w-4 text-center"}`}>
+                  <span className={`text-sm font-bold ${i < 3 ? "" : "text-gray-400 dark:text-gray-500 text-xs w-4 text-center"}`}>
                     {medals[i]}
                   </span>
                   <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold ${
@@ -176,7 +176,7 @@ export function TrophyCase() {
                     {getInitials(person.name)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-xs font-bold text-gray-800 truncate">{person.name}</div>
+                    <div className="text-xs font-bold text-gray-800 dark:text-gray-200 truncate">{person.name}</div>
                     <div className="flex items-center gap-0.5 mt-0.5">
                       {Array.from(person.badges).slice(0, 4).map((bk) => (
                         <span key={bk} className="text-[10px]">{getBadge(bk).emoji}</span>
@@ -185,7 +185,7 @@ export function TrophyCase() {
                   </div>
                   <div className="text-right shrink-0">
                     <div className="text-sm font-black text-brand-blue tabular-nums">{person.count}</div>
-                    <div className="text-[9px] text-gray-400">awards</div>
+                    <div className="text-[9px] text-gray-400 dark:text-gray-500">awards</div>
                   </div>
                 </motion.div>
               );

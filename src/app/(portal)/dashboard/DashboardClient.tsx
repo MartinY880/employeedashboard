@@ -80,7 +80,7 @@ export default function DashboardClient({ visibility, sliderConfig }: DashboardC
               />
             ) : (
               <div
-                className="w-full rounded-xl overflow-hidden border border-gray-200 shadow-sm bg-gray-50 animate-pulse"
+                className="w-full rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm bg-gray-50 dark:bg-gray-800 animate-pulse"
                 style={{ height: `${Math.max(120, sliderConfig.height)}px` }}
               />
             )}
@@ -149,8 +149,8 @@ export default function DashboardClient({ visibility, sliderConfig }: DashboardC
         {/* Left: OOO + Upcoming Holidays */}
         <div className="space-y-5">
           {/* OOO Widget */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100 border-t-[3px] border-t-brand-blue">
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+            <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 border-t-[3px] border-t-brand-blue">
               <h3 className="text-sm font-bold text-brand-blue tracking-wide uppercase">
                 Out of Office
               </h3>
@@ -162,8 +162,8 @@ export default function DashboardClient({ visibility, sliderConfig }: DashboardC
           </div>
 
           {/* Upcoming Holidays */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100 border-t-[3px] border-t-brand-blue">
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+            <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 border-t-[3px] border-t-brand-blue">
               <h3 className="text-sm font-bold text-brand-blue tracking-wide uppercase">
                 Upcoming Holidays
               </h3>
@@ -177,8 +177,8 @@ export default function DashboardClient({ visibility, sliderConfig }: DashboardC
 
         {/* Center: Be Brilliant */}
         <div className="space-y-5">
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100 border-t-[3px] border-t-brand-blue">
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+            <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 border-t-[3px] border-t-brand-blue">
               <h3 className="text-sm font-bold text-brand-blue tracking-wide uppercase flex items-center gap-1.5">
                 Be Brilliant
               </h3>

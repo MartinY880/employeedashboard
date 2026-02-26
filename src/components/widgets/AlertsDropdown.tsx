@@ -83,12 +83,12 @@ export function AlertsDropdown() {
       {/* Trigger bar */}
       <button
         onClick={handleToggle}
-        className={`w-full bg-white rounded-xl border border-gray-200 shadow-sm flex items-center px-3 py-2 gap-2 transition-colors hover:bg-gray-50 ${
+        className={`w-full bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex items-center px-3 py-2 gap-2 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800 ${
           isOpen ? "ring-2 ring-brand-blue/30" : ""
         }`}
       >
         <AlertTriangle className="w-4 h-4 text-brand-grey/60 shrink-0" />
-        <span className="text-sm text-gray-700 font-medium flex-1 text-left">Alerts</span>
+        <span className="text-sm text-gray-700 dark:text-gray-300 font-medium flex-1 text-left">Alerts</span>
 
         {newAlertCount > 0 && (
           <motion.span
@@ -117,9 +117,9 @@ export function AlertsDropdown() {
             exit={{ opacity: 0, y: -6, scaleY: 0.95 }}
             transition={{ duration: 0.2 }}
             style={{ transformOrigin: "top center" }}
-            className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl border border-gray-200 shadow-xl z-50 overflow-hidden"
+            className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-xl z-50 overflow-hidden"
           >
-            <div className="px-3.5 py-2.5 border-b border-gray-100 flex items-center gap-2">
+            <div className="px-3.5 py-2.5 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2">
               <Bell className="w-3.5 h-3.5 text-brand-blue" />
               <span className="text-xs font-bold text-brand-blue uppercase tracking-wider">Notifications</span>
             </div>

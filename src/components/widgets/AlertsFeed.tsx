@@ -70,7 +70,7 @@ export function AlertsFeed() {
         {[...Array(4)].map((_, i) => (
           <div
             key={i}
-            className="bg-white p-4 rounded-xl border border-gray-100 border-l-4 border-l-gray-200 flex gap-3.5"
+            className="bg-white dark:bg-gray-900 p-4 rounded-xl border border-gray-100 dark:border-gray-700 border-l-4 border-l-gray-200 dark:border-l-gray-600 flex gap-3.5"
           >
             <Skeleton className="h-8 w-8 rounded-lg shrink-0" />
             <div className="flex-1 space-y-2">

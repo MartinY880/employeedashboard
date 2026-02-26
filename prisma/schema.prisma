@@ -71,6 +71,7 @@ model Alert {
   type      AlertType @default(INFO)
   priority  Priority  @default(LOW)
   active    Boolean   @default(true)
+  expiresAt DateTime? @map("expires_at")
   createdBy String
   author    User      @relation(fields: [createdBy], references: [id])
   createdAt DateTime  @default(now())
@@ -78,6 +79,7 @@ model Alert {
 
   @@index([active, priority])
   @@index([createdBy])
+  @@index([expiresAt])
   @@map("alerts")
 }
 
@@ -145,11 +147,12 @@ model EmployeeHighlight {
 }
 
 model SiteBranding {
-  id          String   @id @default("singleton")
-  companyName String   @default("MortgagePros")
-  logoData    String?  @db.Text // base64 data URL for logo image
-  faviconData String?  @db.Text // base64 data URL for favicon
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default("singleton")
+  companyName  String   @default("MortgagePros")
+  logoData     String?  @db.Text // base64 data URL for logo image (light mode)
+  darkLogoData String?  @db.Text @map("dark_logo_data") // base64 data URL for logo image (dark mode)
+  faviconData  String?  @db.Text // base64 data URL for favicon
+  updatedAt    DateTime @updatedAt
 
   @@map("site_branding")
 }
