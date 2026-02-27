@@ -134,7 +134,7 @@ export const logtoConfig: LogtoNextConfig = {
   appSecret: process.env.LOGTO_APP_SECRET || "",
   cookieSecret: process.env.LOGTO_COOKIE_SECRET || "dev-cookie-secret-at-least-32-characters-long!!",
   cookieSecure: (process.env.LOGTO_BASE_URL || "").startsWith("https://"),
-  baseUrl: process.env.LOGTO_BASE_URL || "http://localhost:3000",
+  baseUrl: process.env.LOGTO_BASE_URL || "http://localhost:3001",
   scopes: ["openid", "profile", "email", "roles", ...LOGTO_PERMISSION_SCOPES],
   // Register API resource so the SDK can request access tokens for it
   ...(LOGTO_API_RESOURCE ? { resources: [LOGTO_API_RESOURCE] } : {}),

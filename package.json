@@ -8,7 +8,12 @@
     "start": "next start",
     "lint": "eslint",
     "redeploy": "docker-compose up -d --build --force-recreate",
-    "deploy:pm2": "npm run build && pm2 restart proconnect --update-env"
+    "deploy:pm2": "npm run build && pm2 restart proconnect --update-env",
+    "db:setup": "npx tsx prisma/seed.ts",
+    "db:seed": "npx tsx prisma/seed.ts"
+  },
+  "prisma": {
+    "seed": "npx tsx prisma/seed.ts"
   },
   "dependencies": {
     "@azure/identity": "^4.13.0",
@@ -29,6 +34,7 @@
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.0",
     "lucide-react": "^0.575.0",
+    "mammoth": "^1.11.0",
     "next": "16.1.6",
     "next-themes": "^0.4.6",
     "nodemailer": "^8.0.1",
@@ -41,7 +47,7 @@
     "server-only": "^0.0.1",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.5.0",
-    "use-sound": "^5.0.0", 
+    "use-sound": "^5.0.0",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
@@ -56,6 +62,7 @@
     "eslint-config-next": "16.1.6",
     "shadcn": "^3.8.5",
     "tailwindcss": "^4",
+    "tsx": "^4.21.0",
     "tw-animate-css": "^1.4.0",
     "typescript": "^5"
   }

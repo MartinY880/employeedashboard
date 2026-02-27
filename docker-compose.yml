@@ -1,11 +1,12 @@
-# ProConnect — Docker Compose (Development & Production)
-# Deploy via: docker compose up -d
+version: '3.8'
 
 services:
   # ─── PostgreSQL ──────────────────────────────────────────
   db:
     image: postgres:16-alpine
     restart: unless-stopped
+    networks:
+      - proconnect
     environment:
       POSTGRES_USER: proconnect
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
@@ -13,8 +14,6 @@ services:
     volumes:
       - pg_data:/var/lib/postgresql/data
       - ./init-db:/docker-entrypoint-initdb.d
-    ports:
-      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U proconnect"]
       interval: 5s
@@ -23,12 +22,16 @@ services:
 
   # ─── ProConnect (Next.js Portal) ────────────────────────
   portal:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: crystal02202/proconnect:1.0.12
+    container_name: proconnect
     restart: unless-stopped
-    ports:
-      - "3000:3000"
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefik
+      - traefik.http.routers.proconnect.rule=Host(`proconnect.mtgpros.com`)
+      - traefik.http.routers.proconnect.entrypoints=websecure
+      - traefik.http.routers.proconnect.tls.certresolver=letsencrypt
+      - traefik.http.services.proconnect.loadbalancer.server.port=3000
     depends_on:
       db:
         condition: service_healthy
@@ -38,10 +41,19 @@ services:
       LOGTO_APP_ID: ${LOGTO_APP_ID}
       LOGTO_APP_SECRET: ${LOGTO_APP_SECRET}
       LOGTO_COOKIE_SECRET: ${LOGTO_COOKIE_SECRET}
-      LOGTO_BASE_URL: ${LOGTO_BASE_URL:-http://localhost:3000}
+      LOGTO_BASE_URL: ${LOGTO_BASE_URL:-https://proconnect.mtgpros.com}
       AZURE_TENANT_ID: ${AZURE_TENANT_ID}
       AZURE_CLIENT_ID: ${AZURE_CLIENT_ID}
       AZURE_CLIENT_SECRET: ${AZURE_CLIENT_SECRET}
+    networks:
+      - proconnect
+      - traefik
+networks:
+  proconnect:
+    driver: bridge
+  traefik: 
+    external: true 
 
 volumes:
-  pg_data:
+   pg_data:
+     driver: local
