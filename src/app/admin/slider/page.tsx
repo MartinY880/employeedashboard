@@ -27,61 +27,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-
-interface DashboardSliderMedia {
-  type: "image" | "video";
-  src: string;
-}
-
-interface DashboardSliderSettings {
-  enabled: boolean;
-  media: DashboardSliderMedia[];
-  height: number;
-  transitionMs: number;
-  style: "slide" | "fade";
-  objectFit: "cover" | "contain" | "fill";
-}
-
-const DEFAULT_DASHBOARD_SLIDER: DashboardSliderSettings = {
-  enabled: false,
-  media: [],
-  height: 240,
-  transitionMs: 4000,
-  style: "slide",
-  objectFit: "cover",
-};
-
-function normalizeDashboardSliderSettings(input: unknown): DashboardSliderSettings {
-  const raw = (input && typeof input === "object") ? (input as Record<string, unknown>) : {};
-
-  const parsedMedia = Array.isArray(raw.media)
-    ? raw.media
-        .map((item) => {
-          if (!item || typeof item !== "object") return null;
-          const value = item as Record<string, unknown>;
-          const src = String(value.src || "").trim();
-          if (!src) return null;
-          return { type: value.type === "video" ? "video" : "image", src } as DashboardSliderMedia;
-        })
-        .filter((item): item is DashboardSliderMedia => item !== null)
-    : [];
-
-  const legacyImages = Array.isArray(raw.images)
-    ? raw.images
-        .map((item) => String(item || "").trim())
-        .filter(Boolean)
-        .map((src) => ({ type: "image", src } as DashboardSliderMedia))
-    : [];
-
-  return {
-    enabled: raw.enabled === true,
-    media: parsedMedia.length > 0 ? parsedMedia : legacyImages,
-    height: Number.isFinite(raw.height) ? Math.max(120, Math.min(720, Number(raw.height))) : DEFAULT_DASHBOARD_SLIDER.height,
-    transitionMs: Number.isFinite(raw.transitionMs) ? Math.max(1000, Math.min(30000, Number(raw.transitionMs))) : DEFAULT_DASHBOARD_SLIDER.transitionMs,
-    style: raw.style === "fade" ? "fade" : "slide",
-    objectFit: (raw.objectFit === "contain" || raw.objectFit === "fill") ? raw.objectFit : "cover",
-  };
-}
+import {
+  DEFAULT_DASHBOARD_SLIDER,
+  normalizeDashboardSliderSettings,
+  type DashboardSliderMedia,
+  type DashboardSliderSettings,
+} from "@/lib/dashboard-slider";
 
 export default function AdminSliderPage() {
   const [slider, setSlider] = useState<DashboardSliderSettings>(DEFAULT_DASHBOARD_SLIDER);

@@ -32,11 +32,27 @@ function getPhotoUrl(
  * If there are multiple root-level nodes we add a single synthetic
  * company root so the library doesn't throw "multiple roots".
  */
+function sortNodesByHierarchy(nodes: DirectoryNode[]): DirectoryNode[] {
+  return [...nodes].sort((a, b) => {
+    const aHasReports = (a.directReports?.length ?? 0) > 0;
+    const bHasReports = (b.directReports?.length ?? 0) > 0;
+    if (aHasReports !== bHasReports) {
+      return aHasReports ? -1 : 1;
+    }
+    const aName = a.displayName ?? "";
+    const bName = b.displayName ?? "";
+    return aName.localeCompare(bName, undefined, {
+      sensitivity: "base",
+    });
+  });
+}
+
 function flattenForChart(nodes: DirectoryNode[]): OrgChartDatum[] {
   const rows: OrgChartDatum[] = [];
 
   const walk = (list: DirectoryNode[], parentId: string | null) => {
-    for (const node of list) {
+    const ordered = sortNodesByHierarchy(list);
+    for (const node of ordered) {
       rows.push({
         id: node.id,
         parentId,
@@ -97,7 +113,9 @@ export function DirectoryOrgChart({
   }, [users]);
 
   useEffect(() => {
-    if (!containerRef.current || flatChartData.length === 0) return;
+    if (!containerRef.current || flatChartData.length === 0) {
+      return;
+    }
 
     const mount = async () => {
       const { OrgChart } = await import("d3-org-chart");
@@ -188,6 +206,7 @@ export function DirectoryOrgChart({
       setTimeout(() => {
         try { chart.fit(); } catch { /* ignore */ }
       }, 300);
+
     };
 
     void mount();

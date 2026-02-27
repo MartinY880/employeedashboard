@@ -66,6 +66,47 @@ function normalizeEmployeeType(value: string | null | undefined): string {
   return (value ?? "").trim().toLowerCase();
 }
 
+const MIN_SEARCH_LENGTH = 2;
+
+function sortUsersByDisplayName(users: DirectoryNode[]): DirectoryNode[] {
+  return [...users].sort((a, b) =>
+    a.displayName.localeCompare(b.displayName, undefined, { sensitivity: "base" })
+  );
+}
+
+function getSearchRank(user: DirectoryNode, query: string): number {
+  const q = query.toLowerCase();
+  const fields: Array<[string | null | undefined, number]> = [
+    [user.displayName, 0],
+    [user.mail, 1],
+    [user.jobTitle, 2],
+    [user.department, 3],
+    [user.employeeType, 4],
+  ];
+
+  let best = Number.MAX_SAFE_INTEGER;
+  for (const [value, weight] of fields) {
+    if (!value) continue;
+    const lower = value.toLowerCase();
+    if (lower === q) return weight * 100;
+    const idx = lower.indexOf(q);
+    if (idx !== -1) {
+      const score = weight * 100 + idx;
+      if (score < best) best = score;
+    }
+  }
+  return best;
+}
+
+function sortBySearchRank(users: DirectoryNode[], query: string): DirectoryNode[] {
+  return [...users].sort((a, b) => {
+    const aRank = getSearchRank(a, query);
+    const bRank = getSearchRank(b, query);
+    if (aRank !== bRank) return aRank - bRank;
+    return a.displayName.localeCompare(b.displayName, undefined, { sensitivity: "base" });
+  });
+}
+
 /**
  * Filter the tree for a given Employee Type.
  *
@@ -212,7 +253,7 @@ function filterTreeBySearch(
 const DEPT_COLORS: Record<string, string> = {
   Executive: "bg-purple-100 text-purple-700",
   Operations: "bg-blue-100 text-blue-700",
-  Sales: "bg-green-100 text-green-700",
+  Sales: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500",
   Lending: "bg-amber-100 text-amber-700",
   Processing: "bg-sky-100 text-sky-700",
   Underwriting: "bg-indigo-100 text-indigo-700",
@@ -549,6 +590,7 @@ export default function DirectoryPage() {
   const [syncBusy, setSyncBusy] = useState(false);
   const [syncAvailable, setSyncAvailable] = useState(true);
   const [syncStatus, setSyncStatus] = useState<string>("");
+  const [chartResetKey, setChartResetKey] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -584,11 +626,20 @@ export default function DirectoryPage() {
 
   // Flatten the tree for grid/list views and filtering
   const flatUsers = useMemo(() => flattenTree(treeUsers), [treeUsers]);
+  const sortedFlatUsers = useMemo(
+    () => sortUsersByDisplayName(flatUsers),
+    [flatUsers]
+  );
 
   const employeeTypeOptions = useMemo(
     () => ["North", "South", "East", "Operations", "IT"],
     []
   );
+
+  const trimmedSearchQuery = searchQuery.trim();
+  const isSearchLongEnough = trimmedSearchQuery.length >= MIN_SEARCH_LENGTH;
+  const activeSearchQuery = isSearchLongEnough ? trimmedSearchQuery : "";
+  const isSearchTooShort = trimmedSearchQuery.length > 0 && !isSearchLongEnough;
 
   const filteredTreeUsers = useMemo(() => {
     let result = treeUsers;
@@ -597,19 +648,29 @@ export default function DirectoryPage() {
       result = filterTreeByEmployeeType(result, selectedEmployeeType);
     }
 
-    if (searchQuery.trim()) {
-      result = filterTreeBySearch(result, searchQuery.trim());
+    if (activeSearchQuery) {
+      result = filterTreeBySearch(result, activeSearchQuery);
     }
 
     return result;
-  }, [treeUsers, selectedEmployeeType, searchQuery]);
+  }, [treeUsers, selectedEmployeeType, activeSearchQuery]);
+
+  const employeeFilteredFlatUsers = useMemo(() => {
+    if (!selectedEmployeeType) return null;
+    return sortUsersByDisplayName(flattenTree(filteredTreeUsers));
+  }, [selectedEmployeeType, filteredTreeUsers]);
 
   // Filter
   const filteredUsers = useMemo(() => {
-    let result = flatUsers;
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(
+    if (employeeFilteredFlatUsers) {
+      if (!activeSearchQuery) return employeeFilteredFlatUsers;
+      return sortBySearchRank(employeeFilteredFlatUsers, activeSearchQuery);
+    }
+
+    let result = sortedFlatUsers;
+    if (activeSearchQuery) {
+      const q = activeSearchQuery.toLowerCase();
+      const filtered = result.filter(
         (u) =>
           u.displayName.toLowerCase().includes(q) ||
           (u.mail && u.mail.toLowerCase().includes(q)) ||
@@ -617,15 +678,10 @@ export default function DirectoryPage() {
           (u.department && u.department.toLowerCase().includes(q)) ||
           ((u.employeeType ?? "").toLowerCase().includes(q))
       );
-    }
-    if (selectedEmployeeType) {
-      const selectedType = normalizeEmployeeType(selectedEmployeeType);
-      result = result.filter(
-        (u) => normalizeEmployeeType(u.employeeType) === selectedType
-      );
+      return sortBySearchRank(filtered, activeSearchQuery);
     }
     return result;
-  }, [flatUsers, searchQuery, selectedEmployeeType]);
+  }, [employeeFilteredFlatUsers, sortedFlatUsers, activeSearchQuery]);
 
   function handleSelectUser(user: DirectoryNode) {
     playClick();
@@ -718,21 +774,28 @@ export default function DirectoryPage() {
 
       {/* Search & Filter Bar */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-grey" />
-          <Input
-            placeholder="Search by name, email, title, or department…"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 bg-white dark:bg-gray-900"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2"
-            >
-              <X className="w-3.5 h-3.5 text-brand-grey hover:text-gray-700 dark:hover:text-gray-300 dark:text-gray-300 dark:hover:text-gray-300 dark:text-gray-300" />
-            </button>
+        <div className="flex-1">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-grey" />
+            <Input
+              placeholder="Search (min 2 chars) by name, email, title, or department…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 bg-white dark:bg-gray-900"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2"
+              >
+                <X className="w-3.5 h-3.5 text-brand-grey hover:text-gray-700 dark:hover:text-gray-300 dark:text-gray-300 dark:hover:text-gray-300 dark:text-gray-300" />
+              </button>
+            )}
+          </div>
+          {isSearchTooShort && (
+            <p className="mt-1 text-xs text-brand-grey">
+              Enter at least {MIN_SEARCH_LENGTH} characters to search.
+            </p>
           )}
         </div>
 
@@ -865,12 +928,12 @@ export default function DirectoryPage() {
           animate={{ opacity: 1 }}
           className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden"
         >
-          <div className="grid grid-cols-[auto_1fr_1fr_1fr_auto] gap-4 px-5 py-3 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 text-xs font-semibold text-brand-grey uppercase tracking-wider">
+          <div className="grid grid-cols-[64px_minmax(180px,2fr)_minmax(140px,1.2fr)_minmax(140px,1.2fr)_minmax(120px,1fr)] gap-6 px-6 py-3 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 text-xs font-semibold text-brand-grey uppercase tracking-wider">
             <span className="w-9" />
             <span>Name</span>
             <span>Title</span>
             <span>Department</span>
-            <span>Location</span>
+            <span>NMLS</span>
           </div>
           {filteredUsers.map((user, i) => (
             <motion.button
@@ -879,7 +942,7 @@ export default function DirectoryPage() {
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.2, delay: i * 0.02 }}
               onClick={() => handleSelectUser(user)}
-              className="w-full grid grid-cols-[auto_1fr_1fr_1fr_auto] gap-4 px-5 py-3 border-b border-gray-50 hover:bg-blue-50/40 transition-colors items-center text-left group"
+              className="w-full grid grid-cols-[64px_minmax(180px,2fr)_minmax(140px,1.2fr)_minmax(140px,1.2fr)_minmax(120px,1fr)] gap-6 px-6 py-3 border-b border-gray-50 hover:bg-blue-50/40 transition-colors items-center text-left group"
             >
               <Avatar className="h-9 w-9">
                 <AvatarImage
@@ -902,10 +965,12 @@ export default function DirectoryPage() {
                   </span>
                 )}
               </div>
-              <span className="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 truncate">
-                {user.jobTitle || "—"}
-              </span>
-              <span>
+              <div className="justify-self-start min-w-0">
+                <span className="block text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500 truncate">
+                  {user.jobTitle || "—"}
+                </span>
+              </div>
+              <div className="justify-self-start">
                 {user.department ? (
                   <Badge
                     className={`text-[10px] ${getDeptColor(user.department)}`}
@@ -914,9 +979,9 @@ export default function DirectoryPage() {
                     {user.department}
                   </Badge>
                 ) : (
-                  <span className="text-sm text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500">—</span>
+                  <span className="text-sm text-gray-400 dark:text-gray-500">—</span>
                 )}
-              </span>
+              </div>
               <span className="text-xs text-brand-grey truncate max-w-[140px]">
                 {user.officeLocation || "—"}
               </span>
@@ -940,10 +1005,24 @@ export default function DirectoryPage() {
               </p>
             </div>
           ) : (
-            <DirectoryOrgChart
-              users={filteredTreeUsers}
-              onSelect={handleSelectUser}
-            />
+            <>
+              <div className="flex justify-end mb-3">
+                <button
+                  onClick={() => {
+                    playClick();
+                    setChartResetKey((key) => key + 1);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800"
+                >
+                  Reset Zoom
+                </button>
+              </div>
+              <DirectoryOrgChart
+                key={chartResetKey}
+                users={filteredTreeUsers}
+                onSelect={handleSelectUser}
+              />
+            </>
           )}
         </motion.div>
       )}
