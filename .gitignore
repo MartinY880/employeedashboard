@@ -50,3 +50,7 @@ mockup.html
 Project Guideline.md
 todo.md
 sword psql*
+
+# Capacitor App Development Testing
+android/
+ios/
