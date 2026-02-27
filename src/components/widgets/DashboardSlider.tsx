@@ -1,14 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-
-export type DashboardSliderStyle = "slide" | "fade";
-export interface DashboardSliderMedia {
-  type: "image" | "video";
-  src: string;
-}
-
-export type DashboardSliderObjectFit = "cover" | "contain" | "fill";
+import type {
+  DashboardSliderMedia,
+  DashboardSliderObjectFit,
+  DashboardSliderStyle,
+} from "@/lib/dashboard-slider";
+export type {
+  DashboardSliderMedia,
+  DashboardSliderObjectFit,
+  DashboardSliderStyle,
+} from "@/lib/dashboard-slider";
 
 interface DashboardSliderProps {
   media: DashboardSliderMedia[];

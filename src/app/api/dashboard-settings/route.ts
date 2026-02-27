@@ -6,24 +6,19 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/logto";
 import { hasPermission, PERMISSIONS } from "@/lib/rbac";
+import {
+  DEFAULT_DASHBOARD_SLIDER,
+  DEFAULT_DASHBOARD_SLIDER_META,
+  deriveDashboardSliderMeta,
+  normalizeDashboardSliderMeta,
+  normalizeDashboardSliderSettings,
+  type DashboardSliderSettings,
+} from "@/lib/dashboard-slider";
+import { saveDashboardSliderMeta } from "@/lib/dashboard-slider-store";
 
 interface DashboardVisibilitySettings {
   showCompanyPillars: boolean;
   showTournamentBracketLive: boolean;
-}
-
-interface DashboardSliderMedia {
-  type: "image" | "video";
-  src: string;
-}
-
-interface DashboardSliderSettings {
-  enabled: boolean;
-  media: DashboardSliderMedia[];
-  height: number;
-  transitionMs: number;
-  style: "slide" | "fade";
-  objectFit: "cover" | "contain" | "fill";
 }
 
 const DEFAULT_DASHBOARD_VISIBILITY: DashboardVisibilitySettings = {
@@ -31,52 +26,12 @@ const DEFAULT_DASHBOARD_VISIBILITY: DashboardVisibilitySettings = {
   showTournamentBracketLive: true,
 };
 
-const DEFAULT_DASHBOARD_SLIDER: DashboardSliderSettings = {
-  enabled: false,
-  media: [],
-  height: 240,
-  transitionMs: 4000,
-  style: "slide",
-  objectFit: "cover",
-};
-
-function normalizeDashboardSliderSettings(input: unknown): DashboardSliderSettings {
-  const raw = (input && typeof input === "object") ? (input as Record<string, unknown>) : {};
-
-  const parsedMedia = Array.isArray(raw.media)
-    ? raw.media
-        .map((item) => {
-          if (!item || typeof item !== "object") return null;
-          const value = item as Record<string, unknown>;
-          const src = String(value.src || "").trim();
-          if (!src) return null;
-          return { type: value.type === "video" ? "video" : "image", src } as DashboardSliderMedia;
-        })
-        .filter((item): item is DashboardSliderMedia => item !== null)
-    : [];
-
-  const legacyImages = Array.isArray(raw.images)
-    ? raw.images
-        .map((item) => String(item || "").trim())
-        .filter(Boolean)
-        .map((src) => ({ type: "image", src } as DashboardSliderMedia))
-    : [];
-
-  return {
-    enabled: raw.enabled === true,
-    media: parsedMedia.length > 0 ? parsedMedia : legacyImages,
-    height: Number.isFinite(raw.height) ? Math.max(120, Math.min(720, Number(raw.height))) : DEFAULT_DASHBOARD_SLIDER.height,
-    transitionMs: Number.isFinite(raw.transitionMs) ? Math.max(1000, Math.min(30000, Number(raw.transitionMs))) : DEFAULT_DASHBOARD_SLIDER.transitionMs,
-    style: raw.style === "fade" ? "fade" : "slide",
-    objectFit: (raw.objectFit === "contain" || raw.objectFit === "fill") ? raw.objectFit : "cover",
-  };
-}
-
 export async function GET() {
   try {
-    const [visibilitySetting, sliderSetting] = await Promise.all([
+    const [visibilitySetting, sliderSetting, sliderMetaSetting] = await Promise.all([
       prisma.calendarSetting.findUnique({ where: { id: "dashboard_visibility" } }),
       prisma.calendarSetting.findUnique({ where: { id: "dashboard_slider" } }),
+      prisma.calendarSetting.findUnique({ where: { id: "dashboard_slider_meta" } }),
     ]);
 
     let visibility = DEFAULT_DASHBOARD_VISIBILITY;
@@ -101,9 +56,31 @@ export async function GET() {
       }
     }
 
-    return NextResponse.json({ visibility, slider });
+    let sliderMeta = DEFAULT_DASHBOARD_SLIDER_META;
+    if (sliderMetaSetting?.data) {
+      try {
+        sliderMeta = normalizeDashboardSliderMeta(JSON.parse(sliderMetaSetting.data));
+      } catch {
+        sliderMeta = DEFAULT_DASHBOARD_SLIDER_META;
+      }
+    } else {
+      sliderMeta = deriveDashboardSliderMeta(slider);
+      if (sliderSetting?.data) {
+        try {
+          await saveDashboardSliderMeta(sliderMeta);
+        } catch (err) {
+          console.error("Failed to backfill slider meta", err);
+        }
+      }
+    }
+
+    return NextResponse.json({ visibility, slider, sliderMeta });
   } catch {
-    return NextResponse.json({ visibility: DEFAULT_DASHBOARD_VISIBILITY, slider: DEFAULT_DASHBOARD_SLIDER });
+    return NextResponse.json({
+      visibility: DEFAULT_DASHBOARD_VISIBILITY,
+      slider: DEFAULT_DASHBOARD_SLIDER,
+      sliderMeta: DEFAULT_DASHBOARD_SLIDER_META,
+    });
   }
 }
 
@@ -162,12 +139,18 @@ export async function PATCH(request: Request) {
 
     if (key === "dashboardSlider" && canManageBranding) {
       const slider = normalizeDashboardSliderSettings(value);
+      const sliderMeta = deriveDashboardSliderMeta(slider);
       await prisma.calendarSetting.upsert({
         where: { id: "dashboard_slider" },
         update: { data: JSON.stringify(slider) },
         create: { id: "dashboard_slider", data: JSON.stringify(slider) },
       });
-      return NextResponse.json({ success: true, slider });
+      try {
+        await saveDashboardSliderMeta(sliderMeta);
+      } catch (err) {
+        console.error("Failed to persist slider meta", err);
+      }
+      return NextResponse.json({ success: true, slider, sliderMeta });
     }
 
     return NextResponse.json({ error: "Invalid key or insufficient permissions" }, { status: 400 });
