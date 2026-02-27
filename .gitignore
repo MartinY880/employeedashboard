@@ -50,6 +50,19 @@ mockup.html
 Project Guideline.md
 todo.md
 sword psql*
+start
+
+# SSL / TLS certificates & private keys
+/certs/
+
+# User uploads (managed at runtime, not in source control)
+/uploads/
+
+# Database backups & dumps
+*.sql
+!/prisma/seed-data.sql
+!/prisma/migrations/**/*.sql
+!/init-db/*.sql
 
 # Capacitor App Development Testing
 android/
