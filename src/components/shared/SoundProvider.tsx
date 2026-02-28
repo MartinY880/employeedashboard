@@ -41,18 +41,23 @@ interface SoundProviderProps {
 }
 
 export function SoundProvider({ children }: SoundProviderProps) {
-  const readMutedPreference = () => {
-    if (typeof window === "undefined") return false;
-    try {
-      return localStorage.getItem("proconnect-sound-muted") === "true";
-    } catch {
-      return false;
-    }
-  };
+  const [muted, setMuted] = useState(false);
 
-  const [muted, setMuted] = useState(() => {
-    return readMutedPreference();
-  });
+  // Read persisted preference after mount; force mute on mobile
+  useEffect(() => {
+    const isMobile = window.matchMedia("(max-width: 768px)").matches;
+    if (isMobile) {
+      setMuted(true);
+      return;
+    }
+    try {
+      if (localStorage.getItem("proconnect-sound-muted") === "true") {
+        setMuted(true);
+      }
+    } catch {
+      // localStorage unavailable
+    }
+  }, []);
 
   // Persist mute preference
   useEffect(() => {

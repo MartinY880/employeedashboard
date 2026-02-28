@@ -5,12 +5,12 @@
 
 import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
-import { KudosCard, PRAISE_BADGES, type PraiseBadgeKey } from "./KudosCard";
+import { PropsCard, PRAISE_BADGES, type PraiseBadgeKey } from "./PropsCard";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Send, Loader2, Zap } from "lucide-react";
-import { useKudos } from "@/hooks/useKudos";
+import { useProps } from "@/hooks/useProps";
 import { useSounds } from "@/components/shared/SoundProvider";
 import { PeoplePicker } from "@/components/shared/PeoplePicker";
 
@@ -23,8 +23,8 @@ function getInitials(name: string): string {
     .slice(0, 2);
 }
 
-export function KudosFeed() {
-  const { kudos, isLoading, sendKudos, toggleReaction } = useKudos();
+export function PropsFeed() {
+  const { props, isLoading, sendProps, toggleReaction } = useProps();
   const { playNotify, playSuccess, playClick, playPop } = useSounds();
   const [message, setMessage] = useState("");
   const [recipientEmail, setRecipientEmail] = useState("");
@@ -33,7 +33,7 @@ export function KudosFeed() {
   const [isSending, setIsSending] = useState(false);
   const [showCompose, setShowCompose] = useState(false);
   const [currentUserEmail, setCurrentUserEmail] = useState("");
-  const prevCountRef = useRef(kudos.length);
+  const prevCountRef = useRef(props.length);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Fetch current user email to exclude from recipient picker
@@ -44,19 +44,19 @@ export function KudosFeed() {
       .catch(() => {});
   }, []);
 
-  // Play sound when new kudos arrive (after initial load)
+  // Play sound when new props arrive (after initial load)
   useEffect(() => {
-    if (prevCountRef.current > 0 && kudos.length > prevCountRef.current) {
+    if (prevCountRef.current > 0 && props.length > prevCountRef.current) {
       playNotify();
     }
-    prevCountRef.current = kudos.length;
-  }, [kudos.length, playNotify]);
+    prevCountRef.current = props.length;
+  }, [props.length, playNotify]);
 
   const handleSend = async () => {
     if (!message.trim() || !recipientEmail) return;
     setIsSending(true);
     try {
-      await sendKudos(recipientEmail, message.trim(), recipientName, selectedBadge);
+      await sendProps(recipientEmail, message.trim(), recipientName, selectedBadge);
       playSuccess();
       setMessage("");
       setRecipientEmail("");
@@ -220,7 +220,7 @@ export function KudosFeed() {
       )}
 
       {/* Feed */}
-      {kudos.length === 0 ? (
+      {props.length === 0 ? (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -230,14 +230,14 @@ export function KudosFeed() {
           <p>No awards yet. Be the first to recognize a teammate!</p>
         </motion.div>
       ) : (
-        kudos.map((k, i) => (
+        props.map((k, i) => (
           <motion.div
             key={k.id}
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, delay: i * 0.06 }}
           >
-            <KudosCard
+            <PropsCard
               id={k.id}
               authorName={k.author?.displayName || "Unknown"}
               authorInitials={getInitials(k.author?.displayName || "?")}

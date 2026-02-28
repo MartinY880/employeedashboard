@@ -6,19 +6,19 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Zap, Trophy } from "lucide-react";
-import { KudosFeed } from "./KudosFeed";
+import { PropsFeed } from "./PropsFeed";
 import { TrophyCase } from "./TrophyCase";
 import { useSounds } from "@/components/shared/SoundProvider";
 
-type TabId = "kudos" | "trophies";
+type TabId = "props" | "trophies";
 
 const tabs = [
-  { id: "kudos" as TabId, label: "Props", icon: Zap },
+  { id: "props" as TabId, label: "Props", icon: Zap },
   { id: "trophies" as TabId, label: "Trophies", icon: Trophy },
 ];
 
 export function FeedPanel() {
-  const [activeTab, setActiveTab] = useState<TabId>("kudos");
+  const [activeTab, setActiveTab] = useState<TabId>("props");
   const { playClick } = useSounds();
 
   const handleTabSwitch = (tabId: TabId) => {
@@ -69,7 +69,7 @@ export function FeedPanel() {
             transition={{ duration: 0.2 }}
             className="p-4"
           >
-            {activeTab === "kudos" ? <KudosFeed /> : <TrophyCase />}
+            {activeTab === "props" ? <PropsFeed /> : <TrophyCase />}
           </motion.div>
         </AnimatePresence>
       </div>

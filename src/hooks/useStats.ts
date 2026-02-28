@@ -10,7 +10,7 @@ const DEFAULT_STATS: DashboardStats = {
   upcomingHolidays: 0,
   teamMembers: 0,
   activeAlerts: 0,
-  kudosThisMonth: 0,
+  propsThisMonth: 0,
 };
 
 export function useStats() {

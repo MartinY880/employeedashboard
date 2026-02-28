@@ -11,6 +11,7 @@ import {
   normalizeDashboardSliderSettings,
 } from "@/lib/dashboard-slider";
 import { saveDashboardSliderMeta } from "@/lib/dashboard-slider-store";
+import { getVideoSpotlightMeta } from "@/lib/video-spotlight-store";
 import DashboardClient from "./DashboardClient";
 
 interface SliderConfig {
@@ -35,12 +36,16 @@ const DEFAULT_SLIDER_CONFIG: SliderConfig = {
 export default async function DashboardPage() {
   let visibility = DEFAULT_VIS;
   let sliderConfig: SliderConfig = DEFAULT_SLIDER_CONFIG;
+  let showVideoSpotlight = false;
 
   try {
-    const [visSetting, sliderMetaSetting] = await Promise.all([
+    const [visSetting, sliderMetaSetting, videoMeta] = await Promise.all([
       prisma.calendarSetting.findUnique({ where: { id: "dashboard_visibility" } }),
       prisma.calendarSetting.findUnique({ where: { id: "dashboard_slider_meta" } }),
+      getVideoSpotlightMeta(),
     ]);
+
+    showVideoSpotlight = videoMeta.enabled && videoMeta.hasFeatured;
 
     if (visSetting?.data) {
       try {
@@ -89,5 +94,5 @@ export default async function DashboardPage() {
     console.error("Failed to load dashboard settings:", e);
   }
 
-  return <DashboardClient visibility={visibility} sliderConfig={sliderConfig} />;
+  return <DashboardClient visibility={visibility} sliderConfig={sliderConfig} showVideoSpotlight={showVideoSpotlight} />;
 }

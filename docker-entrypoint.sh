@@ -1,6 +1,18 @@
 #!/bin/sh
 set -e
 
+# Fix ownership of mounted volumes (they may be root-owned if auto-created)
+echo "🔧 Ensuring volume permissions..."
+mkdir -p /app/src/data /app/uploads/resources
+chown -R 1001:1001 /app/src/data /app/uploads
+
+# Seed resources.json if missing (volume mount may shadow baked-in copy)
+if [ ! -f /app/src/data/resources.json ] && [ -f /app/defaults/resources.json ]; then
+  echo "📁 Seeding resources.json from defaults..."
+  cp /app/defaults/resources.json /app/src/data/resources.json
+  chown 1001:1001 /app/src/data/resources.json
+fi
+
 echo "⏳ Waiting for database..."
 
 # Extract host and port from DATABASE_URL
@@ -31,8 +43,6 @@ if [ "$RETRIES" -lt "$MAX_RETRIES" ]; then
   echo "✅ Database is up!"
 
   # Wait for init scripts (e.g. init-db/01-restore.sql) to finish.
-  # Postgres locks pg_catalog.pg_class exclusively during init;
-  # once a normal query succeeds, init is done.
   echo "⏳ Waiting for database init scripts to complete..."
   INIT_RETRIES=0
   INIT_MAX=30
@@ -80,5 +90,6 @@ if [ "$RETRIES" -lt "$MAX_RETRIES" ]; then
   fi
 fi
 
-# Start the Next.js server
-exec node server.js
+# Start the Next.js server as nextjs user
+echo "🚀 Starting server..."
+exec su-exec nextjs node server.js

@@ -33,34 +33,12 @@
     "document": null
   },
   {
-    "id": "res-5",
-    "title": "IT Help Desk",
-    "description": "Submit tickets for technical support and questions",
-    "href": "#",
-    "category": "Support",
-    "sortOrder": 3,
-    "active": true,
-    "kind": "link",
-    "document": null
-  },
-  {
     "id": "res-6",
     "title": "Document Templates",
     "description": "Loan forms, disclosures, and processing templates",
     "href": "#",
     "category": "Documents",
-    "sortOrder": 4,
-    "active": true,
-    "kind": "link",
-    "document": null
-  },
-  {
-    "id": "res-7",
-    "title": "Compliance Resources",
-    "description": "RESPA, TILA, and regulatory reference materials",
-    "href": "#",
-    "category": "Documents",
-    "sortOrder": 5,
+    "sortOrder": 3,
     "active": true,
     "kind": "link",
     "document": null
@@ -71,7 +49,7 @@
     "description": "Branch locations, hours, and contact information",
     "href": "#",
     "category": "Company",
-    "sortOrder": 6,
+    "sortOrder": 4,
     "active": true,
     "kind": "link",
     "document": null
@@ -82,26 +60,10 @@
     "description": "Interactive organizational chart",
     "href": "/directory",
     "category": "Company",
-    "sortOrder": 7,
+    "sortOrder": 5,
     "active": true,
     "kind": "link",
     "document": null
-  },
-  {
-    "id": "res-89d6a287-8888-4721-81e2-ecf74cc4f446",
-    "title": "Test",
-    "description": "Test",
-    "href": "/resources/view/res-89d6a287-8888-4721-81e2-ecf74cc4f446",
-    "category": "Test",
-    "sortOrder": 8,
-    "active": true,
-    "kind": "document",
-    "document": {
-      "storageName": "0b3fccfb-7266-49ab-93b4-7ec0fd89e810.pdf",
-      "originalName": "Pillars-v5.pdf",
-      "mimeType": "application/pdf",
-      "size": 101982
-    }
   },
   {
     "id": "res-d6f2e5cd-2b80-48b2-a9ff-4fd2fd6b5fbf",
@@ -109,7 +71,7 @@
     "description": "Mortgage Loan Officer Repayment Agreement",
     "href": "/resources/view/res-d6f2e5cd-2b80-48b2-a9ff-4fd2fd6b5fbf",
     "category": "HR & Policies",
-    "sortOrder": 9,
+    "sortOrder": 6,
     "active": true,
     "kind": "document",
     "document": {
@@ -125,7 +87,7 @@
     "description": "Company policies, procedures, and guidelines",
     "href": "/resources/view/res-1ba8ff0f-e7f5-425c-83ed-1b4da1846ad6",
     "category": "HR & Policies",
-    "sortOrder": 10,
+    "sortOrder": 7,
     "active": true,
     "kind": "document",
     "document": {
@@ -141,7 +103,7 @@
     "description": "Loan Officer Compensation Plan",
     "href": "/resources/view/res-acff2ca9-ff2e-4ca3-9c92-30fdb4bc0285",
     "category": "HR & Policies",
-    "sortOrder": 11,
+    "sortOrder": 8,
     "active": true,
     "kind": "document",
     "document": {
@@ -157,7 +119,7 @@
     "description": "Arbitration and Class Action Waiver",
     "href": "/resources/view/res-23a23afb-e13b-4cc6-abba-d8b9bbf113ee",
     "category": "HR & Policies",
-    "sortOrder": 12,
+    "sortOrder": 9,
     "active": true,
     "kind": "document",
     "document": {
@@ -173,7 +135,7 @@
     "description": "Telemarketing Law Compliance and Safe Harbor",
     "href": "/resources/view/res-261ed5cb-cd34-4ba4-b63f-d85f32be8167",
     "category": "HR & Policies",
-    "sortOrder": 13,
+    "sortOrder": 10,
     "active": true,
     "kind": "document",
     "document": {
@@ -189,7 +151,7 @@
     "description": "Non-Compete, Non-solicitation, IP confidentiality, and NDA",
     "href": "/resources/view/res-0a898b2a-e69f-4b00-9c19-34abf7f0efc8",
     "category": "HR & Policies",
-    "sortOrder": 14,
+    "sortOrder": 11,
     "active": true,
     "kind": "document",
     "document": {
@@ -205,7 +167,7 @@
     "description": "Guardian Program Flyer",
     "href": "/resources/view/res-2b83a009-a4f0-4a8e-aefa-c5361be3fd32",
     "category": "HR & Policies",
-    "sortOrder": 15,
+    "sortOrder": 12,
     "active": true,
     "kind": "document",
     "document": {
@@ -221,7 +183,7 @@
     "description": "Guardian FAQ",
     "href": "/resources/view/res-148d57b2-b780-4969-8ce7-4a3986765e40",
     "category": "HR & Policies",
-    "sortOrder": 16,
+    "sortOrder": 13,
     "active": true,
     "kind": "document",
     "document": {
@@ -237,7 +199,7 @@
     "description": "Guardian Legal Connect",
     "href": "/resources/view/res-97403bd0-6fe5-445e-a669-ef518452979c",
     "category": "HR & Policies",
-    "sortOrder": 17,
+    "sortOrder": 14,
     "active": true,
     "kind": "document",
     "document": {
@@ -253,7 +215,7 @@
     "description": "Guardian Financial Connect",
     "href": "/resources/view/res-15abf9de-ac47-4032-9511-e8db37fa7b5d",
     "category": "HR & Policies",
-    "sortOrder": 18,
+    "sortOrder": 15,
     "active": true,
     "kind": "document",
     "document": {
@@ -269,7 +231,7 @@
     "description": "Lifetime Fitness Flyer",
     "href": "/resources/view/res-03515396-2ae2-47ce-bd01-441e7bdb5e74",
     "category": "HR & Policies",
-    "sortOrder": 19,
+    "sortOrder": 16,
     "active": true,
     "kind": "document",
     "document": {
@@ -285,7 +247,7 @@
     "description": "Lifetime Fitness Membership Pricing",
     "href": "/resources/view/res-b0286a24-6c1a-43ff-85e2-a0fd57adb9f4",
     "category": "HR & Policies",
-    "sortOrder": 20,
+    "sortOrder": 17,
     "active": true,
     "kind": "document",
     "document": {
@@ -301,7 +263,7 @@
     "description": "Employee Navigator User Set Up",
     "href": "/resources/view/res-d0af3f2f-c579-4571-adc4-10afe7a2942d",
     "category": "HR & Policies",
-    "sortOrder": 21,
+    "sortOrder": 18,
     "active": true,
     "kind": "document",
     "document": {
@@ -317,7 +279,7 @@
     "description": "Arbitration Details",
     "href": "/resources/view/res-cca2337f-b4a4-4261-914b-9afd9109f207",
     "category": "HR & Policies",
-    "sortOrder": 22,
+    "sortOrder": 19,
     "active": true,
     "kind": "document",
     "document": {
@@ -333,7 +295,7 @@
     "description": "Employee Dental Benefits Guide",
     "href": "/resources/view/res-8dd78174-0c08-4649-922b-d8332ba67c3e",
     "category": "HR & Policies",
-    "sortOrder": 23,
+    "sortOrder": 20,
     "active": true,
     "kind": "document",
     "document": {
@@ -349,7 +311,7 @@
     "description": "Employee Vision Benefits Guide",
     "href": "/resources/view/res-3cd3513f-d8b1-4858-b114-73b7d978d644",
     "category": "HR & Policies",
-    "sortOrder": 24,
+    "sortOrder": 21,
     "active": true,
     "kind": "document",
     "document": {
@@ -365,7 +327,7 @@
     "description": "Health Benefits Plan Details",
     "href": "/resources/view/res-852f283f-a1e4-4ce0-aa4f-9032830e3a78",
     "category": "HR & Policies",
-    "sortOrder": 25,
+    "sortOrder": 22,
     "active": true,
     "kind": "document",
     "document": {

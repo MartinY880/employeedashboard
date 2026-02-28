@@ -5,8 +5,8 @@
 
 import { useMemo } from "react";
 import { motion } from "framer-motion";
-import { PRAISE_BADGES, getBadge } from "./KudosCard";
-import { useKudos } from "@/hooks/useKudos";
+import { PRAISE_BADGES, getBadge } from "./PropsCard";
+import { useProps } from "@/hooks/useProps";
 import { Skeleton } from "@/components/ui/skeleton";
 
 function getInitials(name: string): string {
@@ -19,9 +19,9 @@ function getInitials(name: string): string {
 }
 
 export function TrophyCase() {
-  const { kudos, isLoading, currentUserId } = useKudos();
+  const { props, isLoading, currentUserId } = useProps();
 
-  // Aggregate stats from all kudos
+  // Aggregate stats from all props
   const stats = useMemo(() => {
     // Count badges by type
     const badgeCounts: Record<string, number> = {};
@@ -30,9 +30,13 @@ export function TrophyCase() {
     // Count awards per person (leaderboard)
     const peopleCounts: Record<string, { name: string; count: number; badges: Set<string> }> = {};
 
-    kudos.forEach((k) => {
+    props.forEach((k) => {
       const badge = k.badge || "mvp";
-      badgeCounts[badge] = (badgeCounts[badge] || 0) + 1;
+
+      // Badge collection counts only for the current user's received props
+      if (currentUserId && k.recipientId === currentUserId) {
+        badgeCounts[badge] = (badgeCounts[badge] || 0) + 1;
+      }
 
       const recipName = k.recipient?.displayName || "Unknown";
       if (!peopleCounts[recipName]) {
@@ -49,21 +53,21 @@ export function TrophyCase() {
 
     // Count how many the current user received (dev user = "John Doe")
     const myReceivedCount = currentUserId
-      ? kudos.filter((k) => k.recipientId === currentUserId).length
+      ? props.filter((k) => k.recipientId === currentUserId).length
       : 0;
 
     const myGivenCount = currentUserId
-      ? kudos.filter((k) => k.authorId === currentUserId).length
+      ? props.filter((k) => k.authorId === currentUserId).length
       : 0;
 
     return {
       badgeCounts,
       leaderboard,
-      totalAwarded: kudos.length,
+      totalAwarded: props.length,
       myReceivedCount,
       myGivenCount,
     };
-  }, [kudos, currentUserId]);
+  }, [props, currentUserId]);
 
   if (isLoading) {
     return (
@@ -161,7 +165,7 @@ export function TrophyCase() {
                   transition={{ delay: i * 0.07 }}
                   className={`flex items-center gap-2.5 px-3 py-2 rounded-lg ${
                     i === 0
-                      ? "bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200"
+                      ? "bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-950/40 dark:to-yellow-950/40 border border-amber-200 dark:border-amber-800"
                       : "bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700"
                   }`}
                 >
@@ -170,7 +174,7 @@ export function TrophyCase() {
                   </span>
                   <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold ${
                     i === 0
-                      ? "bg-amber-200 text-amber-800"
+                      ? "bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200"
                       : "bg-brand-blue/10 text-brand-blue"
                   }`}>
                     {getInitials(person.name)}

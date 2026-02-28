@@ -20,7 +20,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "ProConnect | MortgagePros Employee Portal",
   description:
-    "Secure, unified internal employee portal for MortgagePros — directory, kudos, alerts, calendar & more.",
+    "Secure, unified internal employee portal for MortgagePros — directory, props, alerts, calendar & more.",
 };
 
 export default function RootLayout({
@@ -39,6 +39,7 @@ export default function RootLayout({
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        suppressHydrationWarning
       >
         <ThemeProvider>
           <TooltipProvider delayDuration={300}>

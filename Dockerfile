@@ -9,22 +9,6 @@ RUN npm ci --ignore-scripts
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# Logto env vars must be present at build time so Next.js
-# inlines the correct values into the server bundle.
-ARG LOGTO_ENDPOINT
-ARG LOGTO_APP_ID
-ARG LOGTO_APP_SECRET
-ARG LOGTO_COOKIE_SECRET
-ARG LOGTO_BASE_URL
-ARG LOGTO_API_RESOURCE
-
-ENV LOGTO_ENDPOINT=$LOGTO_ENDPOINT
-ENV LOGTO_APP_ID=$LOGTO_APP_ID
-ENV LOGTO_APP_SECRET=$LOGTO_APP_SECRET
-ENV LOGTO_COOKIE_SECRET=$LOGTO_COOKIE_SECRET
-ENV LOGTO_BASE_URL=$LOGTO_BASE_URL
-ENV LOGTO_API_RESOURCE=$LOGTO_API_RESOURCE
-
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
@@ -52,6 +36,11 @@ RUN npm install -g prisma@latest && \
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
+COPY --from=builder /app/src/data ./src/data
+COPY --from=builder /app/uploads ./uploads
+
+# Keep a backup of default resources for volume seeding
+COPY --from=builder /app/src/data/resources.json ./defaults/resources.json
 
 # Remove prisma.config.ts that standalone copies (it needs dotenv which isn't available)
 # Write a minimal production config, and symlink global prisma so require() finds it
@@ -67,8 +56,12 @@ COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 # Copy entrypoint script
 COPY docker-entrypoint.sh ./docker-entrypoint.sh
 
-USER nextjs
+# Install su-exec for dropping privileges after volume setup
+RUN apk add --no-cache su-exec && \
+    mkdir -p src/data uploads/resources defaults && \
+    chown -R nextjs:nodejs src/data uploads defaults
 
+# Start as root so entrypoint can fix volume permissions, then drop to nextjs
 EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"

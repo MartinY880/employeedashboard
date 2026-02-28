@@ -1,5 +1,5 @@
 // ProConnect — Stats API Route
-// Aggregates counts from local holidays DB, alerts, kudos, and directory
+// Aggregates counts from local holidays DB, alerts, props, and directory
 // Returns all 4 stat card values in a single response
 
 import { NextResponse } from "next/server";
@@ -25,11 +25,11 @@ async function getActiveAlertCount(): Promise<number> {
   }
 }
 
-async function getKudosThisMonthCount(): Promise<number> {
+async function getPropsThisMonthCount(): Promise<number> {
   try {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const count = await prisma.kudosMessage.count({
+    const count = await prisma.propsMessage.count({
       where: { createdAt: { gte: startOfMonth } },
     });
     return count || 5; // fallback to demo count
@@ -66,11 +66,11 @@ async function getTeamMemberCount(): Promise<number> {
 
 export async function GET() {
   // Fetch all stats in parallel for speed
-  const [upcomingHolidays, activeAlerts, kudosThisMonth, teamMembers] =
+  const [upcomingHolidays, activeAlerts, propsThisMonth, teamMembers] =
     await Promise.all([
       getUpcomingHolidayCount(),
       getActiveAlertCount(),
-      getKudosThisMonthCount(),
+      getPropsThisMonthCount(),
       getTeamMemberCount(),
     ]);
 
@@ -78,6 +78,6 @@ export async function GET() {
     upcomingHolidays,
     teamMembers,
     activeAlerts,
-    kudosThisMonth,
+    propsThisMonth,
   });
 }

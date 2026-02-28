@@ -16,6 +16,8 @@ import {
   Eye,
   EyeOff,
   GripVertical,
+  Smartphone,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -130,6 +132,45 @@ export default function AdminSliderPage() {
     setSlider((prev) => ({
       ...prev,
       media: prev.media.filter((_, i) => i !== index),
+    }));
+  }
+
+  async function handleMobileImageSelect(e: React.ChangeEvent<HTMLInputElement>, index: number) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Mobile override must be an image file");
+      e.target.value = "";
+      return;
+    }
+    try {
+      const reader = new FileReader();
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve(String(reader.result || ""));
+        reader.onerror = () => reject(new Error("Failed to read file"));
+        reader.readAsDataURL(file);
+      });
+      setSlider((prev) => ({
+        ...prev,
+        media: prev.media.map((item, i) =>
+          i === index ? { ...item, mobileSrc: dataUrl } : item
+        ),
+      }));
+    } catch {
+      toast.error("Failed to process mobile image");
+    } finally {
+      e.target.value = "";
+    }
+  }
+
+  function handleRemoveMobileImage(index: number) {
+    setSlider((prev) => ({
+      ...prev,
+      media: prev.media.map((item, i) => {
+        if (i !== index) return item;
+        const { mobileSrc: _, ...rest } = item;
+        return rest;
+      }),
     }));
   }
 
@@ -333,7 +374,8 @@ export default function AdminSliderPage() {
           </label>
         </div>
         <p className="text-xs text-brand-grey mb-3">
-          Suggested: images under 8MB at 1920×540 (wide banner ratio); videos under 20MB at 1280×720 for best performance.
+          Suggested: desktop images under 8MB at 1920×540 (wide banner ratio); videos under 20MB at 1280×720 for best performance.
+          You can optionally add a mobile-optimized image per slide (e.g. 640×360) that will be shown on phones.
         </p>
         {slider.media.length > 1 && (
           <p className="text-xs text-brand-grey mb-3">Drag and drop items to reorder slide sequence.</p>
@@ -395,6 +437,41 @@ export default function AdminSliderPage() {
                   />
                 ) : (
                   <img src={mediaItem.src} alt={`Slider media ${index + 1}`} className="h-28 w-full object-cover" />
+                )}
+                {/* Mobile image override (images only) */}
+                {mediaItem.type === "image" && (
+                  <div className="px-2.5 py-2 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/50">
+                    {mediaItem.mobileSrc ? (
+                      <div className="flex items-center gap-2">
+                        <Smartphone className="w-3.5 h-3.5 text-brand-blue shrink-0" />
+                        <img
+                          src={mediaItem.mobileSrc}
+                          alt="Mobile override"
+                          className="h-12 w-20 rounded object-cover border border-gray-200 dark:border-gray-700"
+                        />
+                        <span className="text-[10px] text-green-600 font-medium">Mobile</span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveMobileImage(index)}
+                          className="ml-auto p-1 rounded hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors"
+                          title="Remove mobile image"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="flex items-center gap-1.5 text-[11px] text-gray-500 hover:text-brand-blue cursor-pointer transition-colors">
+                        <Smartphone className="w-3.5 h-3.5" />
+                        <span>Add mobile image</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => handleMobileImageSelect(e, index)}
+                        />
+                      </label>
+                    )}
+                  </div>
                 )}
                 <div className="p-2 flex justify-end">
                   <Button
