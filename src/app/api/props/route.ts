@@ -1,8 +1,8 @@
-// ProConnect — Kudos API Route
-// GET: Fetch latest kudos | POST: Create new kudos message
+// ProConnect — Props API Route
+// GET: Fetch latest props | POST: Create new props message
 
 import { NextResponse } from "next/server";
-import type { KudosReactionType } from "@/generated/prisma/client";
+import type { PropsReactionType } from "@/generated/prisma/client";
 import { prisma, ensureDbUser } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/logto";
 import { hasPermission, PERMISSIONS, toDbRole } from "@/lib/rbac";
@@ -35,11 +35,11 @@ export async function GET(request: Request) {
             },
           }
         : undefined;
-      const count = await prisma.kudosMessage.count({ where });
+      const count = await prisma.propsMessage.count({ where });
       return NextResponse.json({ count });
     }
 
-    const kudos = await prisma.kudosMessage.findMany({
+    const props = await prisma.propsMessage.findMany({
       include: {
         author: {
           select: { id: true, displayName: true, avatarUrl: true },
@@ -52,11 +52,11 @@ export async function GET(request: Request) {
       take: 30,
     });
 
-    const kudosIds = kudos.map((k) => k.id);
-    const groupedReactions = kudosIds.length
-      ? await prisma.kudosReaction.groupBy({
-          by: ["kudosId", "reaction"],
-          where: { kudosId: { in: kudosIds } },
+    const propsIds = props.map((k) => k.id);
+    const groupedReactions = propsIds.length
+      ? await prisma.propsReaction.groupBy({
+          by: ["propsId", "reaction"],
+          where: { propsId: { in: propsIds } },
           _count: { _all: true },
         })
       : [];
@@ -68,51 +68,51 @@ export async function GET(request: Request) {
       currentUserId = dbUser?.id || null;
     }
 
-    const myReactionsRaw = currentUserId && kudosIds.length
-      ? await prisma.kudosReaction.findMany({
-          where: { userId: currentUserId, kudosId: { in: kudosIds } },
-          select: { kudosId: true, reaction: true },
+    const myReactionsRaw = currentUserId && propsIds.length
+      ? await prisma.propsReaction.findMany({
+          where: { userId: currentUserId, propsId: { in: propsIds } },
+          select: { propsId: true, reaction: true },
           orderBy: { createdAt: "desc" },
         })
       : [];
 
     const reactionCountsMap = new Map<string, { highfive: number; uplift: number; bomb: number }>();
     for (const reaction of groupedReactions) {
-      const existing = reactionCountsMap.get(reaction.kudosId) || { highfive: 0, uplift: 0, bomb: 0 };
+      const existing = reactionCountsMap.get(reaction.propsId) || { highfive: 0, uplift: 0, bomb: 0 };
       if (reaction.reaction === "HIGHFIVE") existing.highfive = reaction._count._all;
       if (reaction.reaction === "UPLIFT") existing.uplift = reaction._count._all;
       if (reaction.reaction === "BOMB") existing.bomb = reaction._count._all;
-      reactionCountsMap.set(reaction.kudosId, existing);
+      reactionCountsMap.set(reaction.propsId, existing);
     }
 
     const myReactionsMap = new Map<string, Array<"highfive" | "uplift" | "bomb">>();
     for (const reaction of myReactionsRaw) {
-      if (myReactionsMap.has(reaction.kudosId)) continue;
-      if (reaction.reaction === "HIGHFIVE") myReactionsMap.set(reaction.kudosId, ["highfive"]);
-      if (reaction.reaction === "UPLIFT") myReactionsMap.set(reaction.kudosId, ["uplift"]);
-      if (reaction.reaction === "BOMB") myReactionsMap.set(reaction.kudosId, ["bomb"]);
+      if (myReactionsMap.has(reaction.propsId)) continue;
+      if (reaction.reaction === "HIGHFIVE") myReactionsMap.set(reaction.propsId, ["highfive"]);
+      if (reaction.reaction === "UPLIFT") myReactionsMap.set(reaction.propsId, ["uplift"]);
+      if (reaction.reaction === "BOMB") myReactionsMap.set(reaction.propsId, ["bomb"]);
     }
 
-    const hydratedKudos = kudos.map((k) => ({
+    const hydratedProps = props.map((k) => ({
       ...k,
       reactions: reactionCountsMap.get(k.id) || { highfive: 0, uplift: 0, bomb: 0 },
       myReactions: myReactionsMap.get(k.id) || [],
     }));
 
-    return NextResponse.json({ kudos: hydratedKudos, currentUserId });
+    return NextResponse.json({ props: hydratedProps, currentUserId });
   } catch (error) {
-    console.error("[Kudos API] GET error:", error);
-    return NextResponse.json({ error: "Failed to fetch kudos" }, { status: 500 });
+    console.error("[Props API] GET error:", error);
+    return NextResponse.json({ error: "Failed to fetch props" }, { status: 500 });
   }
 }
 
-const REACTION_KEY_TO_ENUM: Record<string, KudosReactionType> = {
+const REACTION_KEY_TO_ENUM: Record<string, PropsReactionType> = {
   highfive: "HIGHFIVE",
   uplift: "UPLIFT",
   bomb: "BOMB",
 };
 
-const ENUM_TO_REACTION_KEY: Record<KudosReactionType, "highfive" | "uplift" | "bomb"> = {
+const ENUM_TO_REACTION_KEY: Record<PropsReactionType, "highfive" | "uplift" | "bomb"> = {
   HIGHFIVE: "highfive",
   UPLIFT: "uplift",
   BOMB: "bomb",
@@ -125,11 +125,11 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body: { kudosId?: string; reaction?: "highfive" | "uplift" | "bomb" } = await request.json();
-    const { kudosId, reaction } = body;
+    const body: { propsId?: string; reaction?: "highfive" | "uplift" | "bomb" } = await request.json();
+    const { propsId, reaction } = body;
 
-    if (!kudosId || !reaction || !REACTION_KEY_TO_ENUM[reaction]) {
-      return NextResponse.json({ error: "kudosId and valid reaction are required" }, { status: 400 });
+    if (!propsId || !reaction || !REACTION_KEY_TO_ENUM[reaction]) {
+      return NextResponse.json({ error: "propsId and valid reaction are required" }, { status: 400 });
     }
 
     const dbUser = await ensureDbUser(
@@ -141,9 +141,9 @@ export async function PATCH(request: Request) {
 
     const reactionEnum = REACTION_KEY_TO_ENUM[reaction];
 
-    const existingReactions = await prisma.kudosReaction.findMany({
+    const existingReactions = await prisma.propsReaction.findMany({
       where: {
-        kudosId,
+        propsId,
         userId: dbUser.id,
       },
       select: {
@@ -157,18 +157,18 @@ export async function PATCH(request: Request) {
       existingReactions[0].reaction === reactionEnum;
 
     if (hasOnlySameReaction) {
-      await prisma.kudosReaction.delete({ where: { id: existingReactions[0].id } });
+      await prisma.propsReaction.delete({ where: { id: existingReactions[0].id } });
     } else {
       await prisma.$transaction([
-        prisma.kudosReaction.deleteMany({
+        prisma.propsReaction.deleteMany({
           where: {
-            kudosId,
+            propsId,
             userId: dbUser.id,
           },
         }),
-        prisma.kudosReaction.create({
+        prisma.propsReaction.create({
           data: {
-            kudosId,
+            propsId,
             userId: dbUser.id,
             reaction: reactionEnum,
           },
@@ -176,14 +176,14 @@ export async function PATCH(request: Request) {
       ]);
     }
 
-    const groupedReactions = await prisma.kudosReaction.groupBy({
+    const groupedReactions = await prisma.propsReaction.groupBy({
       by: ["reaction"],
-      where: { kudosId },
+      where: { propsId },
       _count: { _all: true },
     });
 
-    const myReactionsRaw = await prisma.kudosReaction.findMany({
-      where: { kudosId, userId: dbUser.id },
+    const myReactionsRaw = await prisma.propsReaction.findMany({
+      where: { propsId, userId: dbUser.id },
       select: { reaction: true },
     });
 
@@ -196,9 +196,9 @@ export async function PATCH(request: Request) {
 
     const myReactions = myReactionsRaw.map((item) => ENUM_TO_REACTION_KEY[item.reaction]);
 
-    return NextResponse.json({ kudosId, reactions, myReactions });
+    return NextResponse.json({ propsId, reactions, myReactions });
   } catch (error) {
-    console.error("[Kudos API] PATCH reaction error:", error);
+    console.error("[Props API] PATCH reaction error:", error);
     return NextResponse.json({ error: "Failed to toggle reaction" }, { status: 500 });
   }
 }
@@ -261,7 +261,7 @@ export async function POST(request: Request) {
       resolvedRecipientId = recipientUser.id;
     }
 
-    const kudos = await prisma.kudosMessage.create({
+    const props = await prisma.propsMessage.create({
       data: {
         content,
         badge,
@@ -281,15 +281,15 @@ export async function POST(request: Request) {
     // Send notification to the recipient
     createNotification({
       recipientUserId: resolvedRecipientId,
-      type: "KUDOS",
+      type: "PROPS",
       title: "You received props! \uD83C\uDF89",
       message: `${authResult.user.name} gave you props: "${content.slice(0, 120)}${content.length > 120 ? "..." : ""}"`,
-      metadata: { senderName: authResult.user.name, kudosId: kudos.id },
-    }).catch((err) => console.error("[Kudos] notification error:", err));
+      metadata: { senderName: authResult.user.name, propsId: props.id },
+    }).catch((err) => console.error("[Props] notification error:", err));
 
-    return NextResponse.json({ kudos }, { status: 201 });
+    return NextResponse.json({ props }, { status: 201 });
   } catch (error) {
-    console.error("[Kudos API] POST error:", error);
+    console.error("[Props API] POST error:", error);
     return NextResponse.json({ error: "Failed to create props" }, { status: 500 });
   }
 }
@@ -297,7 +297,7 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
   try {
     const { isAuthenticated, user } = await getAuthUser();
-    if (!isAuthenticated || !user || !hasPermission(user, PERMISSIONS.MANAGE_KUDOS)) {
+    if (!isAuthenticated || !user || !hasPermission(user, PERMISSIONS.MANAGE_PROPS)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -305,14 +305,14 @@ export async function DELETE(request: Request) {
     const id = searchParams.get("id");
 
     if (!id) {
-      return NextResponse.json({ error: "Kudos id is required" }, { status: 400 });
+      return NextResponse.json({ error: "Props id is required" }, { status: 400 });
     }
 
-    await prisma.kudosMessage.delete({ where: { id } });
+    await prisma.propsMessage.delete({ where: { id } });
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("[Kudos API] DELETE error:", error);
-    return NextResponse.json({ error: "Failed to delete kudos" }, { status: 500 });
+    console.error("[Props API] DELETE error:", error);
+    return NextResponse.json({ error: "Failed to delete props" }, { status: 500 });
   }
 }

@@ -14,11 +14,22 @@ export type {
 
 interface DashboardSliderProps {
   media: DashboardSliderMedia[];
+  /** Max height on desktop (px). The slider scales down proportionally on smaller viewports. */
   height: number;
   transitionMs: number;
   style: DashboardSliderStyle;
   objectFit?: DashboardSliderObjectFit;
 }
+
+/**
+ * Mobile-minimum height so the slider never gets too short on phones.
+ * The aspect-ratio approach scales height proportionally with viewport width,
+ * but on very narrow screens this prevents it from becoming a tiny sliver.
+ */
+const MOBILE_MIN_HEIGHT = 160;
+
+/** The reference (design) viewport width the admin-configured height is based on. */
+const DESIGN_WIDTH = 1920;
 
 export function DashboardSlider({
   media,
@@ -32,6 +43,9 @@ export function DashboardSlider({
       .map((item): DashboardSliderMedia => ({
         type: item?.type === "video" ? "video" : "image",
         src: String(item?.src || "").trim(),
+        ...(typeof item?.mobileSrc === "string" && item.mobileSrc.trim()
+          ? { mobileSrc: item.mobileSrc.trim() }
+          : {}),
       }))
       .filter((item) => Boolean(item.src)),
     [media]
@@ -52,6 +66,16 @@ export function DashboardSlider({
       return next.size !== prev.size ? next : prev;
     });
   }, [currentIndex, sanitizedMedia.length]);
+
+  // Detect mobile viewport for mobileSrc swap
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mql = window.matchMedia("(max-width: 639px)");
+    setIsMobile(mql.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mql.addEventListener("change", handler);
+    return () => mql.removeEventListener("change", handler);
+  }, []);
 
   // Intersection observer — only render the slider when it scrolls into view
   const containerRef = useRef<HTMLDivElement>(null);
@@ -91,8 +115,17 @@ export function DashboardSlider({
   const fitClass = objectFit === "contain" ? "object-contain" : objectFit === "fill" ? "object-fill" : "object-cover";
   const bgClass = objectFit === "contain" ? "bg-gray-100" : "";
 
+  // Responsive sizing: use CSS aspect-ratio so the container scales with viewport width,
+  // clamped between MOBILE_MIN_HEIGHT and the admin-configured max height.
+  const safeHeight = Math.max(120, height);
+  const aspectRatio = `${DESIGN_WIDTH} / ${safeHeight}`;
+
   function renderSlide(item: DashboardSliderMedia, index: number, absolute = false) {
     const shouldLoad = loadedIndices.has(index);
+    // Use mobileSrc on narrow viewports when available (images only)
+    const effectiveSrc = isMobile && item.type === "image" && item.mobileSrc
+      ? item.mobileSrc
+      : item.src;
 
     if (item.type === "video") {
       return (
@@ -112,8 +145,8 @@ export function DashboardSlider({
 
     return (
       <img
-        key={`${item.type}-${index}`}
-        src={shouldLoad ? item.src : undefined}
+        key={`${item.type}-${index}-${isMobile ? "m" : "d"}`}
+        src={shouldLoad ? effectiveSrc : undefined}
         alt={`Dashboard slider media ${index + 1}`}
         className={absolute ? `absolute inset-0 h-full w-full ${fitClass} transition-opacity duration-500` : `h-full w-full shrink-0 ${fitClass}`}
         style={absolute ? { opacity: index === currentIndex ? 1 : 0 } : undefined}
@@ -125,7 +158,14 @@ export function DashboardSlider({
 
   return (
     <div ref={containerRef} className="w-full rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm bg-white dark:bg-gray-900">
-      <div className={`relative w-full ${bgClass}`} style={{ height: `${Math.max(120, height)}px` }}>
+      <div
+        className={`relative w-full ${bgClass}`}
+        style={{
+          aspectRatio,
+          maxHeight: `${safeHeight}px`,
+          minHeight: `${MOBILE_MIN_HEIGHT}px`,
+        }}
+      >
         {!isVisible ? (
           <div className="h-full w-full bg-gray-50 animate-pulse" />
         ) : style === "fade" ? (

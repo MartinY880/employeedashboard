@@ -91,7 +91,7 @@ function getInitials(name: string): string {
 
 function getNotificationIcon(type: string) {
   switch (type) {
-    case "KUDOS": return <Award className="w-4 h-4 text-amber-500 shrink-0" />;
+    case "PROPS": return <Award className="w-4 h-4 text-amber-500 shrink-0" />;
     case "HIGHLIGHT": return <Star className="w-4 h-4 text-blue-500 shrink-0" />;
     case "IDEA_SELECTED": return <Lightbulb className="w-4 h-4 text-green-500 shrink-0" />;
     default: return <Bell className="w-4 h-4 text-gray-400 shrink-0" />;
@@ -127,10 +127,13 @@ export function TopNav({ user }: TopNavProps) {
 
   return (
     <header
-      className="sticky top-0 z-50 flex items-center border-b border-gray-200 dark:border-gray-700 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm px-3 sm:px-6 shadow-sm"
+      className="sticky top-0 z-50 flex flex-wrap items-center border-b border-gray-200 dark:border-gray-700 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm px-3 sm:px-6 shadow-sm"
     >
+      {/* Mobile spacer — balances the avatar so the logo stays centred */}
+      <div className="flex-1 md:hidden" />
+
       {/* Logo */}
-      <Link href="/dashboard" className="mr-4 sm:mr-10 flex items-center group shrink-0">
+      <Link href="/dashboard" className="md:mr-10 flex items-center group shrink-0">
         {branding.logoData ? (
           <>
             {/* Light-mode logo (or only logo if no dark variant) */}
@@ -158,7 +161,7 @@ export function TopNav({ user }: TopNavProps) {
       </Link>
 
       {/* Nav Links */}
-      <nav className="flex items-center gap-1 flex-grow">
+      <nav className="flex items-center gap-1 order-last w-full justify-center py-1 md:order-none md:w-auto md:justify-start md:flex-grow md:py-0">
         {navLinks.map(({ id, href, label, iframeUrl, icon, logoUrl }) => {
           const Icon = getNavIcon(href, iframeUrl, icon);
           const isActive = pathname === href || pathname.startsWith(href + "/");
@@ -191,12 +194,12 @@ export function TopNav({ user }: TopNavProps) {
       </nav>
 
       {/* Right Controls */}
-      <div className="flex items-center gap-2">
+      <div className="flex-1 flex items-center justify-end gap-2 md:flex-none">
         <Tooltip>
           <TooltipTrigger asChild>
             <button
               onClick={toggleMute}
-              className="flex h-9 w-9 items-center justify-center rounded-lg text-brand-grey hover:text-brand-blue hover:bg-gray-100 dark:hover:bg-gray-800 transition-all"
+              className="hidden sm:flex h-9 w-9 items-center justify-center rounded-lg text-brand-grey hover:text-brand-blue hover:bg-gray-100 dark:hover:bg-gray-800 transition-all"
             >
               {muted ? <VolumeX className="w-[18px] h-[18px]" /> : <Volume2 className="w-[18px] h-[18px]" />}
             </button>
@@ -204,9 +207,9 @@ export function TopNav({ user }: TopNavProps) {
           <TooltipContent>{muted ? "Unmute sounds" : "Mute sounds"}</TooltipContent>
         </Tooltip>
 
-        <div className="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1" />
+        <div className="hidden sm:block w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1" />
 
-        <DropdownMenu>
+        <DropdownMenu modal={false}>
           <DropdownMenuTrigger asChild>
             <button className="relative flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors outline-none">
               <Avatar className="h-8 w-8 border-2 border-brand-blue/20">

@@ -98,8 +98,9 @@ export async function PATCH(request: Request) {
     const canManagePillars = hasPermission(user, PERMISSIONS.MANAGE_PILLARS);
     const canManageTournament = hasPermission(user, PERMISSIONS.MANAGE_TOURNAMENT);
     const canManageBranding = hasPermission(user, PERMISSIONS.MANAGE_BRANDING);
+    const canManageSlider = hasPermission(user, PERMISSIONS.MANAGE_SLIDER);
 
-    if (!canManagePillars && !canManageTournament && !canManageBranding) {
+    if (!canManagePillars && !canManageTournament && !canManageBranding && !canManageSlider) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
@@ -137,7 +138,7 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ success: true, visibility: updated });
     }
 
-    if (key === "dashboardSlider" && canManageBranding) {
+    if (key === "dashboardSlider" && canManageSlider) {
       const slider = normalizeDashboardSliderSettings(value);
       const sliderMeta = deriveDashboardSliderMeta(slider);
       await prisma.calendarSetting.upsert({

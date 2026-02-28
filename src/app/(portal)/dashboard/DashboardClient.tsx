@@ -14,6 +14,7 @@ import { CalendarWidget } from "@/components/widgets/CalendarWidget";
 import { OooWidget } from "@/components/widgets/OooWidget";
 import { FeedPanel } from "@/components/widgets/FeedPanel";
 import { EmployeeHighlight } from "@/components/widgets/EmployeeHighlight";
+import { VideoSpotlightWidget } from "@/components/widgets/VideoSpotlightWidget";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { DashboardSlider, type DashboardSliderStyle, type DashboardSliderMedia, type DashboardSliderObjectFit } from "@/components/widgets/DashboardSlider";
 import Link from "next/link";
@@ -36,9 +37,10 @@ interface SliderConfig {
 interface DashboardClientProps {
   visibility: DashboardVisibilitySettings;
   sliderConfig: SliderConfig;
+  showVideoSpotlight?: boolean;
 }
 
-export default function DashboardClient({ visibility, sliderConfig }: DashboardClientProps) {
+export default function DashboardClient({ visibility, sliderConfig, showVideoSpotlight }: DashboardClientProps) {
   // Only fetch slider media when the server tells us the slider is enabled + has media
   const [sliderMedia, setSliderMedia] = useState<DashboardSliderMedia[] | null>(null);
   const sliderActive = sliderConfig.enabled && sliderConfig.hasMedia;
@@ -81,7 +83,11 @@ export default function DashboardClient({ visibility, sliderConfig }: DashboardC
             ) : (
               <div
                 className="w-full rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm bg-gray-50 dark:bg-gray-800 animate-pulse"
-                style={{ height: `${Math.max(120, sliderConfig.height)}px` }}
+                style={{
+                  aspectRatio: `1920 / ${Math.max(120, sliderConfig.height)}`,
+                  maxHeight: `${Math.max(120, sliderConfig.height)}px`,
+                  minHeight: "160px",
+                }}
               />
             )}
           </ErrorBoundary>
@@ -146,8 +152,14 @@ export default function DashboardClient({ visibility, sliderConfig }: DashboardC
 
       {/* 3-Column Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr_380px] gap-5 items-start">
-        {/* Left: OOO + Upcoming Holidays */}
+        {/* Left: ProConnect Message + OOO + Upcoming Holidays */}
         <div className="space-y-5">
+          {showVideoSpotlight && (
+            <ErrorBoundary label="ProConnect Message" compact>
+              <VideoSpotlightWidget />
+            </ErrorBoundary>
+          )}
+
           {/* OOO Widget */}
           <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
             <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 border-t-[3px] border-t-brand-blue">

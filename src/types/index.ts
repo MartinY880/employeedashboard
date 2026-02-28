@@ -24,9 +24,9 @@ export interface User {
   updatedAt: string;
 }
 
-// ─── Kudos ────────────────────────────────────────────────
+// ─── Props ────────────────────────────────────────────────
 
-export interface KudosMessage {
+export interface PropsMessage {
   id: string;
   content: string;
   authorId: string;
@@ -122,7 +122,7 @@ export interface DashboardStats {
   upcomingHolidays: number;
   teamMembers: number;
   activeAlerts: number;
-  kudosThisMonth: number;
+  propsThisMonth: number;
 }
 
 // ─── Tournament Bracket ───────────────────────────────────

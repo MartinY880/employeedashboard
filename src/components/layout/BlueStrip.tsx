@@ -3,6 +3,7 @@
 
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Sparkles } from "lucide-react";
 
@@ -10,15 +11,29 @@ interface BlueStripProps {
   userName?: string;
 }
 
-export function BlueStrip({ userName = "User" }: BlueStripProps) {
-  const today = new Date().toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
 
-  const greeting = getGreeting();
+export function BlueStrip({ userName = "User" }: BlueStripProps) {
+  const [today, setToday] = useState("");
+  const [greeting, setGreeting] = useState("");
+
+  useEffect(() => {
+    setToday(
+      new Date().toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      })
+    );
+    setGreeting(getGreeting());
+  }, []);
+
   // Use first name only
   const firstName = userName.split(" ")[0];
 
@@ -43,19 +58,14 @@ export function BlueStrip({ userName = "User" }: BlueStripProps) {
       </div>
 
       <div className="relative flex items-center gap-3 sm:gap-6 text-xs sm:text-sm">
-        <span className="opacity-80 hidden sm:inline">{today}</span>
-        <div className="w-px h-4 bg-white/30 hidden sm:block" />
-        <span className="font-medium">
-          {greeting}, <span className="text-blue-200">{firstName}</span>
-        </span>
+        {today && <span className="opacity-80 hidden sm:inline">{today}</span>}
+        {today && <div className="w-px h-4 bg-white/30 hidden sm:block" />}
+        {greeting && (
+          <span className="font-medium">
+            {greeting}, <span className="text-blue-200">{firstName}</span>
+          </span>
+        )}
       </div>
     </motion.div>
   );
-}
-
-function getGreeting(): string {
-  const hour = new Date().getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 17) return "Good afternoon";
-  return "Good evening";
 }

@@ -22,24 +22,24 @@ model User {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  kudosSent      KudosMessage[]  @relation("KudosAuthor")
-  kudosReceived  KudosMessage[]  @relation("KudosRecipient")
-  kudosReactions KudosReaction[]
+  propsSent      PropsMessage[]  @relation("PropsAuthor")
+  propsReceived  PropsMessage[]  @relation("PropsRecipient")
+  propsReactions PropsReaction[]
   alertsCreated  Alert[]
   notifications  Notification[]
 
   @@map("users")
 }
 
-model KudosMessage {
+model PropsMessage {
   id          String   @id @default(cuid())
   content     String
   authorId    String
   recipientId String
   badge       String   @default("mvp")
-  author      User     @relation("KudosAuthor", fields: [authorId], references: [id])
-  recipient   User     @relation("KudosRecipient", fields: [recipientId], references: [id])
-  reactions   KudosReaction[]
+  author      User     @relation("PropsAuthor", fields: [authorId], references: [id])
+  recipient   User     @relation("PropsRecipient", fields: [recipientId], references: [id])
+  reactions   PropsReaction[]
   likes       Int      @default(0)
   createdAt   DateTime @default(now())
 
@@ -49,17 +49,17 @@ model KudosMessage {
   @@map("kudos_messages")
 }
 
-model KudosReaction {
+model PropsReaction {
   id        String            @id @default(cuid())
-  kudosId   String
+  propsId   String            @map("kudosId")
   userId    String
-  reaction  KudosReactionType
-  kudos     KudosMessage      @relation(fields: [kudosId], references: [id], onDelete: Cascade)
+  reaction  PropsReactionType
+  props     PropsMessage      @relation(fields: [propsId], references: [id], onDelete: Cascade)
   user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime          @default(now())
 
-  @@unique([kudosId, userId])
-  @@index([kudosId, reaction])
+  @@unique([propsId, userId])
+  @@index([propsId, reaction])
   @@index([userId])
   @@map("kudos_reactions")
 }
@@ -253,15 +253,17 @@ model Notification {
 }
 
 enum NotificationType {
-  KUDOS
+  PROPS     @map("KUDOS")
   HIGHLIGHT
   IDEA_SELECTED
 }
 
-enum KudosReactionType {
+enum PropsReactionType {
   HIGHFIVE
   UPLIFT
   BOMB
+
+  @@map("KudosReactionType")
 }
 
 // ─── Calendar / Holidays ──────────────────────────────────
@@ -381,4 +383,27 @@ model TournamentMatch {
   @@index([tournamentId, round, division])
   @@index([nextMatchId])
   @@map("tournament_matches")
+}
+
+// ─── Video Spotlight ──────────────────────────────────────
+
+model VideoSpotlight {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  filename    String               // stored filename on disk (uploads/videos/)
+  mimeType    String   @default("video/webm")
+  fileSize    Int      @default(0) // bytes
+  duration    Float?               // seconds
+  authorId    String?              // user who recorded/uploaded
+  authorName  String?
+  featured    Boolean  @default(false)
+  sortOrder   Int      @default(0)
+  status      String   @default("active") // active | archived
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([featured, status])
+  @@index([createdAt])
+  @@map("video_spotlights")
 }

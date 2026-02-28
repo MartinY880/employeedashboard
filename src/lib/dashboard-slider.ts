@@ -4,6 +4,8 @@ export type DashboardSliderObjectFit = "cover" | "contain" | "fill";
 export interface DashboardSliderMedia {
   type: "image" | "video";
   src: string;
+  /** Optional mobile-optimized image (ignored for video). Shown on viewports < 640px. */
+  mobileSrc?: string;
 }
 
 export interface DashboardSliderSettings {
@@ -69,9 +71,11 @@ function normalizeMediaArray(input: unknown): DashboardSliderMedia[] {
       const value = item as Record<string, unknown>;
       const src = String(value.src || "").trim();
       if (!src) return null;
+      const mobileSrc = typeof value.mobileSrc === "string" ? value.mobileSrc.trim() : undefined;
       return {
         type: value.type === "video" ? "video" : "image",
         src,
+        ...(mobileSrc ? { mobileSrc } : {}),
       } satisfies DashboardSliderMedia;
     })
     .filter((item): item is DashboardSliderMedia => item !== null);

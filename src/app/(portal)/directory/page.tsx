@@ -11,7 +11,6 @@ import {
   LayoutGrid,
   List,
   Mail,
-  MapPin,
   Phone,
   Smartphone,
   Printer,
@@ -278,6 +277,13 @@ function ProfileDialog({
   open: boolean;
   onClose: () => void;
 }) {
+  const [photoZoom, setPhotoZoom] = useState(false);
+
+  // Reset zoom when dialog closes or user changes
+  useEffect(() => {
+    if (!open) setPhotoZoom(false);
+  }, [open, user]);
+
   if (!user) return null;
 
   return (
@@ -287,17 +293,24 @@ function ProfileDialog({
           <DialogTitle className="sr-only">Employee Profile</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col items-center text-center pt-2 pb-4">
-          <Avatar className="h-20 w-20 mb-4">
-            <AvatarImage
-              src={getPhotoUrl(user, 240)}
-              alt={user.displayName}
-              loading="lazy"
-              decoding="async"
-            />
-            <AvatarFallback className="bg-brand-blue text-white text-xl font-bold">
-              {getInitials(user.displayName)}
-            </AvatarFallback>
-          </Avatar>
+          <button
+            type="button"
+            onClick={() => setPhotoZoom(true)}
+            className="relative group cursor-zoom-in mb-4 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue"
+          >
+            <Avatar className="h-20 w-20">
+              <AvatarImage
+                src={getPhotoUrl(user, 240)}
+                alt={user.displayName}
+                loading="lazy"
+                decoding="async"
+              />
+              <AvatarFallback className="bg-brand-blue text-white text-xl font-bold">
+                {getInitials(user.displayName)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/10 transition-colors" />
+          </button>
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
             {user.displayName}
           </h3>
@@ -380,6 +393,42 @@ function ProfileDialog({
           </div>
         )}
       </DialogContent>
+
+      {/* Full-size photo overlay */}
+      <AnimatePresence>
+        {photoZoom && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm cursor-zoom-out"
+            onClick={() => setPhotoZoom(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="relative"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <img
+                src={getPhotoUrl(user, 648)}
+                alt={user.displayName}
+                className="w-64 h-64 sm:w-80 sm:h-80 md:w-96 md:h-96 rounded-2xl object-cover shadow-2xl ring-4 ring-white/20"
+              />
+              <button
+                type="button"
+                onClick={() => setPhotoZoom(false)}
+                className="absolute -top-3 -right-3 flex h-8 w-8 items-center justify-center rounded-full bg-white dark:bg-gray-800 shadow-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </Dialog>
   );
 }
@@ -837,7 +886,7 @@ export default function DirectoryPage() {
 
       {/* Loading */}
       {isLoading && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
           {Array.from({ length: 8 }).map((_, i) => (
             <div
               key={i}
@@ -874,7 +923,7 @@ export default function DirectoryPage() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+          className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4"
         >
           {filteredUsers.map((user, i) => (
             <motion.button
@@ -912,7 +961,7 @@ export default function DirectoryPage() {
               )}
               {user.officeLocation && (
                 <p className="text-[11px] text-brand-grey/60 mt-1.5 flex items-center justify-center gap-1">
-                  <MapPin className="w-3 h-3" />
+                  <NMLSIcon className="w-3 h-3" />
                   {user.officeLocation}
                 </p>
               )}

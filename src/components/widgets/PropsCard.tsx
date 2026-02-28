@@ -98,7 +98,7 @@ type ReactionKey = (typeof REACTIONS)[number]["key"];
 
 /* ─── Props Interface ──────────────────────────────────── */
 
-interface KudosCardProps {
+interface PropsCardProps {
   id?: string;
   authorName: string;
   authorInitials: string;
@@ -115,7 +115,7 @@ interface KudosCardProps {
 
 /* ─── Component ────────────────────────────────────────── */
 
-export function KudosCard({
+export function PropsCard({
   authorName,
   authorInitials,
   authorPhotoUrl,
@@ -127,7 +127,7 @@ export function KudosCard({
   onReact,
   createdAt,
   badge: badgeKey,
-}: KudosCardProps) {
+}: PropsCardProps) {
   const { playPop } = useSounds();
   const badge = getBadge(badgeKey);
 

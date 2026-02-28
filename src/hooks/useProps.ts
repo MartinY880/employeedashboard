@@ -1,55 +1,55 @@
-// ProConnect — useKudos Hook
-// Kudos data fetching + optimistic updates
+// ProConnect — useProps Hook
+// Props data fetching + optimistic updates
 
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import type { KudosMessage } from "@/types";
+import type { PropsMessage } from "@/types";
 
-interface KudosResponse {
-  kudos?: KudosMessage[];
+interface PropsResponse {
+  props?: PropsMessage[];
   currentUserId?: string | null;
 }
 
-export function useKudos() {
-  const [kudos, setKudos] = useState<KudosMessage[]>([]);
+export function useProps() {
+  const [props, setProps] = useState<PropsMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
-  const fetchKudos = useCallback(async () => {
+  const fetchProps = useCallback(async () => {
     try {
-      const res = await fetch("/api/kudos");
-      const data: KudosResponse = await res.json();
-      setKudos(data.kudos || []);
+      const res = await fetch("/api/props");
+      const data: PropsResponse = await res.json();
+      setProps(data.props || []);
       setCurrentUserId(data.currentUserId ?? null);
     } catch (error) {
-      console.error("Failed to fetch kudos:", error);
+      console.error("Failed to fetch props:", error);
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchKudos();
-  }, [fetchKudos]);
+    fetchProps();
+  }, [fetchProps]);
 
-  const sendKudos = useCallback(
+  const sendProps = useCallback(
     async (recipientId: string, content: string, recipientName?: string, badge?: string) => {
-      const res = await fetch("/api/kudos", {
+      const res = await fetch("/api/props", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ recipientId, content, recipientName, badge }),
       });
 
       if (!res.ok) {
-        throw new Error("Failed to send kudos");
+        throw new Error("Failed to send props");
       }
 
       const data = await res.json();
 
-      // Prepend the new kudos to the list immediately
-      if (data.kudos) {
-        setKudos((prev) => [data.kudos, ...prev]);
+      // Prepend the new props to the list immediately
+      if (data.props) {
+        setProps((prev) => [data.props, ...prev]);
       }
 
       // Signal notification system to refetch (recipient gets a notification)
@@ -57,17 +57,17 @@ export function useKudos() {
         window.dispatchEvent(new Event("notifications-updated"));
       }
 
-      return data.kudos;
+      return data.props;
     },
     []
   );
 
   const toggleReaction = useCallback(
-    async (kudosId: string, reaction: "highfive" | "uplift" | "bomb") => {
-      const res = await fetch("/api/kudos", {
+    async (propsId: string, reaction: "highfive" | "uplift" | "bomb") => {
+      const res = await fetch("/api/props", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kudosId, reaction }),
+        body: JSON.stringify({ propsId, reaction }),
       });
 
       if (!res.ok) {
@@ -75,14 +75,14 @@ export function useKudos() {
       }
 
       const data: {
-        kudosId: string;
+        propsId: string;
         reactions: { highfive: number; uplift: number; bomb: number };
         myReactions: Array<"highfive" | "uplift" | "bomb">;
       } = await res.json();
 
-      setKudos((prev) =>
+      setProps((prev) =>
         prev.map((item) =>
-          item.id === data.kudosId
+          item.id === data.propsId
             ? {
                 ...item,
                 reactions: data.reactions,
@@ -98,5 +98,5 @@ export function useKudos() {
     []
   );
 
-  return { kudos, currentUserId, isLoading, sendKudos, toggleReaction, refetch: fetchKudos };
+  return { props, currentUserId, isLoading, sendProps, toggleReaction, refetch: fetchProps };
 }

@@ -36,7 +36,7 @@ import {
 } from "@/components/ui/table";
 import { useSounds } from "@/components/shared/SoundProvider";
 
-interface KudosItem {
+interface PropsItem {
   id: string;
   content: string;
   authorId: string;
@@ -56,42 +56,42 @@ function getInitials(name: string) {
     .slice(0, 2);
 }
 
-export default function AdminKudosPage() {
+export default function AdminPropsPage() {
   const { playClick, playNotify } = useSounds();
-  const [kudos, setKudos] = useState<KudosItem[]>([]);
+  const [props, setProps] = useState<PropsItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [deleteTarget, setDeleteTarget] = useState<KudosItem | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<PropsItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const fetchKudos = useCallback(async () => {
+  const fetchProps = useCallback(async () => {
     try {
-      const res = await fetch("/api/kudos");
+      const res = await fetch("/api/props");
       const data = await res.json();
-      setKudos(data.kudos || []);
+      setProps(data.props || []);
     } catch {
-      setKudos([]);
+      setProps([]);
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchKudos();
-  }, [fetchKudos]);
+    fetchProps();
+  }, [fetchProps]);
 
   async function handleDelete() {
     if (!deleteTarget) return;
     setIsDeleting(true);
     try {
-      const res = await fetch(`/api/kudos?id=${deleteTarget.id}`, { method: "DELETE" });
+      const res = await fetch(`/api/props?id=${deleteTarget.id}`, { method: "DELETE" });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         console.error("Delete failed:", err);
       }
       playNotify();
       setDeleteTarget(null);
-      await fetchKudos();
+      await fetchProps();
     } catch (e) {
       console.error("Delete error:", e);
     } finally {
@@ -121,7 +121,7 @@ export default function AdminKudosPage() {
   }
 
   const filtered = searchQuery.trim()
-    ? kudos.filter(
+    ? props.filter(
         (k) =>
           k.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
           k.author?.displayName
@@ -131,7 +131,7 @@ export default function AdminKudosPage() {
             ?.toLowerCase()
             .includes(searchQuery.toLowerCase())
       )
-    : kudos;
+    : props;
 
   return (
     <motion.div
@@ -155,7 +155,7 @@ export default function AdminKudosPage() {
           <div>
             <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Props Moderation</h1>
             <p className="text-xs text-brand-grey">
-              {kudos.length} total props messages
+              {props.length} total props messages
             </p>
           </div>
         </div>
@@ -292,7 +292,7 @@ export default function AdminKudosPage() {
       {/* Showing count */}
       {!isLoading && filtered.length > 0 && (
         <p className="text-xs text-brand-grey text-center">
-          Showing {filtered.length} of {kudos.length} props messages
+          Showing {filtered.length} of {props.length} props messages
         </p>
       )}
 

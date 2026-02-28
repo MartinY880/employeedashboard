@@ -23,6 +23,7 @@ import {
   Trophy,
   FolderOpen,
   ImageIcon,
+  Video,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -48,8 +49,8 @@ function useAdminStats() {
           await Promise.all([
             fetch("/api/alerts?count=true&active=false").then((r) => r.json()),
             fetch("/api/alerts?count=true").then((r) => r.json()),
-            fetch("/api/kudos?count=true").then((r) => r.json()),
-            fetch("/api/kudos?count=true&month=true").then((r) => r.json()),
+            fetch("/api/props?count=true").then((r) => r.json()),
+            fetch("/api/props?count=true&month=true").then((r) => r.json()),
             fetch("/api/directory?count=true").then((r) => r.json()),
             fetch("/api/stats").then((r) => r.json()),
           ]);
@@ -83,7 +84,7 @@ function useAdminStats() {
 
 const statCards = [
   { key: "activeAlerts", label: "Active Alerts", icon: AlertTriangle, color: "bg-amber-500", href: "/admin/alerts" },
-  { key: "totalProps", label: "Total Props", icon: MessageCircle, color: "bg-brand-blue", href: "/admin/kudos" },
+  { key: "totalProps", label: "Total Props", icon: MessageCircle, color: "bg-brand-blue", href: "/admin/props" },
   { key: "teamMembers", label: "Team Members", icon: Users, color: "bg-green-500", href: "/directory" },
   { key: "upcomingHolidays", label: "Holidays", icon: CalendarDays, color: "bg-purple-500", href: "/admin/calendar" },
 ] as const;
@@ -103,11 +104,11 @@ const adminPages = [
     title: "Props Moderation",
     description: "Review all props messages. Remove inappropriate content and monitor engagement.",
     icon: MessageCircle,
-    href: "/admin/kudos",
+    href: "/admin/props",
     badge: "Moderate",
     color: "text-brand-blue",
     bgColor: "bg-blue-50",
-    permission: PERMISSIONS.MANAGE_KUDOS,
+    permission: PERMISSIONS.MANAGE_PROPS,
   },
   {
     title: "Company Pillars",
@@ -177,7 +178,7 @@ const adminPages = [
     badge: "Media",
     color: "text-indigo-500",
     bgColor: "bg-indigo-50",
-    permission: PERMISSIONS.MANAGE_BRANDING,
+    permission: PERMISSIONS.MANAGE_SLIDER,
   },
   {
     title: "Tournament Bracket",
@@ -198,6 +199,16 @@ const adminPages = [
     color: "text-purple-500",
     bgColor: "bg-purple-50",
     permission: PERMISSIONS.MANAGE_CALENDAR,
+  },
+  {
+    title: "Video Spotlight",
+    description: "Manage employee video recordings — review uploads, feature videos on the dashboard, and toggle visibility.",
+    icon: Video,
+    href: "/admin/video-spotlight",
+    badge: "Media",
+    color: "text-rose-500",
+    bgColor: "bg-rose-50",
+    permission: PERMISSIONS.MANAGE_VIDEO_SPOTLIGHT,
   },
 ];
 
@@ -334,7 +345,6 @@ export default function AdminPage() {
                     <h3 className="font-bold text-gray-800 dark:text-gray-200 group-hover:text-brand-blue transition-colors">
                       {page.title}
                     </h3>
-                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{page.badge}</Badge>
                   </div>
                   <p className="text-sm text-brand-grey leading-relaxed">{page.description}</p>
                 </div>

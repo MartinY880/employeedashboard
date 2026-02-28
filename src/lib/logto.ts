@@ -94,29 +94,6 @@ function extractPermissionsFromToken(accessToken: string): string[] {
   return scope.split(/\s+/).filter(Boolean);
 }
 
-async function getApiResourceAccessToken(
-  contextAccessToken?: string
-): Promise<string | undefined> {
-  if (!LOGTO_API_RESOURCE) return undefined;
-
-  try {
-    const { getAccessToken } = await import("@logto/next/server-actions");
-    const accessToken = await getAccessToken(logtoConfig, LOGTO_API_RESOURCE);
-    if (accessToken) return accessToken;
-  } catch {
-    // Ignore and try RSC-safe fallback.
-  }
-
-  try {
-    const { getAccessTokenRSC } = await import("@logto/next/server-actions");
-    const accessToken = await getAccessTokenRSC(logtoConfig, LOGTO_API_RESOURCE);
-    if (accessToken) return accessToken;
-  } catch {
-    // Ignore and use context token fallback.
-  }
-
-  return contextAccessToken;
-}
 
 // ─── Feature flag: is Logto configured? ───────────────────
 export const isLogtoConfigured =
@@ -183,9 +160,8 @@ export async function getAuthScopeDebugInfo(): Promise<AuthScopeDebugInfo> {
   }
 
   const { getLogtoContext } = await import("@logto/next/server-actions");
-  const contextOptions: Record<string, unknown> = { fetchUserInfo: true };
 
-  const context = await getLogtoContext(logtoConfig, contextOptions);
+  const context = await getLogtoContext(logtoConfig, { fetchUserInfo: true });
   const claims = (context.claims as Record<string, unknown>) ?? {};
   const userInfo = (context.userInfo as Record<string, unknown>) ?? {};
   const info: Record<string, unknown> = {
@@ -200,41 +176,32 @@ export async function getAuthScopeDebugInfo(): Promise<AuthScopeDebugInfo> {
 
   let accessToken: string | undefined;
   if (LOGTO_API_RESOURCE) {
-    const contextAccessToken = (context as Record<string, unknown>).accessToken as
-      | string
-      | undefined;
-    accessToken = await getApiResourceAccessToken(contextAccessToken);
-  } else {
-    accessToken = (context as Record<string, unknown>).accessToken as string | undefined;
+    try {
+      const { getAccessToken } = await import("@logto/next/server-actions");
+      accessToken = await getAccessToken(logtoConfig, LOGTO_API_RESOURCE);
+    } catch {
+      try {
+        const { getAccessTokenRSC } = await import("@logto/next/server-actions");
+        accessToken = await getAccessTokenRSC(logtoConfig, LOGTO_API_RESOURCE);
+      } catch {
+        // Could not get token
+      }
+    }
   }
+
   const payload = accessToken ? decodeJwtPayload(accessToken) : {};
   const rawScope = typeof payload.scope === "string" ? payload.scope : "";
   const tokenPerms = accessToken ? extractPermissionsFromToken(accessToken) : [];
   const adminPerms = tokenPerms.filter(
-    (permission) => permission.startsWith("manage:") || permission.startsWith("view:")
+    (permission) => permission.startsWith("manage:")
   );
 
   let effectivePermissions: string[] = [];
   let usedRoleFallback = false;
 
-  if (LOGTO_API_RESOURCE) {
-    if (accessToken) {
-      if (adminPerms.length > 0) {
-        effectivePermissions = adminPerms;
-      } else if (role === "SUPER_ADMIN") {
-        usedRoleFallback = true;
-        effectivePermissions = [...ROLE_DEFAULT_PERMISSIONS.SUPER_ADMIN];
-      } else {
-        usedRoleFallback = !LOGTO_STRICT_SCOPES;
-        effectivePermissions = LOGTO_STRICT_SCOPES ? [] : [...ROLE_DEFAULT_PERMISSIONS[role]];
-      }
-    } else if (role === "SUPER_ADMIN") {
-      usedRoleFallback = true;
-      effectivePermissions = [...ROLE_DEFAULT_PERMISSIONS.SUPER_ADMIN];
-    } else {
-      usedRoleFallback = !LOGTO_STRICT_SCOPES;
-      effectivePermissions = LOGTO_STRICT_SCOPES ? [] : [...ROLE_DEFAULT_PERMISSIONS[role]];
-    }
+  if (LOGTO_API_RESOURCE && accessToken) {
+    effectivePermissions = adminPerms;
+    usedRoleFallback = false;
   } else {
     usedRoleFallback = true;
     effectivePermissions = [...ROLE_DEFAULT_PERMISSIONS[role]];
@@ -267,12 +234,8 @@ export async function getAuthUser(): Promise<{
   const { getLogtoContext } = await import("@logto/next/server-actions");
 
   // fetchUserInfo: true → calls Logto /oidc/userinfo on every request
-  // so role/permission changes take effect immediately (no sign-out needed)
-  const contextOptions: Record<string, unknown> = { fetchUserInfo: true };
-
-  // If an API resource is configured, also request an access token for it
-  // The token's `scope` claim will contain the user's granted permissions
-  const context = await getLogtoContext(logtoConfig, contextOptions);
+  // so role changes take effect immediately (no sign-out needed)
+  const context = await getLogtoContext(logtoConfig, { fetchUserInfo: true });
 
   if (!context.isAuthenticated) {
     return { isAuthenticated: false, user: null };
@@ -292,41 +255,53 @@ export async function getAuthUser(): Promise<{
   const isAdmin = hasAdminRole(normalizedRoles);
   const role: AuthUser["role"] = isSuperAdmin ? "SUPER_ADMIN" : isAdmin ? "ADMIN" : "EMPLOYEE";
 
-  // Extract permissions: prefer access token scopes, fall back to role defaults
+  // ─── Resolve permissions ────────────────────────────────
   let permissions: string[];
-  let accessToken: string | undefined;
+
   if (LOGTO_API_RESOURCE) {
-    const contextAccessToken = (context as Record<string, unknown>).accessToken as
-      | string
-      | undefined;
-    accessToken = await getApiResourceAccessToken(contextAccessToken);
-  } else {
-    accessToken = (context as Record<string, unknown>).accessToken as string | undefined;
-  }
-  if (LOGTO_API_RESOURCE) {
-    if (accessToken) {
-      const tokenPerms = extractPermissionsFromToken(accessToken);
-      // Only use token permissions if they contain admin scopes
-      // (view:* or manage:*).
-      const adminPerms = tokenPerms.filter(
-        (p) => p.startsWith("manage:") || p.startsWith("view:")
-      );
-      if (adminPerms.length > 0) {
-        permissions = adminPerms;
-      } else if (role === "SUPER_ADMIN") {
-        permissions = [...ROLE_DEFAULT_PERMISSIONS.SUPER_ADMIN];
-      } else {
-        // Compatibility fallback: if scopes are not yet configured in Logto,
-        // keep role-based defaults unless strict scope mode is explicitly enabled.
-        permissions = LOGTO_STRICT_SCOPES ? [] : [...ROLE_DEFAULT_PERMISSIONS[role]];
+    // API Resource IS configured → token scopes are the source of truth.
+    // Use getAccessToken server action (handles refresh automatically).
+    let accessToken: string | undefined;
+    try {
+      const { getAccessToken } = await import("@logto/next/server-actions");
+      accessToken = await getAccessToken(logtoConfig, LOGTO_API_RESOURCE);
+    } catch {
+      // If server action fails (e.g. RSC context), try RSC variant
+      try {
+        const { getAccessTokenRSC } = await import("@logto/next/server-actions");
+        accessToken = await getAccessTokenRSC(logtoConfig, LOGTO_API_RESOURCE);
+      } catch {
+        // Could not get token — will use fallback below
       }
-    } else if (role === "SUPER_ADMIN") {
-      permissions = [...ROLE_DEFAULT_PERMISSIONS.SUPER_ADMIN];
+    }
+
+    if (accessToken) {
+      // Extract scopes from the token — these are exactly what Logto grants
+      // based on the user's role permissions. No merging with code defaults.
+      const tokenPerms = extractPermissionsFromToken(accessToken);
+      const adminPerms = tokenPerms.filter(
+        (p) => p.startsWith("manage:")
+      );
+      permissions = adminPerms;
+
+      console.log("[RBAC] Permissions from Logto token:", {
+        sub: info.sub,
+        role,
+        tokenScopes: tokenPerms.length,
+        adminPerms: adminPerms,
+      });
     } else {
-      permissions = LOGTO_STRICT_SCOPES ? [] : [...ROLE_DEFAULT_PERMISSIONS[role]];
+      // No access token available — the user hasn't been granted access to
+      // the API resource, or token refresh failed.
+      // Fall back to role defaults as a safety net.
+      console.warn("[RBAC] No API resource token available, using role defaults", {
+        sub: info.sub,
+        role,
+      });
+      permissions = [...ROLE_DEFAULT_PERMISSIONS[role]];
     }
   } else {
-    // No API resource configured — derive permissions from role
+    // No API resource configured — derive permissions purely from role
     permissions = [...ROLE_DEFAULT_PERMISSIONS[role]];
   }
 
