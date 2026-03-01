@@ -131,6 +131,20 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ message: `Deleted ${result.count} ${bulkSource} holidays` });
     }
 
+    // Bulk delete by IDs (from request body)
+    const bulkIds = searchParams.get("bulkIds");
+    if (bulkIds) {
+      try {
+        const ids: string[] = JSON.parse(bulkIds);
+        if (Array.isArray(ids) && ids.length > 0) {
+          const result = await prisma.holiday.deleteMany({ where: { id: { in: ids } } });
+          return NextResponse.json({ message: `Deleted ${result.count} selected holidays` });
+        }
+      } catch {
+        return NextResponse.json({ error: "Invalid bulkIds format" }, { status: 400 });
+      }
+    }
+
     if (!id) {
       return NextResponse.json({ error: "ID is required" }, { status: 400 });
     }

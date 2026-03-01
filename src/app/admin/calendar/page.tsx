@@ -38,6 +38,7 @@ import {
   Save,
   AlertTriangle,
   Upload,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -228,6 +229,10 @@ export default function AdminCalendarPage() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>("holidays");
 
+  // ── Multi-select state ───────────────────────────────────
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isMassDeleting, setIsMassDeleting] = useState(false);
+
   // ── Settings tab state ───────────────────────────────────
   const [apiConfigs, setApiConfigs] = useState<ApiConfig[]>([]);
   const [categoryLabels, setCategoryLabels] = useState<CategoryLabels>({ federal: "Federal", fun: "Fun", company: "Company" });
@@ -380,6 +385,64 @@ export default function AdminCalendarPage() {
         body: JSON.stringify({ id: h.id, visible: !h.visible }),
       });
       playClick();
+      fetchAll();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // ── Multi-select helpers ──────────────────────────────────
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filtered.length && filtered.length > 0) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map((h) => h.id)));
+    }
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
+  const handleMassDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Delete ${selectedIds.size} selected holiday${selectedIds.size !== 1 ? "s" : ""}? This cannot be undone.`)) return;
+    setIsMassDeleting(true);
+    try {
+      const ids = Array.from(selectedIds);
+      const res = await fetch(`/api/calendar?bulkIds=${encodeURIComponent(JSON.stringify(ids))}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Mass delete failed");
+      playNotify();
+      setSelectedIds(new Set());
+      fetchAll();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsMassDeleting(false);
+    }
+  };
+
+  const handleMassToggleVisibility = async (visible: boolean) => {
+    if (selectedIds.size === 0) return;
+    try {
+      await Promise.all(
+        Array.from(selectedIds).map((id) =>
+          fetch("/api/calendar", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id, visible }),
+          })
+        )
+      );
+      playClick();
+      setSelectedIds(new Set());
       fetchAll();
     } catch (err) {
       console.error(err);
@@ -1146,11 +1209,76 @@ export default function AdminCalendarPage() {
             </div>
           </div>
 
+          {/* Selection action bar */}
+          <AnimatePresence>
+            {selectedIds.size > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="flex items-center gap-3 mb-3 px-4 py-2.5 rounded-xl bg-brand-blue/5 border border-brand-blue/20"
+              >
+                <span className="text-sm font-medium text-brand-blue">
+                  {selectedIds.size} selected
+                </span>
+                <div className="flex items-center gap-1.5 ml-auto">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs gap-1"
+                    onClick={() => handleMassToggleVisibility(true)}
+                  >
+                    <Eye className="w-3 h-3" />
+                    Show
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs gap-1"
+                    onClick={() => handleMassToggleVisibility(false)}
+                  >
+                    <EyeOff className="w-3 h-3" />
+                    Hide
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs gap-1 text-red-600 border-red-200 hover:bg-red-50"
+                    onClick={handleMassDelete}
+                    disabled={isMassDeleting}
+                  >
+                    {isMassDeleting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                    Delete Selected
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0 text-brand-grey"
+                    onClick={clearSelection}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {/* Table */}
           <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 overflow-hidden">
             <Table className="table-fixed [&_th]:whitespace-normal [&_td]:whitespace-normal">
               <TableHeader>
                 <TableRow className="bg-gray-50 dark:bg-gray-800/80">
+                  <TableHead className="w-10">
+                    <input
+                      type="checkbox"
+                      checked={filtered.length > 0 && selectedIds.size === filtered.length}
+                      ref={(el) => {
+                        if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < filtered.length;
+                      }}
+                      onChange={toggleSelectAll}
+                      className="w-4 h-4 rounded border-gray-300 text-brand-blue focus:ring-brand-blue/30 cursor-pointer accent-[#06427F]"
+                    />
+                  </TableHead>
                   <TableHead className="w-10"></TableHead>
                   <TableHead>Title</TableHead>
                   <TableHead>Date</TableHead>
@@ -1165,7 +1293,7 @@ export default function AdminCalendarPage() {
                 <AnimatePresence mode="popLayout">
                   {filtered.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-12">
+                      <TableCell colSpan={9} className="text-center py-12">
                         <CalendarDays className="w-8 h-8 text-brand-grey/30 mx-auto mb-2" />
                         <p className="text-sm text-brand-grey">
                           {holidays.length === 0
@@ -1184,8 +1312,16 @@ export default function AdminCalendarPage() {
                         exit={{ opacity: 0 }}
                         className={`border-b border-gray-50 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800 dark:hover:bg-gray-800 dark:bg-gray-800/50 transition-colors ${
                           !h.visible ? "opacity-50" : ""
-                        }`}
+                        } ${selectedIds.has(h.id) ? "!bg-brand-blue/5" : ""}`}
                       >
+                        <TableCell>
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(h.id)}
+                            onChange={() => toggleSelect(h.id)}
+                            className="w-4 h-4 rounded border-gray-300 text-brand-blue focus:ring-brand-blue/30 cursor-pointer accent-[#06427F]"
+                          />
+                        </TableCell>
                         <TableCell>
                           <div className="w-3 h-3 rounded-full" style={{ backgroundColor: h.color }} />
                         </TableCell>
