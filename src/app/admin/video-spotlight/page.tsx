@@ -21,6 +21,7 @@ import {
   Upload,
   Camera,
   Plus,
+  Download,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -453,6 +454,14 @@ export default function AdminVideoSpotlightPage() {
                           <ArchiveRestore className="w-3.5 h-3.5 text-green-500" />
                         )}
                       </Button>
+                      <a
+                        href={`/api/video-spotlight/download/${video.id}`}
+                        download
+                        className="inline-flex items-center justify-center h-7 w-7 rounded-md text-gray-400 hover:text-brand-blue hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                        title="Download"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                      </a>
                       <Button
                         variant="ghost"
                         size="icon"
