@@ -132,3 +132,16 @@ export async function deleteVideoSpotlight(id: string): Promise<boolean> {
     return false;
   }
 }
+
+export async function incrementPlayCount(id: string): Promise<{ playCount: number } | null> {
+  try {
+    const row = await prisma.videoSpotlight.update({
+      where: { id },
+      data: { playCount: { increment: 1 } },
+      select: { playCount: true },
+    });
+    return row;
+  } catch {
+    return null;
+  }
+}

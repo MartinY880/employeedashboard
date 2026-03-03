@@ -349,15 +349,15 @@ export default function PreferredVendorsPage() {
           <Skeleton className="h-10 w-80 mb-3 rounded-lg" />
           <Skeleton className="h-5 w-[500px] rounded-lg" />
         </div>
-        <div className="space-y-12">
-          {Array.from({ length: 3 }).map((_, i) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-12">
+          {Array.from({ length: 4 }).map((_, i) => (
              <div key={i}>
                 <div className="flex items-center gap-4 mb-6">
                    <Skeleton className="h-12 w-12 rounded-xl" />
                    <Skeleton className="h-8 w-48 rounded-lg" />
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                  {Array.from({ length: 5 }).map((__, j) => (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {Array.from({ length: 3 }).map((__, j) => (
                     <Skeleton key={j} className="h-64 rounded-3xl" />
                   ))}
                 </div>
@@ -419,7 +419,7 @@ export default function PreferredVendorsPage() {
         </motion.div>
 
         {/* Content Area */}
-        <div className="space-y-20 pb-20">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-16 pb-20">
           {categoryGroups.map(([category, catVendors], idx) => {
             const catImage = categoryImages[category];
 
@@ -456,7 +456,7 @@ export default function PreferredVendorsPage() {
                 </div>
 
                 {/* Vendors Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 gap-y-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 gap-y-6">
                   {catVendors.map((vendor) => (
                     <VendorGridCard 
                        key={vendor.id} 
