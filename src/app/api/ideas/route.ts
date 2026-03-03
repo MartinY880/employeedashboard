@@ -13,8 +13,8 @@ export async function GET(request: Request) {
     const { isAuthenticated, user } = await getAuthUser();
     const { searchParams } = new URL(request.url);
     const countOnly = searchParams.get("count") === "true";
-    const status = searchParams.get("status"); // ACTIVE, SELECTED, ARCHIVED, or null for all
-    const where = status ? { status: status as "ACTIVE" | "SELECTED" | "ARCHIVED" } : {};
+    const status = searchParams.get("status"); // ACTIVE, SELECTED, IN_PROGRESS, COMPLETED, ARCHIVED, or null for all
+    const where = status ? { status: status as "ACTIVE" | "SELECTED" | "IN_PROGRESS" | "COMPLETED" | "ARCHIVED" } : {};
 
     if (countOnly) {
       const count = await prisma.idea.count({ where });
@@ -24,7 +24,14 @@ export async function GET(request: Request) {
     const ideas = await prisma.idea.findMany({
       where,
       orderBy: [{ votes: "desc" }, { createdAt: "desc" }],
+      include: { _count: { select: { comments: true } } },
     });
+
+    // Flatten _count into commentCount
+    const ideasWithCounts = ideas.map(({ _count, ...idea }) => ({
+      ...idea,
+      commentCount: _count.comments,
+    }));
 
     const userVotesByIdea = isAuthenticated && user
       ? Object.fromEntries(
@@ -39,7 +46,7 @@ export async function GET(request: Request) {
       : {};
 
     const votedIdeaIds = Object.keys(userVotesByIdea);
-    return NextResponse.json({ ideas, votedIdeaIds, userVotesByIdea });
+    return NextResponse.json({ ideas: ideasWithCounts, votedIdeaIds, userVotesByIdea });
   } catch {
     return NextResponse.json({ error: "Failed to fetch ideas" }, { status: 500 });
   }
@@ -155,12 +162,37 @@ export async function PATCH(request: Request) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
 
+      const validStatuses = ["ACTIVE", "SELECTED", "IN_PROGRESS", "COMPLETED", "ARCHIVED"];
+      if (!validStatuses.includes(status)) {
+        return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+      }
+
       const idea = await prisma.idea.update({
         where: { id },
         data: { status },
       });
 
-      if (status === "SELECTED" && idea.authorId && idea.authorId !== "anonymous") {
+      // Send notification + email for stage transitions (not ACTIVE or ARCHIVED)
+      const stageNotifications: Record<string, { type: "IDEA_SELECTED" | "IDEA_IN_PROGRESS" | "IDEA_COMPLETED"; title: string; message: (ideaTitle: string) => string }> = {
+        SELECTED: {
+          type: "IDEA_SELECTED",
+          title: "Your idea was selected for development! 💡",
+          message: (t) => `Great news! Your Be Brilliant idea "${t}" has been selected for development.`,
+        },
+        IN_PROGRESS: {
+          type: "IDEA_IN_PROGRESS",
+          title: "Your idea is now in progress! 🚧",
+          message: (t) => `Your Be Brilliant idea "${t}" is now being actively worked on. Stay tuned for updates!`,
+        },
+        COMPLETED: {
+          type: "IDEA_COMPLETED",
+          title: "Your idea has been completed! 🎉",
+          message: (t) => `Your Be Brilliant idea "${t}" has been fully implemented. Thank you for your brilliant contribution!`,
+        },
+      };
+
+      const notifConfig = stageNotifications[status];
+      if (notifConfig && idea.authorId && idea.authorId !== "anonymous") {
         const author = await prisma.user.findFirst({
           where: {
             OR: [
@@ -172,10 +204,10 @@ export async function PATCH(request: Request) {
         if (author) {
           createNotification({
             recipientUserId: author.id,
-            type: "IDEA_SELECTED",
-            title: "Your idea was selected! \uD83D\uDCA1",
-            message: `Your Be Brilliant idea "${idea.title}" has been selected!`,
-            metadata: { ideaId: idea.id, title: idea.title },
+            type: notifConfig.type,
+            title: notifConfig.title,
+            message: notifConfig.message(idea.title),
+            metadata: { ideaId: idea.id, title: idea.title, status },
           }).catch((err) => console.error("[Ideas] notification error:", err));
         }
       }

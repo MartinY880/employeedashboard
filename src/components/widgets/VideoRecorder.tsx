@@ -19,6 +19,7 @@ import {
   AlertTriangle,
   Check,
   X,
+  Mic,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -371,20 +372,41 @@ export function VideoRecorder({
 
       {/* ── Controls ───────────────────────────────────── */}
       <div className="flex flex-col items-center gap-2">
-        {/* Device selector — when idle/previewing and recording supported */}
-        {recorder.isSupported && recorder.videoDevices.length > 1 && (isIdle || isError || isPreviewing) && !uploadFile && (
-          <select
-            value={recorder.selectedDeviceId}
-            onChange={(e) => recorder.setSelectedDeviceId(e.target.value)}
-            className="w-full max-w-xs rounded-md border border-input bg-background px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-          >
-            <option value="">Default Camera</option>
-            {recorder.videoDevices.map((d) => (
-              <option key={d.deviceId} value={d.deviceId}>
-                {d.label}
-              </option>
-            ))}
-          </select>
+        {/* Device selectors — when idle/previewing and recording supported */}
+        {recorder.isSupported && (isIdle || isError || isPreviewing) && !uploadFile && (
+          <div className="flex flex-col sm:flex-row items-center gap-2 w-full max-w-md">
+            {recorder.videoDevices.length > 1 && (
+              <select
+                value={recorder.selectedDeviceId}
+                onChange={(e) => recorder.setSelectedDeviceId(e.target.value)}
+                className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="">Default Camera</option>
+                {recorder.videoDevices.map((d) => (
+                  <option key={d.deviceId} value={d.deviceId}>
+                    {d.label}
+                  </option>
+                ))}
+              </select>
+            )}
+            {recorder.audioDevices.length > 0 && (
+              <div className="flex items-center gap-1.5 w-full">
+                <Mic className="w-4 h-4 text-gray-400 shrink-0" />
+                <select
+                  value={recorder.selectedAudioDeviceId}
+                  onChange={(e) => recorder.setSelectedAudioDeviceId(e.target.value)}
+                  className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <option value="">Default Microphone</option>
+                  {recorder.audioDevices.map((d) => (
+                    <option key={d.deviceId} value={d.deviceId}>
+                      {d.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
         )}
 
         <div className="flex flex-wrap items-center justify-center gap-2">

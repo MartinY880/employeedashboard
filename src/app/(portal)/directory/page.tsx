@@ -1070,6 +1070,7 @@ export default function DirectoryPage() {
                 key={chartResetKey}
                 users={filteredTreeUsers}
                 onSelect={handleSelectUser}
+                expandAll={!!activeSearchQuery}
               />
             </>
           )}

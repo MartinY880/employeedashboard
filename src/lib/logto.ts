@@ -200,7 +200,7 @@ export async function getAuthScopeDebugInfo(): Promise<AuthScopeDebugInfo> {
   let usedRoleFallback = false;
 
   if (LOGTO_API_RESOURCE && accessToken) {
-    effectivePermissions = adminPerms;
+    effectivePermissions = [...adminPerms];
     usedRoleFallback = false;
   } else {
     usedRoleFallback = true;
@@ -277,18 +277,17 @@ export async function getAuthUser(): Promise<{
 
     if (accessToken) {
       // Extract scopes from the token — these are exactly what Logto grants
-      // based on the user's role permissions. No merging with code defaults.
+      // based on the user's role permissions.
       const tokenPerms = extractPermissionsFromToken(accessToken);
-      const adminPerms = tokenPerms.filter(
+      permissions = tokenPerms.filter(
         (p) => p.startsWith("manage:")
       );
-      permissions = adminPerms;
 
       console.log("[RBAC] Permissions from Logto token:", {
         sub: info.sub,
         role,
         tokenScopes: tokenPerms.length,
-        adminPerms: adminPerms,
+        adminPerms: permissions,
       });
     } else {
       // No access token available — the user hasn't been granted access to

@@ -1,5 +1,5 @@
 export type DashboardSliderStyle = "slide" | "fade";
-export type DashboardSliderObjectFit = "cover" | "contain" | "fill";
+export type DashboardSliderObjectFit = "cover" | "contain" | "fill" | "auto";
 
 export interface DashboardSliderMedia {
   type: "image" | "video";
@@ -99,7 +99,7 @@ export function normalizeDashboardSliderSettings(input: unknown): DashboardSlide
     height: clampHeight(raw.height),
     transitionMs: clampTransition(raw.transitionMs),
     style: raw.style === "fade" ? "fade" : "slide",
-    objectFit: (raw.objectFit === "contain" || raw.objectFit === "fill") ? raw.objectFit : "cover",
+    objectFit: (raw.objectFit === "contain" || raw.objectFit === "fill" || raw.objectFit === "auto") ? raw.objectFit : "cover",
   } satisfies DashboardSliderSettings;
 }
 
@@ -127,6 +127,6 @@ export function normalizeDashboardSliderMeta(input: unknown): DashboardSliderMet
     height: clampHeight(raw.height ?? DEFAULT_DASHBOARD_SLIDER_META.height),
     transitionMs: clampTransition(raw.transitionMs ?? DEFAULT_DASHBOARD_SLIDER_META.transitionMs),
     style: raw.style === "fade" ? "fade" : "slide",
-    objectFit: (raw.objectFit === "contain" || raw.objectFit === "fill") ? raw.objectFit : "cover",
+    objectFit: (raw.objectFit === "contain" || raw.objectFit === "fill" || raw.objectFit === "auto") ? raw.objectFit : "cover",
   } satisfies DashboardSliderMeta;
 }

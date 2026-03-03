@@ -69,6 +69,12 @@ if [ "$RETRIES" -lt "$MAX_RETRIES" ]; then
   prisma migrate deploy --schema=prisma/schema.prisma || echo "⚠️  Migration failed — server will start anyway"
   echo "✅ Migrations complete."
 
+  # Sync any new tables/columns from schema that don't have migrations yet
+  echo "🔄 Pushing schema changes (creating missing tables/columns)..."
+  prisma db push --schema=prisma/schema.prisma --skip-generate --accept-data-loss 2>/dev/null \
+    || echo "⚠️  db push had issues — continuing anyway"
+  echo "✅ Schema sync complete."
+
   # Seed data if key tables are empty (first deploy or partial restore)
   if [ -f prisma/seed-data.sql ]; then
     HOLIDAY_COUNT=$(node -e "

@@ -20,7 +20,7 @@ interface SliderConfig {
   height: number;
   transitionMs: number;
   style: "slide" | "fade";
-  objectFit: "cover" | "contain" | "fill";
+  objectFit: "cover" | "contain" | "fill" | "auto";
 }
 
 const DEFAULT_VIS = { showCompanyPillars: true, showTournamentBracketLive: true };
