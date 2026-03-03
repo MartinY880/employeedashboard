@@ -10,6 +10,7 @@ import {
   getVideoSpotlightById,
   updateVideoSpotlight,
   deleteVideoSpotlight,
+  incrementPlayCount,
 } from "@/lib/video-spotlight-store";
 
 const VIDEOS_DIR = join(process.cwd(), "uploads", "videos");
@@ -41,12 +42,26 @@ export async function GET(_request: Request, { params }: Params) {
 export async function PATCH(request: Request, { params }: Params) {
   try {
     const { isAuthenticated, user } = await getAuthUser();
-    if (!isAuthenticated || !user || !hasPermission(user, PERMISSIONS.MANAGE_VIDEO_SPOTLIGHT)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (!isAuthenticated || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { id } = await params;
     const body = await request.json();
+
+    // Play count increment — any authenticated user can do this
+    if (body.incrementPlay === true) {
+      const updated = await incrementPlayCount(id);
+      if (!updated) {
+        return NextResponse.json({ error: "Video not found" }, { status: 404 });
+      }
+      return NextResponse.json({ playCount: updated.playCount });
+    }
+
+    // All other updates require admin permission
+    if (!hasPermission(user, PERMISSIONS.MANAGE_VIDEO_SPOTLIGHT)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     const allowed: Record<string, unknown> = {};
     if (typeof body.title === "string" && body.title.trim()) allowed.title = body.title.trim();

@@ -13,6 +13,7 @@ export interface VideoSpotlightItem {
   authorId: string | null;
   authorName: string | null;
   featured: boolean;
+  playCount: number;
   sortOrder: number;
   status: VideoSpotlightStatus;
   createdAt: string; // ISO string
@@ -95,6 +96,7 @@ export function serializeVideoSpotlight(row: {
   authorId: string | null;
   authorName: string | null;
   featured: boolean;
+  playCount: number;
   sortOrder: number;
   status: string;
   createdAt: Date;
@@ -111,6 +113,7 @@ export function serializeVideoSpotlight(row: {
     authorId: row.authorId,
     authorName: row.authorName,
     featured: row.featured,
+    playCount: row.playCount,
     sortOrder: row.sortOrder,
     status: normalizeVideoSpotlightStatus(row.status),
     createdAt: row.createdAt.toISOString(),

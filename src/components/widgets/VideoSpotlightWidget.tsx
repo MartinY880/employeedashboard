@@ -36,6 +36,7 @@ interface SpotlightVideo {
   duration: number | null;
   authorName: string | null;
   featured: boolean;
+  playCount: number;
   createdAt: string;
   commentCount?: number;
 }
@@ -478,6 +479,7 @@ export function VideoSpotlightWidget() {
     setCurrentTime(0);
     setDuration(0);
     setActiveIndex(newIndex);
+    hasCountedPlayRef.current = false;
   }, []);
 
   const goNext = useCallback(() => {
@@ -499,8 +501,25 @@ export function VideoSpotlightWidget() {
     }
   }, []);
 
-  // Sync state from video element events
-  const handlePlay = useCallback(() => setIsPlaying(true), []);
+  // Sync state from video element events — also increment play count
+  const hasCountedPlayRef = useRef(false);
+  const handlePlay = useCallback(() => {
+    setIsPlaying(true);
+    if (!hasCountedPlayRef.current && videos[activeIndex]) {
+      hasCountedPlayRef.current = true;
+      const vid = videos[activeIndex];
+      // Optimistic local update
+      setVideos((prev) =>
+        prev.map((v) => v.id === vid.id ? { ...v, playCount: v.playCount + 1 } : v)
+      );
+      // Fire-and-forget server increment
+      fetch(`/api/video-spotlight/${vid.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ incrementPlay: true }),
+      }).catch(() => {});
+    }
+  }, [videos, activeIndex]);
   const handlePause = useCallback(() => setIsPlaying(false), []);
   const handleEnded = useCallback(() => {
     setIsPlaying(false);
@@ -715,8 +734,13 @@ export function VideoSpotlightWidget() {
                 <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5 line-clamp-3">{current.description}</p>
               )}
               <div className="flex items-center justify-between mt-1.5">
-                <p className="text-[11px] text-gray-400 dark:text-gray-500">
-                  {new Date(current.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                <p className="text-[11px] text-gray-400 dark:text-gray-500 flex items-center gap-1.5">
+                  <span>{new Date(current.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                  <span>·</span>
+                  <span className="flex items-center gap-0.5">
+                    <Play className="w-3 h-3 fill-current" />
+                    {current.playCount.toLocaleString()} {current.playCount === 1 ? "play" : "plays"}
+                  </span>
                 </p>
                 <VideoReactionBar videoId={current.id} />
               </div>
