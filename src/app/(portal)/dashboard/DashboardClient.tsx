@@ -7,6 +7,7 @@
 import { useEffect, useState } from "react";
 import { StatsRow } from "@/components/widgets/StatsRow";
 import { QuickLinksBar } from "@/components/widgets/QuickLinksBar";
+import { ImportantDatesWidget } from "@/components/widgets/ImportantDatesWidget";
 import { DirectorySearchBar } from "@/components/widgets/DirectorySearchBar";
 import { AlertsDropdown } from "@/components/widgets/AlertsDropdown";
 import { BeBrilliantWidget } from "@/components/widgets/BeBrilliantWidget";
@@ -102,6 +103,13 @@ export default function DashboardClient({ visibility, sliderConfig, showVideoSpo
           </ErrorBoundary>
         </section>
       ) : null}
+
+      {/* Important Dates */}
+      <section className="mb-4">
+        <ErrorBoundary label="Important Dates" compact>
+          <ImportantDatesWidget />
+        </ErrorBoundary>
+      </section>
 
       {/* Quick Links */}
       <section className="mb-4">

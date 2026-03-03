@@ -28,9 +28,14 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# Install Prisma CLI globally and psql client for data seeding
-RUN npm install -g prisma@latest && \
-    apk add --no-cache postgresql-client
+# Install Prisma CLI globally
+RUN npm install -g prisma@latest
+
+# Install psql client for data seeding
+RUN apk add --no-cache postgresql-client
+
+# Install ffmpeg for video processing
+RUN apk add --no-cache ffmpeg
 
 # Copy standalone output
 COPY --from=builder /app/.next/standalone ./

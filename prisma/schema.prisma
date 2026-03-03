@@ -84,16 +84,17 @@ model Alert {
 }
 
 model Idea {
-  id          String     @id @default(cuid())
+  id          String        @id @default(cuid())
   title       String
   description String
   authorId    String
   authorName  String
-  votes       Int        @default(0)
-  status      IdeaStatus @default(ACTIVE)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  votes       Int           @default(0)
+  status      IdeaStatus    @default(ACTIVE)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
   votesBy     IdeaVote[]
+  comments    IdeaComment[]
 
   @@index([status, votes])
   @@index([createdAt])
@@ -111,6 +112,37 @@ model IdeaVote {
   @@unique([ideaId, voterLogtoId])
   @@index([voterLogtoId])
   @@map("idea_votes")
+}
+
+model IdeaComment {
+  id           String             @id @default(cuid())
+  ideaId       String
+  authorId     String
+  authorName   String
+  content      String
+  parentId     String?
+  likes        Int                @default(0)
+  createdAt    DateTime           @default(now())
+  idea         Idea               @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  parent       IdeaComment?       @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies      IdeaComment[]      @relation("CommentReplies")
+  likedBy      IdeaCommentLike[]
+
+  @@index([ideaId, createdAt])
+  @@index([parentId])
+  @@map("idea_comments")
+}
+
+model IdeaCommentLike {
+  id           String      @id @default(cuid())
+  commentId    String
+  voterLogtoId String
+  createdAt    DateTime    @default(now())
+  comment      IdeaComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, voterLogtoId])
+  @@index([voterLogtoId])
+  @@map("idea_comment_likes")
 }
 
 model QuickLink {
@@ -214,6 +246,8 @@ enum Priority {
 enum IdeaStatus {
   ACTIVE
   SELECTED
+  IN_PROGRESS
+  COMPLETED
   ARCHIVED
 }
 
@@ -256,6 +290,8 @@ enum NotificationType {
   PROPS     @map("KUDOS")
   HIGHLIGHT
   IDEA_SELECTED
+  IDEA_IN_PROGRESS
+  IDEA_COMPLETED
 }
 
 enum PropsReactionType {
@@ -385,6 +421,36 @@ model TournamentMatch {
   @@map("tournament_matches")
 }
 
+// ─── Preferred Vendors ────────────────────────────────────
+
+model PreferredVendor {
+  id            String   @id @default(cuid())
+  name          String
+  description   String?
+  category      String   @default("General")
+  contactName   String?  @map("contact_name")
+  contactEmail  String?  @map("contact_email")
+  contactPhone  String?  @map("contact_phone")
+  contactPhoneLabel  String?  @map("contact_phone_label")   // e.g. "Cell", "Store", "Direct"
+  secondaryPhone     String?  @map("secondary_phone")
+  secondaryPhoneLabel String? @map("secondary_phone_label") // e.g. "Store", "Office"
+  website       String?
+  logoUrl       String?  @map("logo_url")
+  address       String?
+  labels        String?  // comma-separated labels e.g. "Tailor, Jewelry"
+  notes         String?  @db.Text
+  sortOrder     Int      @default(0) @map("sort_order")
+  active        Boolean  @default(true)
+  featured      Boolean  @default(false)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@index([active, sortOrder])
+  @@index([category])
+  @@index([featured])
+  @@map("preferred_vendors")
+}
+
 // ─── Video Spotlight ──────────────────────────────────────
 
 model VideoSpotlight {
@@ -403,7 +469,71 @@ model VideoSpotlight {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  reactions    VideoSpotlightReaction[]
+  comments     VideoSpotlightComment[]
+
   @@index([featured, status])
   @@index([createdAt])
   @@map("video_spotlights")
+}
+
+model VideoSpotlightReaction {
+  id           String         @id @default(cuid())
+  videoId      String
+  userLogtoId  String
+  type         String         // "like" | "dislike"
+  createdAt    DateTime       @default(now())
+  video        VideoSpotlight @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@unique([videoId, userLogtoId])
+  @@index([videoId])
+  @@map("video_spotlight_reactions")
+}
+
+model VideoSpotlightComment {
+  id           String                       @id @default(cuid())
+  videoId      String
+  authorId     String
+  authorName   String
+  content      String
+  parentId     String?
+  likes        Int                          @default(0)
+  createdAt    DateTime                     @default(now())
+  video        VideoSpotlight               @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  parent       VideoSpotlightComment?       @relation("VideoCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies      VideoSpotlightComment[]      @relation("VideoCommentReplies")
+  likedBy      VideoSpotlightCommentLike[]
+
+  @@index([videoId, createdAt])
+  @@index([parentId])
+  @@map("video_spotlight_comments")
+}
+
+model VideoSpotlightCommentLike {
+  id           String                @id @default(cuid())
+  commentId    String
+  voterLogtoId String
+  createdAt    DateTime              @default(now())
+  comment      VideoSpotlightComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, voterLogtoId])
+  @@index([voterLogtoId])
+  @@map("video_spotlight_comment_likes")
+}
+
+// ─── Important Dates ──────────────────────────────────────
+
+model ImportantDate {
+  id              String   @id @default(cuid())
+  label           String
+  date            DateTime @db.Date
+  recurType       String   @default("none")
+  sortOrder       Int      @default(0)
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([active, date])
+  @@index([sortOrder])
+  @@map("important_dates")
 }

@@ -6,7 +6,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { LayoutDashboard, Users, CalendarDays, BookOpen, LogOut, Bell, ShieldCheck, Volume2, VolumeX, Trophy, Award, Star, Lightbulb, CheckCheck, Trash2, Link2, PanelTop, Settings, Moon, Sun } from "lucide-react";
+import { LayoutDashboard, Users, CalendarDays, BookOpen, LogOut, Bell, ShieldCheck, Volume2, VolumeX, Trophy, Award, Star, Lightbulb, CheckCheck, Trash2, Link2, PanelTop, Settings, Moon, Sun, Briefcase } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -43,6 +43,7 @@ const DEFAULT_NAV_LINKS = [
   { id: "calendar", href: "/calendar", label: "Calendar", active: true, sortOrder: 2, iframeUrl: "", icon: "calendar", logoUrl: "" },
   { id: "tournament", href: "/tournament", label: "Tournament", active: true, sortOrder: 3, iframeUrl: "", icon: "tournament", logoUrl: "" },
   { id: "resources", href: "/resources", label: "Resources", active: true, sortOrder: 4, iframeUrl: "", icon: "resources", logoUrl: "" },
+  { id: "preferred-vendors", href: "/preferred-vendors", label: "Preferred Vendors", active: true, sortOrder: 5, iframeUrl: "", icon: "vendors", logoUrl: "" },
 ];
 
 const NAV_ICON_MAP: Record<string, LucideIcon> = {
@@ -55,6 +56,7 @@ const NAV_ICON_MAP: Record<string, LucideIcon> = {
   settings: Settings,
   star: Star,
   link: Link2,
+  vendors: Briefcase,
 };
 
 function getNavIcon(href: string, iframeUrl?: string, icon?: string) {
@@ -64,6 +66,7 @@ function getNavIcon(href: string, iframeUrl?: string, icon?: string) {
   if (href.startsWith("/calendar")) return CalendarDays;
   if (href.startsWith("/tournament")) return Trophy;
   if (href.startsWith("/resources")) return BookOpen;
+  if (href.startsWith("/preferred-vendors")) return Briefcase;
   if (iframeUrl || href.startsWith("/embedded") || href.startsWith("/iframe")) return PanelTop;
   return Link2;
 }

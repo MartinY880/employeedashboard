@@ -10,17 +10,26 @@ import {
   ArrowLeft,
   Trash2,
   Rocket,
-  RotateCcw,
   Archive,
   Loader2,
   ChevronUp,
   Flame,
   Sparkles,
+  Wrench,
+  CheckCircle2,
+  MessageCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -49,20 +58,33 @@ interface IdeaItem {
   authorId: string;
   authorName: string;
   votes: number;
-  status: "ACTIVE" | "SELECTED" | "ARCHIVED";
+  status: "ACTIVE" | "SELECTED" | "IN_PROGRESS" | "COMPLETED" | "ARCHIVED";
   createdAt: string;
   updatedAt: string;
+  commentCount?: number;
 }
+
+const STATUS_LABELS: Record<string, string> = {
+  ACTIVE: "Active",
+  SELECTED: "Selected for Development",
+  IN_PROGRESS: "In Progress",
+  COMPLETED: "Completed",
+  ARCHIVED: "Archived",
+};
 
 const STATUS_STYLES: Record<string, string> = {
   ACTIVE: "bg-blue-100 text-blue-700",
   SELECTED: "bg-emerald-100 text-emerald-700",
-  ARCHIVED: "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500",
+  IN_PROGRESS: "bg-amber-100 text-amber-700",
+  COMPLETED: "bg-violet-100 text-violet-700",
+  ARCHIVED: "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400",
 };
 
 const STATUS_ICON: Record<string, React.ReactNode> = {
   ACTIVE: <Sparkles className="w-3.5 h-3.5" />,
   SELECTED: <Rocket className="w-3.5 h-3.5" />,
+  IN_PROGRESS: <Wrench className="w-3.5 h-3.5" />,
+  COMPLETED: <CheckCircle2 className="w-3.5 h-3.5" />,
   ARCHIVED: <Archive className="w-3.5 h-3.5" />,
 };
 
@@ -99,7 +121,7 @@ export default function AdminIdeasPage() {
 
   async function handleStatusChange(
     idea: IdeaItem,
-    newStatus: "ACTIVE" | "SELECTED" | "ARCHIVED"
+    newStatus: "ACTIVE" | "SELECTED" | "IN_PROGRESS" | "COMPLETED" | "ARCHIVED"
   ) {
     setUpdatingId(idea.id);
     try {
@@ -139,12 +161,16 @@ export default function AdminIdeasPage() {
 
   const activeCount = ideas.filter((i) => i.status === "ACTIVE").length;
   const selectedCount = ideas.filter((i) => i.status === "SELECTED").length;
+  const inProgressCount = ideas.filter((i) => i.status === "IN_PROGRESS").length;
+  const completedCount = ideas.filter((i) => i.status === "COMPLETED").length;
   const archivedCount = ideas.filter((i) => i.status === "ARCHIVED").length;
 
   const filters = [
     { label: "All", value: null, count: ideas.length },
     { label: "Active", value: "ACTIVE", count: activeCount },
     { label: "Selected", value: "SELECTED", count: selectedCount },
+    { label: "In Progress", value: "IN_PROGRESS", count: inProgressCount },
+    { label: "Completed", value: "COMPLETED", count: completedCount },
     { label: "Archived", value: "ARCHIVED", count: archivedCount },
   ];
 
@@ -170,7 +196,7 @@ export default function AdminIdeasPage() {
           <div>
             <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Ideas Moderation</h1>
             <p className="text-xs text-brand-grey">
-              {ideas.length} total &middot; {activeCount} active &middot; {selectedCount} selected
+              {ideas.length} total &middot; {activeCount} active &middot; {selectedCount} selected &middot; {inProgressCount} in progress &middot; {completedCount} completed
             </p>
           </div>
         </div>
@@ -223,6 +249,11 @@ export default function AdminIdeasPage() {
                     <ChevronUp className="w-3 h-3" /> Votes
                   </span>
                 </TableHead>
+                <TableHead>
+                  <span className="flex items-center gap-1">
+                    <MessageCircle className="w-3 h-3" /> Comments
+                  </span>
+                </TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Submitted</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -273,12 +304,18 @@ export default function AdminIdeasPage() {
                         </span>
                       </TableCell>
                       <TableCell>
+                        <span className="text-sm tabular-nums text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                          <MessageCircle className="w-3 h-3" />
+                          {idea.commentCount ?? 0}
+                        </span>
+                      </TableCell>
+                      <TableCell>
                         <Badge
                           variant="secondary"
                           className={`text-[10px] gap-1 ${STATUS_STYLES[idea.status]}`}
                         >
                           {STATUS_ICON[idea.status]}
-                          {idea.status}
+                          {STATUS_LABELS[idea.status] || idea.status}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -287,70 +324,61 @@ export default function AdminIdeasPage() {
                         </span>
                       </TableCell>
                       <TableCell>
-                        <div className="flex justify-end gap-1">
-                          {idea.status === "ACTIVE" && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 text-xs text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 gap-1"
-                              disabled={updatingId === idea.id}
-                              onClick={() => handleStatusChange(idea, "SELECTED")}
-                              title="Select for implementation"
+                        <div className="flex justify-end items-center gap-1.5">
+                          {updatingId === idea.id ? (
+                            <div className="flex items-center gap-1.5 text-xs text-brand-grey">
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              Updating…
+                            </div>
+                          ) : (
+                            <Select
+                              value={idea.status}
+                              onValueChange={(val) => {
+                                playClick();
+                                handleStatusChange(idea, val as "ACTIVE" | "SELECTED" | "IN_PROGRESS" | "COMPLETED" | "ARCHIVED");
+                              }}
                             >
-                              {updatingId === idea.id ? (
-                                <Loader2 className="w-3 h-3 animate-spin" />
-                              ) : (
-                                <Rocket className="w-3 h-3" />
-                              )}
-                              Select
-                            </Button>
-                          )}
-                          {idea.status === "SELECTED" && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 gap-1"
-                              disabled={updatingId === idea.id}
-                              onClick={() => handleStatusChange(idea, "ACTIVE")}
-                              title="Move back to active"
-                            >
-                              {updatingId === idea.id ? (
-                                <Loader2 className="w-3 h-3 animate-spin" />
-                              ) : (
-                                <RotateCcw className="w-3 h-3" />
-                              )}
-                              Revert
-                            </Button>
-                          )}
-                          {idea.status !== "ARCHIVED" && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 dark:text-gray-300 dark:hover:text-gray-300 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 dark:hover:bg-gray-800 dark:bg-gray-800 gap-1"
-                              disabled={updatingId === idea.id}
-                              onClick={() => handleStatusChange(idea, "ARCHIVED")}
-                              title="Archive idea"
-                            >
-                              <Archive className="w-3 h-3" />
-                            </Button>
-                          )}
-                          {idea.status === "ARCHIVED" && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 gap-1"
-                              disabled={updatingId === idea.id}
-                              onClick={() => handleStatusChange(idea, "ACTIVE")}
-                              title="Restore to active"
-                            >
-                              <RotateCcw className="w-3 h-3" />
-                              Restore
-                            </Button>
+                              <SelectTrigger className="h-7 w-[180px] text-xs gap-1 border-gray-200 dark:border-gray-700">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="ACTIVE">
+                                  <span className="flex items-center gap-1.5">
+                                    <Sparkles className="w-3 h-3 text-blue-600" />
+                                    Active
+                                  </span>
+                                </SelectItem>
+                                <SelectItem value="SELECTED">
+                                  <span className="flex items-center gap-1.5">
+                                    <Rocket className="w-3 h-3 text-emerald-600" />
+                                    Selected for Dev
+                                  </span>
+                                </SelectItem>
+                                <SelectItem value="IN_PROGRESS">
+                                  <span className="flex items-center gap-1.5">
+                                    <Wrench className="w-3 h-3 text-amber-600" />
+                                    In Progress
+                                  </span>
+                                </SelectItem>
+                                <SelectItem value="COMPLETED">
+                                  <span className="flex items-center gap-1.5">
+                                    <CheckCircle2 className="w-3 h-3 text-violet-600" />
+                                    Completed
+                                  </span>
+                                </SelectItem>
+                                <SelectItem value="ARCHIVED">
+                                  <span className="flex items-center gap-1.5">
+                                    <Archive className="w-3 h-3 text-gray-500" />
+                                    Archived
+                                  </span>
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
                           )}
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50"
+                            className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50 shrink-0"
                             onClick={() => {
                               playClick();
                               setDeleteTarget(idea);

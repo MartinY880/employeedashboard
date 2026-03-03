@@ -102,7 +102,7 @@ export interface Holiday {
 
 // ─── Ideas ────────────────────────────────────────────────
 
-export type IdeaStatus = "ACTIVE" | "SELECTED" | "ARCHIVED";
+export type IdeaStatus = "ACTIVE" | "SELECTED" | "IN_PROGRESS" | "COMPLETED" | "ARCHIVED";
 
 export interface Idea {
   id: string;
@@ -112,6 +112,54 @@ export interface Idea {
   authorName: string;
   votes: number;
   status: IdeaStatus;
+  createdAt: string;
+  updatedAt: string;
+  commentCount?: number;
+}
+
+export interface IdeaComment {
+  id: string;
+  ideaId: string;
+  authorId: string;
+  authorName: string;
+  content: string;
+  parentId: string | null;
+  likes: number;
+  userLiked?: boolean;
+  createdAt: string;
+  replies?: IdeaComment[];
+}
+
+// ─── Video Spotlight Comments/Reactions ───────────────────
+
+export interface VideoSpotlightComment {
+  id: string;
+  videoId: string;
+  authorId: string;
+  authorName: string;
+  content: string;
+  parentId: string | null;
+  likes: number;
+  userLiked?: boolean;
+  createdAt: string;
+  replies?: VideoSpotlightComment[];
+}
+
+export interface VideoReactions {
+  likes: number;
+  dislikes: number;
+  userReaction: "like" | "dislike" | null;
+}
+
+// ─── Important Dates ──────────────────────────────────────
+
+export interface ImportantDate {
+  id: string;
+  label: string;
+  date: string;
+  recurType: string; // "none" | "monthly" | "first_workday"
+  sortOrder: number;
+  active: boolean;
   createdAt: string;
   updatedAt: string;
 }

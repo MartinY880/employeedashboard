@@ -4,6 +4,7 @@
 import { NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/logto";
 import { hasPermission, PERMISSIONS } from "@/lib/rbac";
+import { prisma } from "@/lib/prisma";
 import {
   listVideoSpotlights,
   getVideoSpotlightVisibility,
@@ -31,7 +32,19 @@ export async function GET(request: Request) {
       getVideoSpotlightVisibility(),
     ]);
 
-    return NextResponse.json({ videos, visibility });
+    // Enrich with comment counts
+    const videoIds = videos.map((v) => v.id);
+    const commentCounts = videoIds.length > 0
+      ? await prisma.videoSpotlightComment.groupBy({
+          by: ["videoId"],
+          where: { videoId: { in: videoIds } },
+          _count: { id: true },
+        })
+      : [];
+    const countMap = new Map(commentCounts.map((c) => [c.videoId, c._count.id]));
+    const enrichedVideos = videos.map((v) => ({ ...v, commentCount: countMap.get(v.id) ?? 0 }));
+
+    return NextResponse.json({ videos: enrichedVideos, visibility });
   } catch (error) {
     console.error("[Video Spotlight API] GET error:", error);
     return NextResponse.json({ error: "Failed to fetch videos" }, { status: 500 });

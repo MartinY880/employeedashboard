@@ -16,6 +16,8 @@ export const PERMISSIONS = {
   MANAGE_HIGHLIGHTS: "manage:highlights",
   MANAGE_CALENDAR: "manage:calendar",
   MANAGE_VIDEO_SPOTLIGHT: "manage:video_spotlight",
+  MANAGE_VENDORS: "manage:vendors",
+  MANAGE_IMPORTANT_DATES: "manage:important_dates",
 } as const;
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -37,6 +39,8 @@ export const ROUTE_PERMISSION: Record<string, Permission> = {
   "/admin/highlights": PERMISSIONS.MANAGE_HIGHLIGHTS,
   "/admin/calendar": PERMISSIONS.MANAGE_CALENDAR,
   "/admin/video-spotlight": PERMISSIONS.MANAGE_VIDEO_SPOTLIGHT,
+  "/admin/preferred-vendors": PERMISSIONS.MANAGE_VENDORS,
+  "/admin/important-dates": PERMISSIONS.MANAGE_IMPORTANT_DATES,
 };
 
 // ─── Fallback: derive permissions from role when Logto API Resource isn't configured ───

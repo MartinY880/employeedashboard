@@ -336,7 +336,7 @@ export default function AdminSliderPage() {
             <label className="text-xs font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1 block">Image Fit</label>
             <Select
               value={slider.objectFit}
-              onValueChange={(value: "cover" | "contain" | "fill") =>
+              onValueChange={(value: "cover" | "contain" | "fill" | "auto") =>
                 setSlider((prev) => ({ ...prev, objectFit: value }))
               }
             >
@@ -347,6 +347,7 @@ export default function AdminSliderPage() {
                 <SelectItem value="cover">Cover (crop to fill)</SelectItem>
                 <SelectItem value="contain">Contain (fit, no crop)</SelectItem>
                 <SelectItem value="fill">Fill (stretch to fit)</SelectItem>
+                <SelectItem value="auto">Auto (natural image size)</SelectItem>
               </SelectContent>
             </Select>
           </div>

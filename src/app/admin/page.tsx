@@ -24,6 +24,8 @@ import {
   FolderOpen,
   ImageIcon,
   Video,
+  Briefcase,
+  CalendarClock,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -209,6 +211,26 @@ const adminPages = [
     color: "text-rose-500",
     bgColor: "bg-rose-50",
     permission: PERMISSIONS.MANAGE_VIDEO_SPOTLIGHT,
+  },
+  {
+    title: "Preferred Vendors",
+    description: "Add, edit, and manage preferred vendor listings — set categories, contact info, and feature top vendors.",
+    icon: Briefcase,
+    href: "/admin/preferred-vendors",
+    badge: "CRUD",
+    color: "text-emerald-500",
+    bgColor: "bg-emerald-50",
+    permission: PERMISSIONS.MANAGE_VENDORS,
+  },
+  {
+    title: "Important Dates",
+    description: "Manage important dates displayed on the dashboard — add labels, set dates, and toggle monthly recurrence.",
+    icon: CalendarClock,
+    href: "/admin/important-dates",
+    badge: "CRUD",
+    color: "text-pink-500",
+    bgColor: "bg-pink-50",
+    permission: PERMISSIONS.MANAGE_IMPORTANT_DATES,
   },
 ];
 

@@ -46,6 +46,7 @@ const DEFAULT_TOPNAV_MENU: TopNavMenuItem[] = [
   { id: "calendar", label: "Calendar", href: "/calendar", active: true, sortOrder: 2, iframeUrl: "", icon: "calendar", logoUrl: "" },
   { id: "tournament", label: "Tournament", href: "/tournament", active: true, sortOrder: 3, iframeUrl: "", icon: "tournament", logoUrl: "" },
   { id: "resources", label: "Resources", href: "/resources", active: true, sortOrder: 4, iframeUrl: "", icon: "resources", logoUrl: "" },
+  { id: "preferred-vendors", label: "Preferred Vendors", href: "/preferred-vendors", active: true, sortOrder: 5, iframeUrl: "", icon: "vendors", logoUrl: "" },
 ];
 
 const DEFAULT_DASHBOARD_VISIBILITY: DashboardVisibilitySettings = {

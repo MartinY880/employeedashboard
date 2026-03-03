@@ -137,9 +137,11 @@ function useDarkMode() {
 export function DirectoryOrgChart({
   users,
   onSelect,
+  expandAll = false,
 }: {
   users: DirectoryNode[];
   onSelect: (user: DirectoryNode) => void;
+  expandAll?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<any>(null);
@@ -181,6 +183,7 @@ export function DirectoryOrgChart({
         .data(flatChartData)
         .nodeId((d: OrgChartDatum) => d.id)
         .parentNodeId((d: OrgChartDatum) => d.parentId)
+        .initialExpandLevel(expandAll ? 100 : 1)
         .nodeWidth(() => 230)
         .nodeHeight(() => 120)
         .childrenMargin(() => 50)
@@ -273,7 +276,7 @@ export function DirectoryOrgChart({
       }
       chartRef.current = null;
     };
-  }, [flatChartData, onSelect, userById, isDark]);
+  }, [flatChartData, onSelect, userById, isDark, expandAll]);
 
   if (flatChartData.length === 0) {
     return null;

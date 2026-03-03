@@ -112,7 +112,8 @@ export function DashboardSlider({
     return null;
   }
 
-  const fitClass = objectFit === "contain" ? "object-contain" : objectFit === "fill" ? "object-fill" : "object-cover";
+  const isAuto = objectFit === "auto";
+  const fitClass = isAuto ? "" : objectFit === "contain" ? "object-contain" : objectFit === "fill" ? "object-fill" : "object-cover";
   const bgClass = objectFit === "contain" ? "bg-gray-100" : "";
 
   // Responsive sizing: use CSS aspect-ratio so the container scales with viewport width,
@@ -143,6 +144,23 @@ export function DashboardSlider({
       );
     }
 
+    if (isAuto) {
+      return (
+        <img
+          key={`${item.type}-${index}-${isMobile ? "m" : "d"}-auto`}
+          src={shouldLoad ? effectiveSrc : undefined}
+          alt={`Dashboard slider media ${index + 1}`}
+          className={absolute
+            ? "absolute inset-0 w-full h-full object-contain transition-opacity duration-500"
+            : "w-full h-full shrink-0 object-contain"
+          }
+          style={absolute ? { opacity: index === currentIndex ? 1 : 0 } : undefined}
+          loading={index === 0 ? "eager" : "lazy"}
+          decoding={index === 0 ? "sync" : "async"}
+        />
+      );
+    }
+
     return (
       <img
         key={`${item.type}-${index}-${isMobile ? "m" : "d"}`}
@@ -156,15 +174,35 @@ export function DashboardSlider({
     );
   }
 
+  // In "auto" mode, probe the first image to get its natural dimensions
+  const [naturalAR, setNaturalAR] = useState<string | null>(null);
+  const [naturalWidth, setNaturalWidth] = useState<number | null>(null);
+  useEffect(() => {
+    if (!isAuto || sanitizedMedia.length === 0) return;
+    const first = sanitizedMedia[0];
+    if (first.type !== "image") return;
+    const img = new Image();
+    img.onload = () => {
+      if (img.naturalWidth && img.naturalHeight) {
+        setNaturalAR(`${img.naturalWidth} / ${img.naturalHeight}`);
+        setNaturalWidth(img.naturalWidth);
+      }
+    };
+    img.src = first.src;
+  }, [isAuto, sanitizedMedia]);
+
   return (
-    <div ref={containerRef} className="w-full rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm bg-white dark:bg-gray-900">
+    <div
+      ref={containerRef}
+      className={`rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm bg-white dark:bg-gray-900 ${isAuto ? "mx-auto" : "w-full"}`}
+      style={isAuto && naturalWidth ? { width: "100%", maxWidth: `${naturalWidth}px` } : undefined}
+    >
       <div
         className={`relative w-full ${bgClass}`}
-        style={{
-          aspectRatio,
-          maxHeight: `${safeHeight}px`,
-          minHeight: `${MOBILE_MIN_HEIGHT}px`,
-        }}
+        style={isAuto
+          ? { aspectRatio: naturalAR || aspectRatio }
+          : { aspectRatio, maxHeight: `${safeHeight}px`, minHeight: `${MOBILE_MIN_HEIGHT}px` }
+        }
       >
         {!isVisible ? (
           <div className="h-full w-full bg-gray-50 animate-pulse" />

@@ -39,6 +39,11 @@ export interface VideoDeviceInfo {
   label: string;
 }
 
+export interface AudioDeviceInfo {
+  deviceId: string;
+  label: string;
+}
+
 export interface UseVideoRecorderReturn {
   state: RecorderState;
   error: RecorderError | null;
@@ -58,6 +63,12 @@ export interface UseVideoRecorderReturn {
   selectedDeviceId: string;
   /** Change the selected video input device */
   setSelectedDeviceId: (id: string) => void;
+  /** Available audio input devices */
+  audioDevices: AudioDeviceInfo[];
+  /** Currently selected audio device ID (empty = default) */
+  selectedAudioDeviceId: string;
+  /** Change the selected audio input device */
+  setSelectedAudioDeviceId: (id: string) => void;
   /** Replace the finished blob (e.g. after trimming) */
   setBlob: (blob: Blob) => void;
 
@@ -111,6 +122,13 @@ function getVideoConstraints(preferRear: boolean, deviceId?: string): MediaTrack
   return { ...base, facingMode: "user" };
 }
 
+function getAudioConstraints(deviceId?: string): MediaTrackConstraints | boolean {
+  if (deviceId) {
+    return { deviceId: { exact: deviceId } };
+  }
+  return true;
+}
+
 /* ── Hook ──────────────────────────────────────────────── */
 
 export function useVideoRecorder(options: UseVideoRecorderOptions = {}): UseVideoRecorderReturn {
@@ -129,6 +147,8 @@ export function useVideoRecorder(options: UseVideoRecorderOptions = {}): UseVide
   const [elapsed, setElapsed] = useState(0);
   const [videoDevices, setVideoDevices] = useState<VideoDeviceInfo[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState("");
+  const [audioDevices, setAudioDevices] = useState<AudioDeviceInfo[]>([]);
+  const [selectedAudioDeviceId, setSelectedAudioDeviceId] = useState("");
 
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -155,6 +175,13 @@ export function useVideoRecorder(options: UseVideoRecorderOptions = {}): UseVide
           label: d.label || `Camera ${i + 1}`,
         }));
       setVideoDevices(videoInputs);
+      const audioInputs = devices
+        .filter((d) => d.kind === "audioinput")
+        .map((d, i) => ({
+          deviceId: d.deviceId,
+          label: d.label || `Microphone ${i + 1}`,
+        }));
+      setAudioDevices(audioInputs);
     } catch {
       // ignore — devices just won't be listed
     }
@@ -204,21 +231,24 @@ export function useVideoRecorder(options: UseVideoRecorderOptions = {}): UseVide
 
   /* ── Actions ─────────────────────────────────────────── */
 
-  // Re-open camera when device selection changes during preview
+  // Re-open camera/mic when device selection changes during preview
   const selectedDeviceRef = useRef(selectedDeviceId);
+  const selectedAudioDeviceRef = useRef(selectedAudioDeviceId);
   useEffect(() => {
-    const prev = selectedDeviceRef.current;
+    const prevVideo = selectedDeviceRef.current;
+    const prevAudio = selectedAudioDeviceRef.current;
     selectedDeviceRef.current = selectedDeviceId;
+    selectedAudioDeviceRef.current = selectedAudioDeviceId;
 
-    // Only switch if we're actively previewing and the device actually changed
-    if (state === "previewing" && selectedDeviceId !== prev) {
+    // Only switch if we're actively previewing and a device actually changed
+    if (state === "previewing" && (selectedDeviceId !== prevVideo || selectedAudioDeviceId !== prevAudio)) {
       // Stop current stream
       stream?.getTracks().forEach((t) => t.stop());
 
       navigator.mediaDevices
         .getUserMedia({
           video: getVideoConstraints(preferRearCamera, selectedDeviceId || undefined),
-          audio: true,
+          audio: getAudioConstraints(selectedAudioDeviceId || undefined),
         })
         .then((mediaStream) => {
           setStream(mediaStream);
@@ -228,7 +258,7 @@ export function useVideoRecorder(options: UseVideoRecorderOptions = {}): UseVide
         });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDeviceId]);
+  }, [selectedDeviceId, selectedAudioDeviceId]);
 
   /** Open the camera for a live preview (no recording yet). */
   const openCamera = useCallback(async () => {
@@ -250,7 +280,7 @@ export function useVideoRecorder(options: UseVideoRecorderOptions = {}): UseVide
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: getVideoConstraints(preferRearCamera, selectedDeviceId || undefined),
-        audio: true,
+        audio: getAudioConstraints(selectedAudioDeviceId || undefined),
       });
 
       // After permission grant, refresh device list to get real labels
@@ -270,7 +300,7 @@ export function useVideoRecorder(options: UseVideoRecorderOptions = {}): UseVide
       }
       setState("error");
     }
-  }, [isSupported, preferRearCamera, selectedDeviceId, previewUrl, refreshDevices]);
+  }, [isSupported, preferRearCamera, selectedDeviceId, selectedAudioDeviceId, previewUrl, refreshDevices]);
 
   /** Start recording on the already-open camera stream. */
   const startRecording = useCallback(() => {
@@ -383,6 +413,9 @@ export function useVideoRecorder(options: UseVideoRecorderOptions = {}): UseVide
     videoDevices,
     selectedDeviceId,
     setSelectedDeviceId,
+    audioDevices,
+    selectedAudioDeviceId,
+    setSelectedAudioDeviceId,
     setBlob: (newBlob: Blob) => {
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       setBlob(newBlob);

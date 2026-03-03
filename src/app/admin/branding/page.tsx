@@ -79,6 +79,7 @@ const TOPNAV_ICON_OPTIONS = [
   { value: "link", label: "Link" },
   { value: "star", label: "Star" },
   { value: "settings", label: "Settings" },
+  { value: "vendors", label: "Vendors" },
 ];
 
 interface SmtpSettings {
@@ -342,6 +343,7 @@ export default function AdminBrandingPage() {
   const currentDarkLogo = darkLogoPreview ?? (removeDarkLogo ? null : branding.darkLogoData);
   const currentFavicon = faviconPreview ?? (removeFavicon ? null : branding.faviconData);
   const menuChanged = JSON.stringify(topNavMenu) !== JSON.stringify(initialTopNavMenu);
+  const visibilityChanged = JSON.stringify(dashboardVisibility) !== JSON.stringify(initialDashboardVisibility);
   const hasChanges =
     logoFile !== null ||
     darkLogoFile !== null ||
@@ -350,7 +352,8 @@ export default function AdminBrandingPage() {
     removeDarkLogo ||
     removeFavicon ||
     JSON.stringify(smtpSettings) !== JSON.stringify(initialSmtpSettings) ||
-    menuChanged;
+    menuChanged ||
+    visibilityChanged;
 
   const filteredIconOptions = useMemo(() => {
     if (!iconMenuOpenFor) return [];
