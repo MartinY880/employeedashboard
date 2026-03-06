@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { DynamicIframeClient } from "./DynamicIframeClient";
 
 type TopNavMenuItem = {
   id: string;
@@ -41,13 +42,10 @@ export default async function DynamicIframePage({
     return (
       <div className="max-w-[1920px] mx-auto px-6 sm:px-10 lg:px-14 py-4 sm:py-6">
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
-          <iframe
-            id={`embedded-${item.id}`}
+          <DynamicIframeClient
+            id={item.id}
             title={item.label || "Embedded Content"}
             src={src}
-            className="w-full h-[78vh]"
-            style={{ border: "none" }}
-            allow="autoplay; encrypted-media"
           />
         </div>
       </div>

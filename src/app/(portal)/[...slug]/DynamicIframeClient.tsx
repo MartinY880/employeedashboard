@@ -2,26 +2,31 @@
 
 import { useEffect, useRef, useCallback } from "react";
 
-const DEFAULT_DJ_URL =
-  "https://dj.pros.mortgage/session/66f1f6b7-6bbc-46ec-9bf2-8e5324823da3?embed=true";
-const TOKEN_REFRESH_MS = 50 * 60 * 1000; // 50 minutes — access tokens expire in 60 min
+const TOKEN_REFRESH_MS = 50 * 60 * 1000;
 
-export function IframeHostClient() {
-  const djUrl = process.env.NEXT_PUBLIC_DJ_APP_URL || DEFAULT_DJ_URL;
+export function DynamicIframeClient({
+  id,
+  title,
+  src,
+}: {
+  id: string;
+  title: string;
+  src: string;
+}) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const djOrigin = (() => {
+  const targetOrigin = (() => {
     try {
-      return new URL(djUrl).origin;
+      return new URL(src).origin;
     } catch {
-      return "https://dj-dev.pros.mortgage";
+      return null;
     }
   })();
 
   const sendToken = useCallback(async () => {
     const win = iframeRef.current?.contentWindow;
-    if (!win) return;
+    if (!win || !targetOrigin) return;
 
     try {
       const res = await fetch("/api/dj-token", { credentials: "include" });
@@ -30,32 +35,30 @@ export function IframeHostClient() {
       if (!token) return;
       win.postMessage(
         { type: "dj-app:token", token, userId, displayName },
-        djOrigin
+        targetOrigin
       );
     } catch (err) {
       console.error("Failed to send DJ token:", err);
     }
-  }, [djOrigin]);
+  }, [targetOrigin]);
 
-  // Listen for token requests from the DJ iframe
   useEffect(() => {
+    if (!targetOrigin) return;
     const handleMessage = (event: MessageEvent) => {
-      if (event.origin !== djOrigin) return;
+      if (event.origin !== targetOrigin) return;
       if (event.data?.type !== "dj-app:token-request") return;
       sendToken();
     };
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [djOrigin, sendToken]);
+  }, [targetOrigin, sendToken]);
 
-  // Proactively send token on load and refresh every 50 min
   const handleLoad = useCallback(() => {
     sendToken();
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(sendToken, TOKEN_REFRESH_MS);
   }, [sendToken]);
 
-  // Clear refresh timer on unmount
   useEffect(
     () => () => {
       if (timerRef.current) clearInterval(timerRef.current);
@@ -66,11 +69,11 @@ export function IframeHostClient() {
   return (
     <iframe
       ref={iframeRef}
-      id="dj-frame"
-      src={djUrl}
-      width="100%"
-      height="700"
-      style={{ border: "none", borderRadius: 12 }}
+      id={`embedded-${id}`}
+      title={title}
+      src={src}
+      className="w-full h-[78vh]"
+      style={{ border: "none" }}
       allow="autoplay; encrypted-media"
       onLoad={handleLoad}
     />

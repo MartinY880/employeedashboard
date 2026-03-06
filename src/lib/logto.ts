@@ -113,8 +113,11 @@ export const logtoConfig: LogtoNextConfig = {
   cookieSecure: (process.env.LOGTO_BASE_URL || "").startsWith("https://"),
   baseUrl: process.env.LOGTO_BASE_URL || "http://localhost:3001",
   scopes: ["openid", "profile", "email", "roles", ...LOGTO_PERMISSION_SCOPES],
-  // Register API resource so the SDK can request access tokens for it
-  ...(LOGTO_API_RESOURCE ? { resources: [LOGTO_API_RESOURCE] } : {}),
+  // Register API resources so the SDK can request access tokens for them
+  resources: [
+    ...(LOGTO_API_RESOURCE ? [LOGTO_API_RESOURCE] : []),
+    process.env.LOGTO_DJ_APP_RESOURCE || "https://dj.api",
+  ],
 };
 
 // ─── Dev bypass mock user ─────────────────────────────────
