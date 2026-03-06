@@ -156,6 +156,7 @@ export interface VideoReactions {
 export interface ImportantDate {
   id: string;
   label: string;
+  subtitle?: string | null;
   date: string;
   recurType: string; // "none" | "monthly" | "first_workday"
   sortOrder: number;

@@ -29,6 +29,7 @@ interface TopNavMenuItem {
 interface DashboardVisibilitySettings {
   showCompanyPillars: boolean;
   showTournamentBracketLive: boolean;
+  showImportantDates: boolean;
 }
 
 const DEFAULT_SMTP: SmtpSettings = {
@@ -52,6 +53,7 @@ const DEFAULT_TOPNAV_MENU: TopNavMenuItem[] = [
 const DEFAULT_DASHBOARD_VISIBILITY: DashboardVisibilitySettings = {
   showCompanyPillars: true,
   showTournamentBracketLive: true,
+  showImportantDates: true,
 };
 
 // In-memory branding for demo mode
@@ -99,6 +101,17 @@ export async function GET() {
               logoUrl: String(item.logoUrl || ""),
             }))
             .sort((a, b) => a.sortOrder - b.sortOrder);
+
+          // Auto-merge: append any default items not yet in the saved menu
+          const savedIds = new Set(topNavMenu.map((m) => m.id));
+          const maxOrder = topNavMenu.length > 0 ? Math.max(...topNavMenu.map((m) => m.sortOrder)) : -1;
+          let addedCount = 0;
+          for (const def of DEFAULT_TOPNAV_MENU) {
+            if (!savedIds.has(def.id)) {
+              topNavMenu.push({ ...def, sortOrder: maxOrder + 1 + addedCount, active: true });
+              addedCount++;
+            }
+          }
         }
       } catch {
         topNavMenu = DEFAULT_TOPNAV_MENU;
@@ -112,6 +125,7 @@ export async function GET() {
         dashboardVisibility = {
           showCompanyPillars: parsed.showCompanyPillars !== false,
           showTournamentBracketLive: parsed.showTournamentBracketLive !== false,
+          showImportantDates: parsed.showImportantDates !== false,
         };
       } catch {
         dashboardVisibility = DEFAULT_DASHBOARD_VISIBILITY;
@@ -193,6 +207,7 @@ export async function POST(request: Request) {
         dashboardVisibility = {
           showCompanyPillars: parsed.showCompanyPillars !== false,
           showTournamentBracketLive: parsed.showTournamentBracketLive !== false,
+          showImportantDates: parsed.showImportantDates !== false,
         };
       } catch {
         dashboardVisibility = DEFAULT_DASHBOARD_VISIBILITY;

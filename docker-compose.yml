@@ -35,6 +35,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    volumes:
+      - uploads_data:/app/uploads
     environment:
       DATABASE_URL: postgresql://proconnect:${POSTGRES_PASSWORD:-changeme}@db:5432/proconnect
       LOGTO_ENDPOINT: ${LOGTO_ENDPOINT}
@@ -56,4 +58,6 @@ networks:
 
 volumes:
    pg_data:
+     driver: local
+   uploads_data:
      driver: local

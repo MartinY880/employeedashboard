@@ -292,6 +292,8 @@ enum NotificationType {
   IDEA_SELECTED
   IDEA_IN_PROGRESS
   IDEA_COMPLETED
+  IDEA_COMMENT
+  IDEA_REPLY
 }
 
 enum PropsReactionType {
@@ -436,6 +438,7 @@ model PreferredVendor {
   secondaryPhoneLabel String? @map("secondary_phone_label") // e.g. "Store", "Office"
   website       String?
   logoUrl       String?  @map("logo_url")
+  iconId        String?  @map("icon_id")   // icon library id e.g. "lucide:building" used when no logo
   address       String?
   labels        String?  // comma-separated labels e.g. "Tailor, Jewelry"
   notes         String?  @db.Text
@@ -527,6 +530,7 @@ model VideoSpotlightCommentLike {
 model ImportantDate {
   id              String   @id @default(cuid())
   label           String
+  subtitle        String?
   date            DateTime @db.Date
   recurType       String   @default("none")
   sortOrder       Int      @default(0)

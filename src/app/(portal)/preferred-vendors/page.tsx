@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { renderQuickLinkIconPreview } from "@/components/widgets/QuickLinksBar";
 
 interface Vendor {
   id: string;
@@ -35,6 +36,7 @@ interface Vendor {
   secondaryPhoneLabel: string | null;
   website: string | null;
   logoUrl: string | null;
+  iconId: string | null;
   address: string | null;
   labels: string | null;
   notes: string | null;
@@ -43,7 +45,12 @@ interface Vendor {
   featured: boolean;
 }
 
-type CategoryImagesMap = Record<string, string>;
+interface CategoryEntry {
+  image?: string;
+  icon?: string;
+}
+
+type CategoryImagesMap = Record<string, CategoryEntry>;
 
 /* ─── Detail Modal ────────────────────────────────── */
 
@@ -90,6 +97,8 @@ function VendorModal({ vendor, onClose }: { vendor: Vendor; onClose: () => void 
             <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 p-2 relative overflow-hidden">
               {vendor.logoUrl ? (
                  <img src={vendor.logoUrl} alt="" className="h-full w-full object-contain" />
+              ) : vendor.iconId ? (
+                renderQuickLinkIconPreview(vendor.iconId, "h-8 w-8 text-brand-blue")
               ) : (
                 <Building2 className="h-8 w-8 text-gray-300" />
               )}
@@ -234,6 +243,8 @@ function VendorGridCard({ vendor, onClick }: { vendor: Vendor; onClick: () => vo
               alt={vendor.name} 
               className="h-full w-full object-contain filter group-hover:brightness-110 transition-all" 
             />
+          ) : vendor.iconId ? (
+            renderQuickLinkIconPreview(vendor.iconId, "h-8 w-8 text-brand-blue group-hover:text-brand-blue/80 transition-colors")
           ) : (
             <Building2 className="h-8 w-8 text-gray-300 group-hover:text-brand-blue transition-colors" />
           )}
@@ -421,7 +432,9 @@ export default function PreferredVendorsPage() {
         {/* Content Area */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-16 pb-20">
           {categoryGroups.map(([category, catVendors], idx) => {
-            const catImage = categoryImages[category];
+            const catEntry = categoryImages[category] || {};
+            const catImage = catEntry.image;
+            const catIcon = catEntry.icon;
 
             return (
               <motion.section
@@ -437,6 +450,8 @@ export default function PreferredVendorsPage() {
                       <div className="relative h-16 w-16 flex items-center justify-center rounded-2xl bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
                         {catImage ? (
                            <img src={catImage} alt="" className="h-full w-full object-contain p-2" />
+                        ) : catIcon ? (
+                           renderQuickLinkIconPreview(catIcon, "h-7 w-7 text-brand-blue")
                         ) : (
                            <Briefcase className="h-7 w-7 text-brand-blue" />
                         )}

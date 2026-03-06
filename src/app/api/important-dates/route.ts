@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { label, date, recurType, sortOrder } = body;
+    const { label, date, recurType, sortOrder, subtitle } = body;
 
     if (!label?.trim() || !date) {
       return NextResponse.json({ error: "Label and date are required" }, { status: 400 });
@@ -40,6 +40,7 @@ export async function POST(request: Request) {
     const entry = await prisma.importantDate.create({
       data: {
         label: label.trim(),
+        subtitle: subtitle?.trim() || null,
         date: new Date(date),
         recurType: recurType ?? "none",
         sortOrder: sortOrder ?? 0,
@@ -61,7 +62,7 @@ export async function PUT(request: Request) {
     }
 
     const body = await request.json();
-    const { id, label, date, recurType, sortOrder, active } = body;
+    const { id, label, date, recurType, sortOrder, active, subtitle } = body;
 
     if (!id) {
       return NextResponse.json({ error: "ID is required" }, { status: 400 });
@@ -69,6 +70,7 @@ export async function PUT(request: Request) {
 
     const data: Record<string, unknown> = {};
     if (label !== undefined) data.label = label.trim();
+    if (subtitle !== undefined) data.subtitle = subtitle?.trim() || null;
     if (date !== undefined) data.date = new Date(date);
     if (recurType !== undefined) data.recurType = recurType;
     if (sortOrder !== undefined) data.sortOrder = sortOrder;

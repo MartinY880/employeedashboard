@@ -3,12 +3,13 @@
 # ProConnect — Safe Production Migration Script
 # Creates ONLY missing tables, columns, indexes, and enum values.
 # NEVER drops or overwrites existing data.
+#
+# Matches: prisma/schema.prisma (as of 2026-03-03)
 # ──────────────────────────────────────────────────────────────
 set -euo pipefail
 
 # ── Resolve DATABASE_URL ──────────────────────────────────────
 if [ -z "${DATABASE_URL:-}" ]; then
-  # Try loading from .env in the project root
   SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
   PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
   if [ -f "$PROJECT_ROOT/.env" ]; then
@@ -56,7 +57,6 @@ ensure_enum() {
     echo "  ✅ Created enum: ${enum_name}"
     CREATED_ENUMS=$((CREATED_ENUMS + 1))
   else
-    # Add any missing values
     for v in "${values[@]}"; do
       has=$(run_sql "SELECT 1 FROM pg_enum WHERE enumtypid = (SELECT oid FROM pg_type WHERE typname = '${enum_name}') AND enumlabel = '${v}';")
       if [ "$has" != "1" ]; then
@@ -73,7 +73,7 @@ ensure_enum "AlertType"         "INFO" "WARNING" "BIRTHDAY" "NEW_HIRE" "ANNOUNCE
 ensure_enum "Priority"          "LOW" "MEDIUM" "HIGH" "CRITICAL"
 ensure_enum "IdeaStatus"        "ACTIVE" "SELECTED" "IN_PROGRESS" "COMPLETED" "ARCHIVED"
 ensure_enum "VoteDirection"     "UP" "DOWN"
-ensure_enum "NotificationType"  "KUDOS" "HIGHLIGHT" "IDEA_SELECTED" "IDEA_IN_PROGRESS" "IDEA_COMPLETED"
+ensure_enum "NotificationType"  "KUDOS" "HIGHLIGHT" "IDEA_SELECTED" "IDEA_IN_PROGRESS" "IDEA_COMPLETED" "IDEA_COMMENT" "IDEA_REPLY"
 ensure_enum "KudosReactionType" "HIGHFIVE" "UPLIFT" "BOMB"
 ensure_enum "ForwardingStatus"  "PENDING" "ACTIVE" "EXPIRED" "CANCELLED"
 ensure_enum "TournamentStatus"  "SETUP" "IN_PROGRESS" "COMPLETED"
@@ -104,286 +104,279 @@ create_table_if_missing() {
 }
 
 # --- users ---
-create_table_if_missing "users" "
+create_table_if_missing "users" '
 CREATE TABLE IF NOT EXISTS users (
   id           TEXT PRIMARY KEY,
-  \"logtoId\"    TEXT NOT NULL UNIQUE,
+  "logtoId"    TEXT NOT NULL UNIQUE,
   email        TEXT NOT NULL UNIQUE,
-  \"displayName\" TEXT NOT NULL,
-  role         \"Role\" NOT NULL DEFAULT 'EMPLOYEE',
-  \"avatarUrl\"  TEXT,
-  \"createdAt\"  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  \"updatedAt\"  TIMESTAMPTZ NOT NULL DEFAULT now()
-);"
+  "displayName" TEXT NOT NULL,
+  role         "Role" NOT NULL DEFAULT '"'"'EMPLOYEE'"'"',
+  "avatarUrl"  TEXT,
+  "createdAt"  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  "updatedAt"  TIMESTAMPTZ NOT NULL DEFAULT now()
+);'
 
-# --- kudos_messages ---
-create_table_if_missing "kudos_messages" "
+# --- kudos_messages (PropsMessage) ---
+create_table_if_missing "kudos_messages" '
 CREATE TABLE IF NOT EXISTS kudos_messages (
   id           TEXT PRIMARY KEY,
   content      TEXT NOT NULL,
-  \"authorId\"   TEXT NOT NULL,
-  \"recipientId\" TEXT NOT NULL,
-  badge        TEXT NOT NULL DEFAULT 'mvp',
-  \"createdAt\"  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  \"updatedAt\"  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  CONSTRAINT fk_kudos_author FOREIGN KEY (\"authorId\") REFERENCES users(id),
-  CONSTRAINT fk_kudos_recipient FOREIGN KEY (\"recipientId\") REFERENCES users(id)
-);"
+  "authorId"   TEXT NOT NULL REFERENCES users(id),
+  "recipientId" TEXT NOT NULL REFERENCES users(id),
+  badge        TEXT NOT NULL DEFAULT '"'"'mvp'"'"',
+  likes        INT NOT NULL DEFAULT 0,
+  "createdAt"  TIMESTAMPTZ NOT NULL DEFAULT now()
+);'
 
-# --- kudos_reactions ---
-create_table_if_missing "kudos_reactions" "
+# --- kudos_reactions (PropsReaction) ---
+create_table_if_missing "kudos_reactions" '
 CREATE TABLE IF NOT EXISTS kudos_reactions (
   id          TEXT PRIMARY KEY,
-  \"messageId\" TEXT NOT NULL,
-  \"userId\"    TEXT NOT NULL,
-  type        \"KudosReactionType\" NOT NULL,
-  \"createdAt\" TIMESTAMPTZ NOT NULL DEFAULT now(),
-  CONSTRAINT fk_reaction_message FOREIGN KEY (\"messageId\") REFERENCES kudos_messages(id) ON DELETE CASCADE,
-  CONSTRAINT fk_reaction_user    FOREIGN KEY (\"userId\") REFERENCES users(id) ON DELETE CASCADE,
-  CONSTRAINT uq_kudos_reaction   UNIQUE(\"messageId\", \"userId\")
-);"
+  "kudosId"   TEXT NOT NULL REFERENCES kudos_messages(id) ON DELETE CASCADE,
+  "userId"    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  reaction    "KudosReactionType" NOT NULL,
+  "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE("kudosId", "userId")
+);'
 
 # --- alerts ---
-create_table_if_missing "alerts" "
+create_table_if_missing "alerts" '
 CREATE TABLE IF NOT EXISTS alerts (
-  id         TEXT PRIMARY KEY,
-  title      TEXT NOT NULL,
-  message    TEXT NOT NULL,
-  type       \"AlertType\" NOT NULL DEFAULT 'INFO',
-  priority   \"Priority\" NOT NULL DEFAULT 'MEDIUM',
-  active     BOOLEAN NOT NULL DEFAULT true,
-  \"authorId\" TEXT NOT NULL,
-  author     TEXT,
-  \"expiresAt\" TIMESTAMPTZ,
-  \"createdAt\" TIMESTAMPTZ NOT NULL DEFAULT now(),
-  \"updatedAt\" TIMESTAMPTZ NOT NULL DEFAULT now(),
-  CONSTRAINT fk_alert_author FOREIGN KEY (\"authorId\") REFERENCES users(id)
-);"
+  id          TEXT PRIMARY KEY,
+  title       TEXT NOT NULL,
+  content     TEXT NOT NULL,
+  type        "AlertType" NOT NULL DEFAULT '"'"'INFO'"'"',
+  priority    "Priority" NOT NULL DEFAULT '"'"'LOW'"'"',
+  active      BOOLEAN NOT NULL DEFAULT true,
+  expires_at  TIMESTAMPTZ,
+  "createdBy" TEXT NOT NULL REFERENCES users(id),
+  "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+  "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);'
 
 # --- ideas ---
-create_table_if_missing "ideas" "
+create_table_if_missing "ideas" '
 CREATE TABLE IF NOT EXISTS ideas (
   id          TEXT PRIMARY KEY,
   title       TEXT NOT NULL,
   description TEXT NOT NULL,
-  \"authorId\"  TEXT NOT NULL,
-  \"authorName\" TEXT NOT NULL,
+  "authorId"  TEXT NOT NULL,
+  "authorName" TEXT NOT NULL,
   votes       INT NOT NULL DEFAULT 0,
-  status      \"IdeaStatus\" NOT NULL DEFAULT 'ACTIVE',
-  \"createdAt\" TIMESTAMPTZ NOT NULL DEFAULT now(),
-  \"updatedAt\" TIMESTAMPTZ NOT NULL DEFAULT now()
-);"
+  status      "IdeaStatus" NOT NULL DEFAULT '"'"'ACTIVE'"'"',
+  "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+  "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);'
 
 # --- idea_votes ---
-create_table_if_missing "idea_votes" "
+create_table_if_missing "idea_votes" '
 CREATE TABLE IF NOT EXISTS idea_votes (
-  id            TEXT PRIMARY KEY,
-  \"ideaId\"      TEXT NOT NULL,
-  \"voterLogtoId\" TEXT NOT NULL,
-  direction     \"VoteDirection\" NOT NULL,
-  \"createdAt\"   TIMESTAMPTZ NOT NULL DEFAULT now(),
-  CONSTRAINT fk_vote_idea FOREIGN KEY (\"ideaId\") REFERENCES ideas(id) ON DELETE CASCADE,
-  CONSTRAINT uq_idea_vote UNIQUE(\"ideaId\", \"voterLogtoId\")
-);"
+  id             TEXT PRIMARY KEY,
+  "ideaId"       TEXT NOT NULL REFERENCES ideas(id) ON DELETE CASCADE,
+  "voterLogtoId" TEXT NOT NULL,
+  direction      "VoteDirection" NOT NULL,
+  "createdAt"    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE("ideaId", "voterLogtoId")
+);'
 
 # --- idea_comments ---
-create_table_if_missing "idea_comments" "
+create_table_if_missing "idea_comments" '
 CREATE TABLE IF NOT EXISTS idea_comments (
   id           TEXT PRIMARY KEY,
-  \"ideaId\"     TEXT NOT NULL,
-  \"authorId\"   TEXT NOT NULL,
-  \"authorName\" TEXT NOT NULL,
+  "ideaId"     TEXT NOT NULL REFERENCES ideas(id) ON DELETE CASCADE,
+  "authorId"   TEXT NOT NULL,
+  "authorName" TEXT NOT NULL,
   content      TEXT NOT NULL,
-  \"parentId\"   TEXT,
+  "parentId"   TEXT REFERENCES idea_comments(id) ON DELETE CASCADE,
   likes        INT NOT NULL DEFAULT 0,
-  \"createdAt\"  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  CONSTRAINT fk_comment_idea   FOREIGN KEY (\"ideaId\") REFERENCES ideas(id) ON DELETE CASCADE,
-  CONSTRAINT fk_comment_parent FOREIGN KEY (\"parentId\") REFERENCES idea_comments(id) ON DELETE CASCADE
-);"
+  "createdAt"  TIMESTAMPTZ NOT NULL DEFAULT now()
+);'
 
 # --- idea_comment_likes ---
-create_table_if_missing "idea_comment_likes" "
+create_table_if_missing "idea_comment_likes" '
 CREATE TABLE IF NOT EXISTS idea_comment_likes (
   id             TEXT PRIMARY KEY,
-  \"commentId\"    TEXT NOT NULL,
-  \"voterLogtoId\" TEXT NOT NULL,
-  \"createdAt\"    TIMESTAMPTZ NOT NULL DEFAULT now(),
-  CONSTRAINT fk_comment_like FOREIGN KEY (\"commentId\") REFERENCES idea_comments(id) ON DELETE CASCADE,
-  CONSTRAINT uq_comment_like UNIQUE(\"commentId\", \"voterLogtoId\")
-);"
+  "commentId"    TEXT NOT NULL REFERENCES idea_comments(id) ON DELETE CASCADE,
+  "voterLogtoId" TEXT NOT NULL,
+  "createdAt"    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE("commentId", "voterLogtoId")
+);'
 
 # --- quick_links ---
-create_table_if_missing "quick_links" "
+create_table_if_missing "quick_links" '
 CREATE TABLE IF NOT EXISTS quick_links (
-  id         TEXT PRIMARY KEY,
-  label      TEXT NOT NULL,
-  url        TEXT NOT NULL,
-  icon       TEXT NOT NULL DEFAULT 'link',
-  \"sortOrder\" INT NOT NULL DEFAULT 0,
-  active     BOOLEAN NOT NULL DEFAULT true,
-  \"createdAt\" TIMESTAMPTZ NOT NULL DEFAULT now(),
-  \"updatedAt\" TIMESTAMPTZ NOT NULL DEFAULT now()
-);"
+  id          TEXT PRIMARY KEY,
+  label       TEXT NOT NULL,
+  url         TEXT NOT NULL,
+  icon        TEXT NOT NULL DEFAULT '"'"'link'"'"',
+  "sortOrder" INT NOT NULL DEFAULT 0,
+  active      BOOLEAN NOT NULL DEFAULT true,
+  "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+  "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);'
 
 # --- employee_highlights ---
-create_table_if_missing "employee_highlights" "
+create_table_if_missing "employee_highlights" '
 CREATE TABLE IF NOT EXISTS employee_highlights (
   id             TEXT PRIMARY KEY,
-  \"employeeName\" TEXT NOT NULL,
+  "employeeId"   TEXT,
+  "employeeName" TEXT NOT NULL,
+  "jobTitle"     TEXT,
+  department     TEXT,
   title          TEXT NOT NULL,
-  description    TEXT NOT NULL,
-  \"imageUrl\"     TEXT,
+  subtitle       TEXT NOT NULL,
+  "avatarUrl"    TEXT,
   active         BOOLEAN NOT NULL DEFAULT true,
-  \"displayOrder\" INT NOT NULL DEFAULT 0,
-  \"createdAt\"    TIMESTAMPTZ NOT NULL DEFAULT now(),
-  \"updatedAt\"    TIMESTAMPTZ NOT NULL DEFAULT now()
-);"
+  "startDate"    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  "endDate"      TIMESTAMPTZ,
+  "createdAt"    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  "updatedAt"    TIMESTAMPTZ NOT NULL DEFAULT now()
+);'
 
 # --- site_branding ---
-create_table_if_missing "site_branding" "
+create_table_if_missing "site_branding" '
 CREATE TABLE IF NOT EXISTS site_branding (
-  id         TEXT PRIMARY KEY,
-  key        TEXT NOT NULL UNIQUE,
-  value      TEXT NOT NULL,
-  \"createdAt\" TIMESTAMPTZ NOT NULL DEFAULT now(),
-  \"updatedAt\" TIMESTAMPTZ NOT NULL DEFAULT now()
-);"
+  id             TEXT PRIMARY KEY DEFAULT '"'"'singleton'"'"',
+  "companyName"  TEXT NOT NULL DEFAULT '"'"'MortgagePros'"'"',
+  "logoData"     TEXT,
+  dark_logo_data TEXT,
+  "faviconData"  TEXT,
+  "updatedAt"    TIMESTAMPTZ NOT NULL DEFAULT now()
+);'
 
 # --- directory_snapshots ---
-create_table_if_missing "directory_snapshots" "
+create_table_if_missing "directory_snapshots" '
 CREATE TABLE IF NOT EXISTS directory_snapshots (
-  id           TEXT PRIMARY KEY,
-  data         JSONB NOT NULL,
-  \"fetchedAt\"  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  \"expiresAt\"  TIMESTAMPTZ NOT NULL
-);"
+  id                  TEXT PRIMARY KEY,
+  display_name        TEXT NOT NULL,
+  mail                TEXT,
+  user_principal_name TEXT NOT NULL,
+  job_title           TEXT,
+  employee_type       TEXT,
+  department          TEXT,
+  office_location     TEXT,
+  manager_id          TEXT,
+  synced_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+);'
 
 # --- directory_snapshot_state ---
-create_table_if_missing "directory_snapshot_state" "
+create_table_if_missing "directory_snapshot_state" '
 CREATE TABLE IF NOT EXISTS directory_snapshot_state (
-  id              TEXT PRIMARY KEY DEFAULT 'singleton',
-  \"lastSnapshotId\" TEXT,
-  \"deltaLink\"     TEXT,
-  \"updatedAt\"     TIMESTAMPTZ NOT NULL DEFAULT now()
-);"
+  id             TEXT PRIMARY KEY,
+  last_synced_at TIMESTAMPTZ,
+  updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);'
 
 # --- notifications ---
-create_table_if_missing "notifications" "
+create_table_if_missing "notifications" '
 CREATE TABLE IF NOT EXISTS notifications (
   id         TEXT PRIMARY KEY,
-  \"userId\"   TEXT NOT NULL,
-  type       \"NotificationType\" NOT NULL,
+  "userId"   TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  type       "NotificationType" NOT NULL,
   title      TEXT NOT NULL,
   message    TEXT NOT NULL,
   read       BOOLEAN NOT NULL DEFAULT false,
   metadata   TEXT,
-  \"createdAt\" TIMESTAMPTZ NOT NULL DEFAULT now(),
-  CONSTRAINT fk_notif_user FOREIGN KEY (\"userId\") REFERENCES users(id) ON DELETE CASCADE
-);"
+  "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);'
 
 # --- holidays ---
-create_table_if_missing "holidays" "
+create_table_if_missing "holidays" '
 CREATE TABLE IF NOT EXISTS holidays (
   id         TEXT PRIMARY KEY,
   title      TEXT NOT NULL,
   date       TEXT NOT NULL,
   category   TEXT NOT NULL,
-  color      TEXT NOT NULL DEFAULT '#06427F',
-  source     TEXT NOT NULL DEFAULT 'custom',
+  color      TEXT NOT NULL DEFAULT '"'"'#06427F'"'"',
+  source     TEXT NOT NULL DEFAULT '"'"'custom'"'"',
   visible    BOOLEAN NOT NULL DEFAULT true,
   recurring  BOOLEAN NOT NULL DEFAULT false,
-  \"createdAt\" TIMESTAMPTZ NOT NULL DEFAULT now(),
-  \"updatedAt\" TIMESTAMPTZ NOT NULL DEFAULT now()
-);"
+  "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+  "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);'
 
 # --- calendar_sync_logs ---
-create_table_if_missing "calendar_sync_logs" "
+create_table_if_missing "calendar_sync_logs" '
 CREATE TABLE IF NOT EXISTS calendar_sync_logs (
-  id            TEXT PRIMARY KEY,
-  source        TEXT NOT NULL,
-  \"holidaysAdded\" INT NOT NULL DEFAULT 0,
-  error         TEXT,
-  \"syncedAt\"    TIMESTAMPTZ NOT NULL DEFAULT now()
-);"
+  id         TEXT PRIMARY KEY,
+  source     TEXT NOT NULL,
+  status     TEXT NOT NULL,
+  message    TEXT,
+  "syncedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);'
 
 # --- calendar_settings ---
-create_table_if_missing "calendar_settings" "
+create_table_if_missing "calendar_settings" '
 CREATE TABLE IF NOT EXISTS calendar_settings (
-  id         TEXT PRIMARY KEY,
-  data       JSONB NOT NULL,
-  \"updatedAt\" TIMESTAMPTZ NOT NULL DEFAULT now()
-);"
+  id         TEXT PRIMARY KEY DEFAULT '"'"'singleton'"'"',
+  data       TEXT NOT NULL DEFAULT '"'"'{}'"'"',
+  "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);'
 
 # --- forwarding_schedules ---
-create_table_if_missing "forwarding_schedules" "
+create_table_if_missing "forwarding_schedules" '
 CREATE TABLE IF NOT EXISTS forwarding_schedules (
-  id              TEXT PRIMARY KEY,
-  \"userEmail\"     TEXT NOT NULL,
-  \"userName\"      TEXT,
-  \"forwardToEmail\" TEXT NOT NULL,
-  \"forwardToName\"  TEXT,
-  \"startsAt\"      TIMESTAMPTZ NOT NULL,
-  \"endsAt\"        TIMESTAMPTZ NOT NULL,
-  status          \"ForwardingStatus\" NOT NULL DEFAULT 'PENDING',
-  \"graphRuleId\"   TEXT,
-  \"createdAt\"     TIMESTAMPTZ NOT NULL DEFAULT now(),
-  \"updatedAt\"     TIMESTAMPTZ NOT NULL DEFAULT now()
-);"
+  id               TEXT PRIMARY KEY,
+  "userEmail"      TEXT NOT NULL,
+  "forwardToEmail" TEXT NOT NULL,
+  "forwardToName"  TEXT,
+  "startsAt"       TIMESTAMPTZ NOT NULL,
+  "endsAt"         TIMESTAMPTZ NOT NULL,
+  status           "ForwardingStatus" NOT NULL DEFAULT '"'"'PENDING'"'"',
+  "graphRuleId"    TEXT,
+  "createdAt"      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  "updatedAt"      TIMESTAMPTZ NOT NULL DEFAULT now()
+);'
 
 # --- tournaments ---
-create_table_if_missing "tournaments" "
+create_table_if_missing "tournaments" '
 CREATE TABLE IF NOT EXISTS tournaments (
   id          TEXT PRIMARY KEY,
   name        TEXT NOT NULL,
   description TEXT,
-  status      \"TournamentStatus\" NOT NULL DEFAULT 'SETUP',
-  \"createdAt\" TIMESTAMPTZ NOT NULL DEFAULT now(),
-  \"updatedAt\" TIMESTAMPTZ NOT NULL DEFAULT now()
-);"
+  status      "TournamentStatus" NOT NULL DEFAULT '"'"'SETUP'"'"',
+  "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+  "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);'
 
 # --- tournament_teams ---
-create_table_if_missing "tournament_teams" "
+create_table_if_missing "tournament_teams" '
 CREATE TABLE IF NOT EXISTS tournament_teams (
   id            TEXT PRIMARY KEY,
-  \"tournamentId\" TEXT NOT NULL,
-  \"player1Name\" TEXT NOT NULL,
-  \"player2Name\" TEXT NOT NULL,
+  "tournamentId" TEXT NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
+  "player1Name" TEXT NOT NULL,
+  "player2Name" TEXT NOT NULL,
   seed          INT NOT NULL DEFAULT 0,
   division      TEXT NOT NULL,
-  \"createdAt\"   TIMESTAMPTZ NOT NULL DEFAULT now(),
-  CONSTRAINT fk_team_tournament FOREIGN KEY (\"tournamentId\") REFERENCES tournaments(id) ON DELETE CASCADE
-);"
+  "createdAt"   TIMESTAMPTZ NOT NULL DEFAULT now()
+);'
 
 # --- tournament_matches ---
-create_table_if_missing "tournament_matches" "
+create_table_if_missing "tournament_matches" '
 CREATE TABLE IF NOT EXISTS tournament_matches (
-  id            TEXT PRIMARY KEY,
-  \"tournamentId\" TEXT NOT NULL,
-  round         INT NOT NULL,
-  \"matchNumber\" INT NOT NULL,
-  division      TEXT NOT NULL,
-  \"team1Id\"     TEXT,
-  \"team2Id\"     TEXT,
-  \"winnerId\"    TEXT,
-  \"team1Score\"  INT,
-  \"team2Score\"  INT,
-  status        \"MatchStatus\" NOT NULL DEFAULT 'PENDING',
-  \"nextMatchId\" TEXT,
-  \"createdAt\"   TIMESTAMPTZ NOT NULL DEFAULT now(),
-  \"updatedAt\"   TIMESTAMPTZ NOT NULL DEFAULT now(),
-  CONSTRAINT fk_match_tournament FOREIGN KEY (\"tournamentId\") REFERENCES tournaments(id) ON DELETE CASCADE,
-  CONSTRAINT fk_match_team1  FOREIGN KEY (\"team1Id\") REFERENCES tournament_teams(id) ON DELETE SET NULL,
-  CONSTRAINT fk_match_team2  FOREIGN KEY (\"team2Id\") REFERENCES tournament_teams(id) ON DELETE SET NULL,
-  CONSTRAINT fk_match_winner FOREIGN KEY (\"winnerId\") REFERENCES tournament_teams(id) ON DELETE SET NULL
-);"
+  id             TEXT PRIMARY KEY,
+  "tournamentId" TEXT NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
+  round          INT NOT NULL,
+  "matchNumber"  INT NOT NULL,
+  division       TEXT NOT NULL,
+  "team1Id"      TEXT REFERENCES tournament_teams(id) ON DELETE SET NULL,
+  "team2Id"      TEXT REFERENCES tournament_teams(id) ON DELETE SET NULL,
+  "winnerId"     TEXT REFERENCES tournament_teams(id) ON DELETE SET NULL,
+  "team1Score"   INT,
+  "team2Score"   INT,
+  status         "MatchStatus" NOT NULL DEFAULT '"'"'PENDING'"'"',
+  "nextMatchId"  TEXT,
+  "createdAt"    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  "updatedAt"    TIMESTAMPTZ NOT NULL DEFAULT now()
+);'
 
 # --- preferred_vendors ---
-create_table_if_missing "preferred_vendors" "
+create_table_if_missing "preferred_vendors" '
 CREATE TABLE IF NOT EXISTS preferred_vendors (
   id                    TEXT PRIMARY KEY,
   name                  TEXT NOT NULL,
   description           TEXT,
-  category              TEXT NOT NULL DEFAULT 'General',
+  category              TEXT NOT NULL DEFAULT '"'"'General'"'"',
   contact_name          TEXT,
   contact_email         TEXT,
   contact_phone         TEXT,
@@ -392,45 +385,85 @@ CREATE TABLE IF NOT EXISTS preferred_vendors (
   secondary_phone_label TEXT,
   website               TEXT,
   logo_url              TEXT,
+  icon_id               TEXT,
   address               TEXT,
+  labels                TEXT,
   notes                 TEXT,
   sort_order            INT NOT NULL DEFAULT 0,
   active                BOOLEAN NOT NULL DEFAULT true,
   featured              BOOLEAN NOT NULL DEFAULT false,
   created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at            TIMESTAMPTZ NOT NULL DEFAULT now()
-);"
+);'
 
 # --- video_spotlights ---
-create_table_if_missing "video_spotlights" "
+create_table_if_missing "video_spotlights" '
 CREATE TABLE IF NOT EXISTS video_spotlights (
   id           TEXT PRIMARY KEY,
   title        TEXT NOT NULL,
   description  TEXT,
   filename     TEXT NOT NULL,
-  \"mimeType\"   TEXT NOT NULL DEFAULT 'video/webm',
-  \"fileSize\"   INT NOT NULL DEFAULT 0,
+  "mimeType"   TEXT NOT NULL DEFAULT '"'"'video/webm'"'"',
+  "fileSize"   INT NOT NULL DEFAULT 0,
   duration     DOUBLE PRECISION,
-  \"authorId\"   TEXT,
-  \"authorName\" TEXT,
+  "authorId"   TEXT,
+  "authorName" TEXT,
   featured     BOOLEAN NOT NULL DEFAULT false,
-  \"sortOrder\"  INT NOT NULL DEFAULT 0,
-  status       TEXT NOT NULL DEFAULT 'active',
-  \"createdAt\"  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  \"updatedAt\"  TIMESTAMPTZ NOT NULL DEFAULT now()
-);"
+  "playCount"  INT NOT NULL DEFAULT 0,
+  "sortOrder"  INT NOT NULL DEFAULT 0,
+  status       TEXT NOT NULL DEFAULT '"'"'active'"'"',
+  "createdAt"  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  "updatedAt"  TIMESTAMPTZ NOT NULL DEFAULT now()
+);'
+
+# --- video_spotlight_reactions ---
+create_table_if_missing "video_spotlight_reactions" '
+CREATE TABLE IF NOT EXISTS video_spotlight_reactions (
+  id            TEXT PRIMARY KEY,
+  "videoId"     TEXT NOT NULL REFERENCES video_spotlights(id) ON DELETE CASCADE,
+  "userLogtoId" TEXT NOT NULL,
+  type          TEXT NOT NULL,
+  "createdAt"   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE("videoId", "userLogtoId")
+);'
+
+# --- video_spotlight_comments ---
+create_table_if_missing "video_spotlight_comments" '
+CREATE TABLE IF NOT EXISTS video_spotlight_comments (
+  id           TEXT PRIMARY KEY,
+  "videoId"    TEXT NOT NULL REFERENCES video_spotlights(id) ON DELETE CASCADE,
+  "authorId"   TEXT NOT NULL,
+  "authorName" TEXT NOT NULL,
+  content      TEXT NOT NULL,
+  "parentId"   TEXT REFERENCES video_spotlight_comments(id) ON DELETE CASCADE,
+  likes        INT NOT NULL DEFAULT 0,
+  "createdAt"  TIMESTAMPTZ NOT NULL DEFAULT now()
+);'
+
+# --- video_spotlight_comment_likes ---
+create_table_if_missing "video_spotlight_comment_likes" '
+CREATE TABLE IF NOT EXISTS video_spotlight_comment_likes (
+  id             TEXT PRIMARY KEY,
+  "commentId"    TEXT NOT NULL REFERENCES video_spotlight_comments(id) ON DELETE CASCADE,
+  "voterLogtoId" TEXT NOT NULL,
+  "createdAt"    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE("commentId", "voterLogtoId")
+);'
+
 # --- important_dates ---
-create_table_if_missing "important_dates" "
+create_table_if_missing "important_dates" '
 CREATE TABLE IF NOT EXISTS important_dates (
-  id              TEXT PRIMARY KEY,
-  label           TEXT NOT NULL,
-  date            DATE NOT NULL,
-  \"recurType\"   TEXT NOT NULL DEFAULT 'none',
-  \"sortOrder\"   INT NOT NULL DEFAULT 0,
-  active          BOOLEAN NOT NULL DEFAULT true,
-  \"createdAt\"   TIMESTAMPTZ NOT NULL DEFAULT now(),
-  \"updatedAt\"   TIMESTAMPTZ NOT NULL DEFAULT now()
-);"
+  id           TEXT PRIMARY KEY,
+  label        TEXT NOT NULL,
+  subtitle     TEXT,
+  date         DATE NOT NULL,
+  "recurType"  TEXT NOT NULL DEFAULT '"'"'none'"'"',
+  "sortOrder"  INT NOT NULL DEFAULT 0,
+  active       BOOLEAN NOT NULL DEFAULT true,
+  "createdAt"  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  "updatedAt"  TIMESTAMPTZ NOT NULL DEFAULT now()
+);'
+
 # ══════════════════════════════════════════════════════════════
 # 3. COLUMNS — add missing columns to existing tables
 # ══════════════════════════════════════════════════════════════
@@ -447,9 +480,64 @@ add_column_if_missing() {
   fi
 }
 
-# idea_comments may exist without parentId/likes (pre-reply era)
+# kudos_messages — likes column (added after initial schema)
+add_column_if_missing "kudos_messages" "likes" "INT NOT NULL DEFAULT 0"
+
+# idea_comments — parentId / likes (pre-reply era tables may lack these)
 add_column_if_missing "idea_comments" "parentId" "TEXT REFERENCES idea_comments(id) ON DELETE CASCADE"
 add_column_if_missing "idea_comments" "likes"    "INT NOT NULL DEFAULT 0"
+
+# employee_highlights — columns added over time
+add_column_if_missing "employee_highlights" "employeeId"   "TEXT"
+add_column_if_missing "employee_highlights" "jobTitle"     "TEXT"
+add_column_if_missing "employee_highlights" "department"   "TEXT"
+add_column_if_missing "employee_highlights" "subtitle"     "TEXT NOT NULL DEFAULT ''"
+add_column_if_missing "employee_highlights" "avatarUrl"    "TEXT"
+add_column_if_missing "employee_highlights" "startDate"    "TIMESTAMPTZ NOT NULL DEFAULT now()"
+add_column_if_missing "employee_highlights" "endDate"      "TIMESTAMPTZ"
+
+# site_branding — evolved from key/value to specific columns
+add_column_if_missing "site_branding" "companyName"    "TEXT NOT NULL DEFAULT 'MortgagePros'"
+add_column_if_missing "site_branding" "logoData"       "TEXT"
+add_column_if_missing "site_branding" "dark_logo_data" "TEXT"
+add_column_if_missing "site_branding" "faviconData"    "TEXT"
+
+# directory_snapshots — evolved from JSONB blob to individual columns
+add_column_if_missing "directory_snapshots" "display_name"        "TEXT NOT NULL DEFAULT ''"
+add_column_if_missing "directory_snapshots" "mail"                "TEXT"
+add_column_if_missing "directory_snapshots" "user_principal_name" "TEXT NOT NULL DEFAULT ''"
+add_column_if_missing "directory_snapshots" "job_title"           "TEXT"
+add_column_if_missing "directory_snapshots" "employee_type"       "TEXT"
+add_column_if_missing "directory_snapshots" "department"          "TEXT"
+add_column_if_missing "directory_snapshots" "office_location"     "TEXT"
+add_column_if_missing "directory_snapshots" "manager_id"          "TEXT"
+add_column_if_missing "directory_snapshots" "synced_at"           "TIMESTAMPTZ NOT NULL DEFAULT now()"
+
+# directory_snapshot_state — column name changes
+add_column_if_missing "directory_snapshot_state" "last_synced_at" "TIMESTAMPTZ"
+add_column_if_missing "directory_snapshot_state" "updated_at"     "TIMESTAMPTZ NOT NULL DEFAULT now()"
+
+# alerts — column name changes (content vs message, createdBy vs authorId)
+add_column_if_missing "alerts" "content"    "TEXT NOT NULL DEFAULT ''"
+add_column_if_missing "alerts" "createdBy"  "TEXT NOT NULL DEFAULT ''"
+add_column_if_missing "alerts" "expires_at" "TIMESTAMPTZ"
+
+# calendar_sync_logs — column changes
+add_column_if_missing "calendar_sync_logs" "status"  "TEXT NOT NULL DEFAULT 'success'"
+add_column_if_missing "calendar_sync_logs" "message" "TEXT"
+
+# preferred_vendors — columns added over time
+add_column_if_missing "preferred_vendors" "labels"                "TEXT"
+add_column_if_missing "preferred_vendors" "contact_phone_label"   "TEXT"
+add_column_if_missing "preferred_vendors" "secondary_phone"       "TEXT"
+add_column_if_missing "preferred_vendors" "secondary_phone_label" "TEXT"
+add_column_if_missing "preferred_vendors" "icon_id"               "TEXT"
+
+# video_spotlights — playCount (added later)
+add_column_if_missing "video_spotlights" "playCount" "INT NOT NULL DEFAULT 0"
+
+# important_dates — subtitle (added later)
+add_column_if_missing "important_dates" "subtitle" "TEXT"
 
 # ══════════════════════════════════════════════════════════════
 # 4. INDEXES — create if not exists
@@ -467,59 +555,93 @@ ensure_index() {
   fi
 }
 
+# kudos_messages
+ensure_index "kudos_messages_authorId_idx"    "kudos_messages"  '"authorId"'
+ensure_index "kudos_messages_recipientId_idx" "kudos_messages"  '"recipientId"'
+ensure_index "kudos_messages_createdAt_idx"   "kudos_messages"  '"createdAt"'
+
+# kudos_reactions
+ensure_index "kudos_reactions_kudosId_reaction_idx" "kudos_reactions" '"kudosId", reaction'
+ensure_index "kudos_reactions_userId_idx"            "kudos_reactions" '"userId"'
+
+# alerts
+ensure_index "alerts_active_priority_idx" "alerts" 'active, priority'
+ensure_index "alerts_createdBy_idx"       "alerts" '"createdBy"'
+ensure_index "alerts_expiresAt_idx"       "alerts" 'expires_at'
+
 # ideas
-ensure_index "ideas_status_votes_idx"      "ideas"               "status, votes"
-ensure_index "ideas_createdAt_idx"         "ideas"               "\"createdAt\""
+ensure_index "ideas_status_votes_idx"  "ideas" 'status, votes'
+ensure_index "ideas_createdAt_idx"     "ideas" '"createdAt"'
 
 # idea_votes
-ensure_index "idea_votes_voterLogtoId_idx" "idea_votes"          "\"voterLogtoId\""
+ensure_index "idea_votes_voterLogtoId_idx" "idea_votes" '"voterLogtoId"'
 
 # idea_comments
-ensure_index "idea_comments_ideaId_createdAt_idx" "idea_comments" "\"ideaId\", \"createdAt\""
-ensure_index "idea_comments_parentId_idx"  "idea_comments"       "\"parentId\""
+ensure_index "idea_comments_ideaId_createdAt_idx" "idea_comments" '"ideaId", "createdAt"'
+ensure_index "idea_comments_parentId_idx"         "idea_comments" '"parentId"'
 
 # idea_comment_likes
-ensure_index "idea_comment_likes_voterLogtoId_idx" "idea_comment_likes" "\"voterLogtoId\""
-
-# notifications
-ensure_index "notifications_userId_read_createdAt_idx" "notifications" "\"userId\", read, \"createdAt\""
-ensure_index "notifications_createdAt_idx" "notifications"       "\"createdAt\""
-
-# holidays
-ensure_index "holidays_date_idx"           "holidays"            "date"
-ensure_index "holidays_category_idx"       "holidays"            "category"
-ensure_index "holidays_visible_idx"        "holidays"            "visible"
+ensure_index "idea_comment_likes_voterLogtoId_idx" "idea_comment_likes" '"voterLogtoId"'
 
 # quick_links
-ensure_index "quick_links_active_sortOrder_idx" "quick_links"    "active, \"sortOrder\""
+ensure_index "quick_links_active_sortOrder_idx" "quick_links" 'active, "sortOrder"'
+
+# employee_highlights
+ensure_index "employee_highlights_active_startDate_idx" "employee_highlights" 'active, "startDate"'
+
+# directory_snapshots
+ensure_index "directory_snapshots_managerId_idx"   "directory_snapshots" 'manager_id'
+ensure_index "directory_snapshots_displayName_idx" "directory_snapshots" 'display_name'
+
+# notifications
+ensure_index "notifications_userId_read_createdAt_idx" "notifications" '"userId", read, "createdAt"'
+ensure_index "notifications_createdAt_idx"             "notifications" '"createdAt"'
+
+# holidays
+ensure_index "holidays_date_idx"     "holidays" 'date'
+ensure_index "holidays_category_idx" "holidays" 'category'
+ensure_index "holidays_visible_idx"  "holidays" 'visible'
+
+# calendar_sync_logs
+ensure_index "calendar_sync_logs_syncedAt_idx" "calendar_sync_logs" '"syncedAt"'
 
 # forwarding_schedules
-ensure_index "fwd_status_startsAt_idx"     "forwarding_schedules" "status, \"startsAt\""
-ensure_index "fwd_status_endsAt_idx"       "forwarding_schedules" "status, \"endsAt\""
-ensure_index "fwd_userEmail_status_idx"    "forwarding_schedules" "\"userEmail\", status"
+ensure_index "fwd_status_startsAt_idx"   "forwarding_schedules" 'status, "startsAt"'
+ensure_index "fwd_status_endsAt_idx"     "forwarding_schedules" 'status, "endsAt"'
+ensure_index "fwd_userEmail_status_idx"  "forwarding_schedules" '"userEmail", status'
 
 # tournaments
-ensure_index "tournaments_status_idx"      "tournaments"         "status"
+ensure_index "tournaments_status_idx" "tournaments" 'status'
 
 # tournament_teams
-ensure_index "teams_tournamentId_division_idx" "tournament_teams" "\"tournamentId\", division"
+ensure_index "teams_tournamentId_division_idx" "tournament_teams" '"tournamentId", division'
 
 # tournament_matches
-ensure_index "matches_tournamentId_round_div_idx" "tournament_matches" "\"tournamentId\", round, division"
-ensure_index "matches_nextMatchId_idx"     "tournament_matches"  "\"nextMatchId\""
+ensure_index "matches_tournamentId_round_div_idx" "tournament_matches" '"tournamentId", round, division'
+ensure_index "matches_nextMatchId_idx"            "tournament_matches" '"nextMatchId"'
 
 # preferred_vendors
-ensure_index "vendors_active_sortOrder_idx" "preferred_vendors"  "active, sort_order"
-ensure_index "vendors_category_idx"        "preferred_vendors"   "category"
-ensure_index "vendors_featured_idx"        "preferred_vendors"   "featured"
+ensure_index "vendors_active_sortOrder_idx" "preferred_vendors" 'active, sort_order'
+ensure_index "vendors_category_idx"         "preferred_vendors" 'category'
+ensure_index "vendors_featured_idx"         "preferred_vendors" 'featured'
 
 # video_spotlights
-ensure_index "spotlights_featured_status_idx" "video_spotlights" "featured, status"
-ensure_index "spotlights_createdAt_idx"    "video_spotlights"    "\"createdAt\""
+ensure_index "spotlights_featured_status_idx" "video_spotlights" 'featured, status'
+ensure_index "spotlights_createdAt_idx"       "video_spotlights" '"createdAt"'
+
+# video_spotlight_reactions
+ensure_index "vs_reactions_videoId_idx" "video_spotlight_reactions" '"videoId"'
+
+# video_spotlight_comments
+ensure_index "vs_comments_videoId_createdAt_idx" "video_spotlight_comments" '"videoId", "createdAt"'
+ensure_index "vs_comments_parentId_idx"          "video_spotlight_comments" '"parentId"'
+
+# video_spotlight_comment_likes
+ensure_index "vs_comment_likes_voterLogtoId_idx" "video_spotlight_comment_likes" '"voterLogtoId"'
 
 # important_dates
-ensure_index "important_dates_active_date_idx" "important_dates" "active, date"
-ensure_index "important_dates_sortOrder_idx"   "important_dates" "\"sortOrder\""
+ensure_index "important_dates_active_date_idx"  "important_dates" 'active, date'
+ensure_index "important_dates_sortOrder_idx"    "important_dates" '"sortOrder"'
 
 # ══════════════════════════════════════════════════════════════
 # Summary

@@ -3,7 +3,7 @@ set -e
 
 # Fix ownership of mounted volumes (they may be root-owned if auto-created)
 echo "🔧 Ensuring volume permissions..."
-mkdir -p /app/src/data /app/uploads/resources
+mkdir -p /app/src/data /app/uploads/resources /app/uploads/vendor-logos /app/uploads/videos
 chown -R 1001:1001 /app/src/data /app/uploads
 
 # Seed resources.json if missing (volume mount may shadow baked-in copy)
@@ -69,10 +69,15 @@ if [ "$RETRIES" -lt "$MAX_RETRIES" ]; then
   prisma migrate deploy --schema=prisma/schema.prisma || echo "⚠️  Migration failed — server will start anyway"
   echo "✅ Migrations complete."
 
-  # Sync any new tables/columns from schema that don't have migrations yet
-  echo "🔄 Pushing schema changes (creating missing tables/columns)..."
-  prisma db push --schema=prisma/schema.prisma --skip-generate --accept-data-loss 2>/dev/null \
-    || echo "⚠️  db push had issues — continuing anyway"
+  # Create any missing tables/columns/indexes via safe SQL migration
+  echo "🔄 Running safe SQL migration (creating missing tables/columns/indexes)..."
+  if [ -f scripts/migrate-safe.sh ]; then
+    bash scripts/migrate-safe.sh || echo "⚠️  Safe migration had issues — continuing anyway"
+  else
+    echo "⚠️  scripts/migrate-safe.sh not found — falling back to prisma db push"
+    prisma db push --schema=prisma/schema.prisma --skip-generate --accept-data-loss 2>/dev/null \
+      || echo "⚠️  db push had issues — continuing anyway"
+  fi
   echo "✅ Schema sync complete."
 
   # Seed data if key tables are empty (first deploy or partial restore)

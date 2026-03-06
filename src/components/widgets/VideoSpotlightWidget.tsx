@@ -22,6 +22,8 @@ import {
   Trash2,
   Reply,
   X,
+  Maximize,
+  Minimize,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -457,6 +459,30 @@ export function VideoSpotlightWidget() {
 
   // Track per-video orientation: true = portrait
   const [portraitMap, setPortraitMap] = useState<Record<string, boolean>>({});
+  // Track whether video data has loaded (hides placeholder)
+  const [videoReady, setVideoReady] = useState(false);
+
+  // Fullscreen
+  const playerContainerRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const handleFSChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener("fullscreenchange", handleFSChange);
+    return () => document.removeEventListener("fullscreenchange", handleFSChange);
+  }, []);
+
+  const toggleFullscreen = useCallback(() => {
+    const el = playerContainerRef.current;
+    if (!el) return;
+    if (!document.fullscreenElement) {
+      el.requestFullscreen().catch(() => {});
+    } else {
+      document.exitFullscreen().catch(() => {});
+    }
+  }, []);
 
   useEffect(() => {
     fetch("/api/video-spotlight?featured=true&status=active")
@@ -478,6 +504,7 @@ export function VideoSpotlightWidget() {
     setIsPlaying(false);
     setCurrentTime(0);
     setDuration(0);
+    setVideoReady(false);
     setActiveIndex(newIndex);
     hasCountedPlayRef.current = false;
   }, []);
@@ -657,8 +684,9 @@ export function VideoSpotlightWidget() {
           >
             {/* Player */}
             <div
-              className="relative w-full rounded-lg overflow-hidden bg-gray-950 transition-all duration-300"
-              style={{ aspectRatio: portraitMap[current.id] ? "9 / 16" : "16 / 9" }}
+              ref={playerContainerRef}
+              className={`relative w-full rounded-lg overflow-hidden bg-gray-950 transition-all duration-300 ${isFullscreen ? "flex flex-col items-center justify-center !rounded-none" : ""}`}
+              style={isFullscreen ? undefined : { aspectRatio: portraitMap[current.id] ? "9 / 16" : "16 / 9" }}
             >
               <video
                 ref={videoRef}
@@ -666,16 +694,65 @@ export function VideoSpotlightWidget() {
                 src={`/api/video-spotlight/stream/${current.id}`}
                 playsInline
                 preload="metadata"
-                className="w-full h-full object-contain"
+                className={`w-full h-full object-contain ${isFullscreen ? "max-h-[calc(100vh-60px)]" : ""}`}
                 onPlay={handlePlay}
                 onPause={handlePause}
                 onEnded={handleEnded}
                 onTimeUpdate={handleTimeUpdate}
                 onLoadedMetadata={handleLoadedMetadata}
+                onLoadedData={() => setVideoReady(true)}
               />
+              {/* Placeholder shown until video data loads */}
+              {!videoReady && !isFullscreen && (
+                <img
+                  src="/proconnect-message-placeholder.jpg"
+                  alt=""
+                  className="absolute inset-0 w-full h-full object-cover rounded-lg"
+                />
+              )}
+
+              {/* Fullscreen controls overlay */}
+              {isFullscreen && (
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-4 pb-3 pt-8">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={togglePlay}
+                      className="flex items-center justify-center w-9 h-9 shrink-0 rounded-full bg-brand-blue text-white hover:bg-brand-blue/90 transition-colors shadow-sm"
+                      aria-label={isPlaying ? "Pause" : "Play"}
+                    >
+                      {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
+                    </button>
+                    <span className="text-xs font-mono text-gray-300 min-w-[36px] tabular-nums">{fmtTime(currentTime)}</span>
+                    <div
+                      ref={timelineRef}
+                      className="relative flex-1 h-6 flex items-center cursor-pointer group"
+                      onMouseDown={handleTimelineMouseDown}
+                      onTouchStart={handleTimelineTouchStart}
+                      role="slider"
+                      aria-label="Video timeline"
+                      aria-valuenow={Math.round(currentTime)}
+                      aria-valuemin={0}
+                      aria-valuemax={Math.round(duration)}
+                    >
+                      <div className="absolute inset-x-0 h-1.5 rounded-full bg-white/20" />
+                      <div className="absolute left-0 h-1.5 rounded-full bg-brand-blue transition-[width] duration-75" style={{ width: `${progress}%` }} />
+                      <div className="absolute h-4 w-4 rounded-full bg-brand-blue border-2 border-white shadow-sm -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity" style={{ left: `${progress}%` }} />
+                    </div>
+                    <span className="text-xs font-mono text-gray-300 min-w-[36px] tabular-nums text-right">{fmtTime(duration)}</span>
+                    <button
+                      onClick={toggleFullscreen}
+                      className="flex items-center justify-center w-9 h-9 shrink-0 rounded-full text-white hover:bg-white/20 transition-colors"
+                      aria-label="Exit fullscreen"
+                    >
+                      <Minimize className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Controls bar */}
+            {/* Controls bar (non-fullscreen) */}
+            {!isFullscreen && (
             <div className="mt-2 flex items-center gap-2">
               {/* Play / Pause button */}
               <button
@@ -725,7 +802,17 @@ export function VideoSpotlightWidget() {
               <span className="text-[10px] font-mono text-gray-400 dark:text-gray-500 min-w-[32px] tabular-nums text-right">
                 {fmtTime(duration)}
               </span>
+
+              {/* Fullscreen button */}
+              <button
+                onClick={toggleFullscreen}
+                className="flex items-center justify-center w-8 h-8 shrink-0 rounded-full text-gray-400 hover:text-brand-blue hover:bg-brand-blue/10 transition-colors"
+                aria-label="Fullscreen"
+              >
+                <Maximize className="w-3.5 h-3.5" />
+              </button>
             </div>
+            )}
 
             {/* Info + Reactions */}
             <div className="mt-2 px-0.5">

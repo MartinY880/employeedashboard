@@ -36,6 +36,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useSounds } from "@/components/shared/SoundProvider";
 import { toast } from "sonner";
+import { IconPickerDropdown } from "@/components/shared/IconPickerDropdown";
+import { renderQuickLinkIconPreview } from "@/components/widgets/QuickLinksBar";
 
 /* ─── Types ─────────────────────────────────────────── */
 
@@ -52,12 +54,18 @@ interface Vendor {
   secondaryPhoneLabel: string | null;
   website: string | null;
   logoUrl: string | null;
+  iconId: string | null;
   address: string | null;
   labels: string | null;
   notes: string | null;
   sortOrder: number;
   active: boolean;
   featured: boolean;
+}
+
+interface CategoryEntry {
+  image?: string;
+  icon?: string;
 }
 
 /* ─── Category Badge Colors (generated from name hash) ── */
@@ -97,6 +105,7 @@ const EMPTY_FORM = {
   secondaryPhoneLabel: "Store",
   website: "",
   logoUrl: "",
+  iconId: "",
   address: "",
   labels: "",
   notes: "",
@@ -122,7 +131,7 @@ export default function AdminPreferredVendorsPage() {
   const [form, setForm] = useState({ ...EMPTY_FORM });
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
-  const [categoryImages, setCategoryImages] = useState<Record<string, string>>({});
+  const [categoryImages, setCategoryImages] = useState<Record<string, CategoryEntry>>({});
   const [uploadingCatImage, setUploadingCatImage] = useState<string | null>(null);
   const [deletingCategory, setDeletingCategory] = useState<string | null>(null);
   const [newCategoryName, setNewCategoryName] = useState("");
@@ -236,6 +245,7 @@ export default function AdminPreferredVendorsPage() {
       secondaryPhoneLabel: vendor.secondaryPhoneLabel || "Store",
       website: vendor.website || "",
       logoUrl: vendor.logoUrl || "",
+      iconId: vendor.iconId || "",
       address: vendor.address || "",
       labels: vendor.labels || "",
       notes: vendor.notes || "",
@@ -395,6 +405,7 @@ export default function AdminPreferredVendorsPage() {
       secondaryPhoneLabel: form.secondaryPhoneLabel.trim() || null,
       website: form.website.trim() || null,
       logoUrl: form.logoUrl.trim() || null,
+      iconId: form.iconId.trim() || null,
       address: form.address.trim() || null,
       labels: form.labels.trim() || null,
       notes: form.notes.trim() || null,
@@ -468,6 +479,7 @@ export default function AdminPreferredVendorsPage() {
           secondaryPhoneLabel: vendor.secondaryPhoneLabel,
           website: vendor.website,
           logoUrl: vendor.logoUrl,
+          iconId: vendor.iconId,
           address: vendor.address,
           labels: vendor.labels,
           notes: vendor.notes,
@@ -610,7 +622,9 @@ export default function AdminPreferredVendorsPage() {
             </div>
           )}
           {allCategories.map((cat) => {
-            const img = categoryImages[cat];
+            const entry = categoryImages[cat] || {};
+            const img = entry.image;
+            const iconId = entry.icon;
             const isUploading = uploadingCatImage === cat;
             const isDeleting = deletingCategory === cat;
             const vendorCount = vendors.filter((v) => v.category === cat).length;
@@ -619,12 +633,43 @@ export default function AdminPreferredVendorsPage() {
                 <div className="flex h-14 w-14 items-center justify-center rounded-xl overflow-hidden bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
                   {img ? (
                     <img src={img} alt={cat} className="h-full w-full object-contain p-1" />
+                  ) : iconId ? (
+                    renderQuickLinkIconPreview(iconId, "h-6 w-6 text-brand-blue")
                   ) : (
                     <Briefcase className="h-6 w-6 text-gray-300" />
                   )}
                 </div>
                 <p className="text-xs font-medium text-gray-700 dark:text-gray-300 text-center leading-tight">{cat}</p>
                 <p className="text-[10px] text-gray-400">{vendorCount} vendor{vendorCount !== 1 ? "s" : ""}</p>
+                {/* Icon picker for category */}
+                <div className="w-full">
+                  <IconPickerDropdown
+                    value={iconId || ""}
+                    onChange={async (newIconId) => {
+                      setUploadingCatImage(cat);
+                      try {
+                        const fd = new FormData();
+                        fd.append("category", cat);
+                        if (newIconId) {
+                          fd.append("icon", newIconId);
+                        } else {
+                          fd.append("removeIcon", "true");
+                        }
+                        const res = await fetch("/api/preferred-vendors/category-images", { method: "POST", body: fd });
+                        if (!res.ok) throw new Error("Failed");
+                        const data = await res.json();
+                        setCategoryImages(data.images || {});
+                        toast.success(newIconId ? `Icon set for ${cat}` : `Icon removed for ${cat}`);
+                      } catch {
+                        toast.error("Failed to update category icon");
+                      } finally {
+                        setUploadingCatImage(null);
+                      }
+                    }}
+                    placeholder="Icon"
+                    buttonSize="sm"
+                  />
+                </div>
                 <div className="flex items-center gap-1">
                   <Button
                     variant="outline"
@@ -869,7 +914,7 @@ export default function AdminPreferredVendorsPage() {
                 </div>
               </div>
 
-              {/* Row 5: Website + Logo */}
+              {/* Row 5: Website + Logo + Icon */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-medium text-gray-500 mb-1 block">Website</label>
@@ -885,6 +930,10 @@ export default function AdminPreferredVendorsPage() {
                     {form.logoUrl ? (
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 overflow-hidden p-1">
                         <img src={form.logoUrl} alt="" className="h-full w-full object-contain" />
+                      </div>
+                    ) : form.iconId ? (
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800">
+                        {renderQuickLinkIconPreview(form.iconId, "h-5 w-5 text-brand-blue")}
                       </div>
                     ) : (
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800">
@@ -929,6 +978,22 @@ export default function AdminPreferredVendorsPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Icon fallback (shown when no logo) */}
+              {!form.logoUrl && (
+                <div>
+                  <label className="text-xs font-medium text-gray-500 mb-1 block">
+                    Fallback Icon <span className="text-gray-400 font-normal">(shown when no logo uploaded)</span>
+                  </label>
+                  <div className="max-w-xs">
+                    <IconPickerDropdown
+                      value={form.iconId}
+                      onChange={(iconId) => updateField("iconId", iconId)}
+                      placeholder="Choose a fallback icon"
+                    />
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="text-xs font-medium text-gray-500 mb-1 block">Address</label>
@@ -1057,6 +1122,8 @@ export default function AdminPreferredVendorsPage() {
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-500">
                       {vendor.logoUrl ? (
                         <img src={vendor.logoUrl} alt="" className="h-7 w-7 rounded object-contain" />
+                      ) : vendor.iconId ? (
+                        renderQuickLinkIconPreview(vendor.iconId, "h-5 w-5 text-brand-blue")
                       ) : (
                         <Building2 className="h-5 w-5" />
                       )}

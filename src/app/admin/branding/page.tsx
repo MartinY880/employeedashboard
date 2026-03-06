@@ -56,6 +56,7 @@ interface BrandingData {
 interface DashboardVisibilitySettings {
   showCompanyPillars: boolean;
   showTournamentBracketLive: boolean;
+  showImportantDates: boolean;
 }
 
 interface TopNavMenuItem {
@@ -103,6 +104,7 @@ const DEFAULT_SMTP: SmtpSettings = {
 const DEFAULT_DASHBOARD_VISIBILITY: DashboardVisibilitySettings = {
   showCompanyPillars: true,
   showTournamentBracketLive: true,
+  showImportantDates: true,
 };
 
 const ICON_INITIAL_RESULTS = 80;
@@ -839,6 +841,49 @@ export default function AdminBrandingPage() {
             {isSendingTest ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <TestTube className="w-3.5 h-3.5" />}
             Send Test
           </Button>
+        </div>
+      </div>
+
+      {/* Dashboard Widget Visibility */}
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Eye className="w-5 h-5 text-brand-blue" />
+          <div>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Dashboard Widget Visibility</h2>
+            <p className="text-sm text-brand-grey mt-0.5">Show or hide widgets on the employee dashboard.</p>
+          </div>
+        </div>
+        <div className="space-y-3">
+          {([
+            { key: "showCompanyPillars" as const, label: "Company Pillars", desc: "Stats row at the top of the dashboard" },
+            { key: "showImportantDates" as const, label: "Important Dates", desc: "Horizontal date cards below the slider" },
+            { key: "showTournamentBracketLive" as const, label: "Tournament Bracket Banner", desc: "Tournament bracket CTA banner" },
+          ] as const).map((item) => (
+            <label
+              key={item.key}
+              className="flex items-center justify-between p-3 rounded-lg border border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer transition-colors"
+            >
+              <div>
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{item.label}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{item.desc}</p>
+              </div>
+              <div className="relative">
+                <input
+                  type="checkbox"
+                  checked={dashboardVisibility[item.key]}
+                  onChange={() =>
+                    setDashboardVisibility((prev) => ({
+                      ...prev,
+                      [item.key]: !prev[item.key],
+                    }))
+                  }
+                  className="sr-only peer"
+                />
+                <div className="w-10 h-5 bg-gray-200 dark:bg-gray-700 rounded-full peer peer-checked:bg-brand-blue transition-colors" />
+                <div className="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform peer-checked:translate-x-5" />
+              </div>
+            </label>
+          ))}
         </div>
       </div>
 
