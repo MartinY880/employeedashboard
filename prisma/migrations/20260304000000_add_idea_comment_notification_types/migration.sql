@@ -1,0 +1,3 @@
+-- Add IDEA_COMMENT and IDEA_REPLY to NotificationType enum
+ALTER TYPE "NotificationType" ADD VALUE IF NOT EXISTS 'IDEA_COMMENT';
+ALTER TYPE "NotificationType" ADD VALUE IF NOT EXISTS 'IDEA_REPLY';

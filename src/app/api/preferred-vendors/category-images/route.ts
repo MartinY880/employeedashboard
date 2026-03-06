@@ -14,13 +14,30 @@ const MAX_SIZE = 5 * 1024 * 1024;
 const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/jpg", "image/webp", "image/svg+xml", "image/gif"];
 const SETTINGS_ID = "vendor_category_images";
 
-type CategoryImagesMap = Record<string, string>;
+interface CategoryEntry {
+  image?: string;
+  icon?: string;
+}
+
+type CategoryImagesMap = Record<string, CategoryEntry>;
 
 async function loadCategoryImages(): Promise<CategoryImagesMap> {
   try {
     const row = await prisma.calendarSetting.findUnique({ where: { id: SETTINGS_ID } });
     if (row?.data) {
-      return JSON.parse(row.data) as CategoryImagesMap;
+      const raw = JSON.parse(row.data) as Record<string, unknown>;
+      // Migrate: old format stored plain string (image URL), new format stores { image, icon }
+      const migrated: CategoryImagesMap = {};
+      for (const [key, val] of Object.entries(raw)) {
+        if (typeof val === "string") {
+          migrated[key] = { image: val || undefined };
+        } else if (val && typeof val === "object") {
+          migrated[key] = val as CategoryEntry;
+        } else {
+          migrated[key] = {};
+        }
+      }
+      return migrated;
     }
   } catch {
     // ignore
@@ -58,6 +75,8 @@ export async function POST(request: Request) {
     const file = formData.get("file");
     const removeImage = formData.get("remove") === "true";
     const createOnly = formData.get("createOnly") === "true";
+    const iconId = formData.get("icon") ? String(formData.get("icon")).trim() : undefined;
+    const removeIcon = formData.get("removeIcon") === "true";
 
     if (!category) {
       return NextResponse.json({ error: "Category is required" }, { status: 400 });
@@ -65,17 +84,33 @@ export async function POST(request: Request) {
 
     const images = await loadCategoryImages();
 
+    // Ensure entry exists
+    if (!(category in images)) {
+      images[category] = {};
+    }
+
     if (removeImage) {
-      delete images[category];
+      delete images[category].image;
+      await saveCategoryImages(images);
+      return NextResponse.json({ images });
+    }
+
+    if (removeIcon) {
+      delete images[category].icon;
+      await saveCategoryImages(images);
+      return NextResponse.json({ images });
+    }
+
+    // Set icon if provided
+    if (iconId !== undefined) {
+      images[category].icon = iconId || undefined;
+      if (!iconId) delete images[category].icon;
       await saveCategoryImages(images);
       return NextResponse.json({ images });
     }
 
     // Create a category entry without an image
     if (createOnly) {
-      if (!(category in images)) {
-        images[category] = "";
-      }
       await saveCategoryImages(images);
       return NextResponse.json({ images });
     }
@@ -101,7 +136,7 @@ export async function POST(request: Request) {
     await writeFile(join(LOGOS_DIR, storageName), Buffer.from(bytes));
 
     const url = `/api/preferred-vendors/upload-logo/${storageName}`;
-    images[category] = url;
+    images[category].image = url;
     await saveCategoryImages(images);
 
     return NextResponse.json({ images, url });
@@ -142,7 +177,7 @@ export async function DELETE(request: Request) {
 
     // Ensure "Uncategorized" exists in the images map
     if (!("Uncategorized" in images)) {
-      images["Uncategorized"] = "";
+      images["Uncategorized"] = {};
     }
 
     await saveCategoryImages(images);

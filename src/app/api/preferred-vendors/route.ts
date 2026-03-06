@@ -53,6 +53,7 @@ export async function POST(request: Request) {
         secondaryPhoneLabel: body.secondaryPhoneLabel ? String(body.secondaryPhoneLabel).trim() : null,
         website: body.website ? String(body.website).trim() : null,
         logoUrl: body.logoUrl ? String(body.logoUrl).trim() : null,
+        iconId: body.iconId ? String(body.iconId).trim() : null,
         address: body.address ? String(body.address).trim() : null,
         labels: body.labels ? String(body.labels).trim() : null,
         notes: body.notes ? String(body.notes).trim() : null,
@@ -102,6 +103,7 @@ export async function PUT(request: Request) {
     if (body.secondaryPhoneLabel !== undefined) updateData.secondaryPhoneLabel = body.secondaryPhoneLabel ? String(body.secondaryPhoneLabel).trim() : null;
     if (body.website !== undefined) updateData.website = body.website ? String(body.website).trim() : null;
     if (body.logoUrl !== undefined) updateData.logoUrl = body.logoUrl ? String(body.logoUrl).trim() : null;
+    if (body.iconId !== undefined) updateData.iconId = body.iconId ? String(body.iconId).trim() : null;
     if (body.address !== undefined) updateData.address = body.address ? String(body.address).trim() : null;
     if (body.labels !== undefined) updateData.labels = body.labels ? String(body.labels).trim() : null;
     if (body.notes !== undefined) updateData.notes = body.notes ? String(body.notes).trim() : null;

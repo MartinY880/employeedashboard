@@ -24,6 +24,7 @@ import { Trophy, ArrowRight } from "lucide-react";
 interface DashboardVisibilitySettings {
   showCompanyPillars: boolean;
   showTournamentBracketLive: boolean;
+  showImportantDates: boolean;
 }
 
 interface SliderConfig {
@@ -105,11 +106,13 @@ export default function DashboardClient({ visibility, sliderConfig, showVideoSpo
       ) : null}
 
       {/* Important Dates */}
-      <section className="mb-4">
-        <ErrorBoundary label="Important Dates" compact>
-          <ImportantDatesWidget />
-        </ErrorBoundary>
-      </section>
+      {visibility.showImportantDates !== false ? (
+        <section className="mb-4">
+          <ErrorBoundary label="Important Dates" compact>
+            <ImportantDatesWidget />
+          </ErrorBoundary>
+        </section>
+      ) : null}
 
       {/* Quick Links */}
       <section className="mb-4">

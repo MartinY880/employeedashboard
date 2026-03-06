@@ -31,11 +31,8 @@ RUN addgroup --system --gid 1001 nodejs && \
 # Install Prisma CLI globally
 RUN npm install -g prisma@latest
 
-# Install psql client for data seeding
-RUN apk add --no-cache postgresql-client
-
-# Install ffmpeg for video processing
-RUN apk add --no-cache ffmpeg
+# Install psql client for data seeding, bash for migration script, ffmpeg for video
+RUN apk add --no-cache postgresql-client bash ffmpeg
 
 # Copy standalone output
 COPY --from=builder /app/.next/standalone ./
@@ -58,8 +55,10 @@ RUN rm -f prisma.config.ts prisma.config.js && \
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
-# Copy entrypoint script
+# Copy entrypoint + migration scripts
 COPY docker-entrypoint.sh ./docker-entrypoint.sh
+COPY scripts/migrate-safe.sh ./scripts/migrate-safe.sh
+RUN chmod +x scripts/migrate-safe.sh
 
 # Install su-exec for dropping privileges after volume setup
 RUN apk add --no-cache su-exec && \

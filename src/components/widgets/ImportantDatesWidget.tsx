@@ -8,9 +8,15 @@ import { motion } from "framer-motion";
 import { CalendarClock, ChevronLeft, ChevronRight } from "lucide-react";
 import type { ImportantDate } from "@/types";
 
+/** Parse a DB date string into a local Date without timezone shift */
+function parseUTCDate(dateStr: string): Date {
+  const d = new Date(dateStr);
+  return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+}
+
 /** Resolve the next occurrence based on recurrence type */
 function resolveDate(entry: ImportantDate): Date {
-  const d = new Date(entry.date);
+  const d = parseUTCDate(entry.date);
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
@@ -26,7 +32,7 @@ function resolveDate(entry: ImportantDate): Date {
   }
 
   if (entry.recurType === "monthly") {
-    const day = d.getUTCDate();
+    const day = d.getDate(); // already local from parseUTCDate
     let next = new Date(today.getFullYear(), today.getMonth(), day);
     if (next < today) {
       next = new Date(today.getFullYear(), today.getMonth() + 1, day);
@@ -34,7 +40,7 @@ function resolveDate(entry: ImportantDate): Date {
     return next;
   }
 
-  // No recurrence
+  // No recurrence — return the local-correct date
   return d;
 }
 
@@ -102,9 +108,27 @@ export function ImportantDatesWidget() {
     })();
   }, []);
 
-  // Sort by resolved date
+  // Resolve dates, filter to current + next month, then sort
+  const now = new Date();
+  const curYear = now.getFullYear();
+  const curMonth = now.getMonth();
+  const curDay = now.getDate();
+
   const sorted = dates
     .map((d) => ({ ...d, resolved: resolveDate(d) }))
+    .filter((d) => {
+      const rYear = d.resolved.getFullYear();
+      const rMonth = d.resolved.getMonth();
+      // Always show current month
+      if (rYear === curYear && rMonth === curMonth) return true;
+      // After day 28, also show next month's dates
+      if (curDay >= 28) {
+        const nextMonth = curMonth === 11 ? 0 : curMonth + 1;
+        const nextYear = curMonth === 11 ? curYear + 1 : curYear;
+        if (rYear === nextYear && rMonth === nextMonth) return true;
+      }
+      return false;
+    })
     .sort((a, b) => a.resolved.getTime() - b.resolved.getTime());
 
   // Check scroll arrows
@@ -197,9 +221,14 @@ export function ImportantDatesWidget() {
 
               {/* Label + countdown */}
               <div className="min-w-0 flex-1">
-                <p className="text-[13px] font-semibold text-gray-800 dark:text-gray-100 leading-tight truncate">
+                <p className={`text-[13px] font-semibold text-gray-800 dark:text-gray-100 leading-tight ${entry.label.length > 15 ? "break-words whitespace-normal" : "truncate"}`}>
                   {entry.label}
                 </p>
+                {entry.subtitle && (
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-tight mt-0.5 truncate">
+                    {entry.subtitle}
+                  </p>
+                )}
                 <p className={`text-[11px] mt-0.5 ${isToday ? "font-bold text-brand-blue" : "text-gray-400 dark:text-gray-500"}`}>
                   {days >= 0 ? daysLabel(days) : `${Math.abs(days)}d ago`}
                 </p>

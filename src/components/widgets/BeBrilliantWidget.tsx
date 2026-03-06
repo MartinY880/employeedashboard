@@ -22,6 +22,8 @@ import {
   Trash2,
   ThumbsUp,
   Reply,
+  ArrowDownWideNarrow,
+  Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -640,7 +642,8 @@ export function BeBrilliantWidget() {
   const { playSuccess, playClick } = useSounds();
   const [showForm, setShowForm] = useState(false);
   const [justSubmitted, setJustSubmitted] = useState(false);
-  const [activeTab, setActiveTab] = useState<"wall" | "pipeline">("wall");
+  const [statusFilter, setStatusFilter] = useState<"ALL" | "ACTIVE" | "SELECTED" | "IN_PROGRESS" | "COMPLETED">("ALL");
+  const [wallSort, setWallSort] = useState<"votes" | "recent">("votes");
 
   // Debounced re-sort: keep a "frozen" sort order while voting,
   // then re-sort 1.5s after the last vote click
@@ -696,6 +699,11 @@ export function BeBrilliantWidget() {
     .map((id) => activeIdeas.find((i) => i.id === id))
     .filter((i): i is Idea => !!i);
 
+  // "Most Recent" sort — by createdAt descending
+  const recentSorted = [...activeIdeas].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+
   const trendingIdeas = orderedActive
     .filter((i) => i.votes >= TRENDING_THRESHOLD);
   const freshIdeas = orderedActive
@@ -738,51 +746,6 @@ export function BeBrilliantWidget() {
 
   return (
     <div>
-      {/* Tab Bar */}
-      <div className="flex border-b border-gray-100 dark:border-gray-700">
-        <button
-          type="button"
-          onClick={() => { playClick(); setActiveTab("wall"); }}
-          className={`flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition-colors relative ${
-            activeTab === "wall"
-              ? "text-brand-blue"
-              : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400"
-          }`}
-        >
-          <Lightbulb className="w-3.5 h-3.5" />
-          Ideas Wall
-          {activeTab === "wall" && (
-            <motion.div
-              layoutId="bb-tab-indicator"
-              className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-blue rounded-t-full"
-            />
-          )}
-        </button>
-        <button
-          type="button"
-          onClick={() => { playClick(); setActiveTab("pipeline"); }}
-          className={`flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition-colors relative ${
-            activeTab === "pipeline"
-              ? "text-brand-blue"
-              : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400"
-          }`}
-        >
-          <Rocket className="w-3.5 h-3.5" />
-          Pipeline
-          {selectedIdeas.length > 0 && (
-            <Badge variant="secondary" className="text-[9px] px-1.5 py-0 bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-400 font-semibold">
-              {selectedIdeas.length}
-            </Badge>
-          )}
-          {activeTab === "pipeline" && (
-            <motion.div
-              layoutId="bb-tab-indicator"
-              className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-blue rounded-t-full"
-            />
-          )}
-        </button>
-      </div>
-
       {/* Tab Content */}
       <div className="p-4 space-y-4">
         {/* Success Banner */}
@@ -800,126 +763,228 @@ export function BeBrilliantWidget() {
           )}
         </AnimatePresence>
 
-        <AnimatePresence mode="wait">
-          {activeTab === "wall" ? (
-            <motion.div
-              key="wall"
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -10 }}
-              transition={{ duration: 0.15 }}
-              className="space-y-4"
-            >
-              {/* Submit Button */}
-              <AnimatePresence mode="wait">
-                {!showForm ? (
-                  <motion.div key="btn" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        playClick();
-                        setShowForm(true);
-                      }}
-                      className="w-full h-8 text-xs border-dashed border-brand-blue/30 text-brand-blue hover:bg-brand-blue/5 hover:border-brand-blue/50 gap-1.5"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      Submit an Idea
-                    </Button>
-                  </motion.div>
-                ) : (
+        <div className="space-y-4">
+          {/* Submit Row */}
+          <div className="flex items-center gap-2">
+            <AnimatePresence mode="wait">
+              {!showForm ? (
+                <motion.div key="btn" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      playClick();
+                      setShowForm(true);
+                    }}
+                    className="w-full h-8 text-xs border-dashed border-brand-blue/30 text-brand-blue hover:bg-brand-blue/5 hover:border-brand-blue/50 gap-1.5"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Submit an Idea
+                  </Button>
+                </motion.div>
+              ) : (
+                <div className="flex-1">
                   <SubmitIdeaForm
                     key="form"
                     onSubmit={handleSubmit}
                     onCancel={() => setShowForm(false)}
                   />
-                )}
-              </AnimatePresence>
-
-              {/* 🔥 Trending Now */}
-              {trendingIdeas.length > 0 && (
-                <section>
-                  <h4 className="text-[11px] font-bold text-orange-600 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                    <Flame className="w-3.5 h-3.5" />
-                    Trending Now
-                    <Badge
-                      variant="secondary"
-                      className="text-[9px] px-1.5 py-0 bg-orange-100 text-orange-600 font-semibold ml-auto"
-                    >
-                      {TRENDING_THRESHOLD}+ votes
-                    </Badge>
-                  </h4>
-                  <div className="space-y-2">
-                    <AnimatePresence mode="popLayout">
-                      {trendingIdeas.map((idea) => (
-                        <IdeaCard
-                          key={idea.id}
-                          idea={idea}
-                          onVote={handleVote}
-                          userVote={userVotesByIdea[idea.id]}
-                          isTrending
-                        />
-                      ))}
-                    </AnimatePresence>
-                  </div>
-                </section>
+                </div>
               )}
+            </AnimatePresence>
+          </div>
 
-              {/* ✨ Fresh Ideas */}
-              {freshIdeas.length > 0 && (
-                <section>
-                  <h4 className="text-[11px] font-bold text-brand-blue uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5" />
-                    Fresh Ideas
-                  </h4>
-                  <div className="space-y-2">
-                    <AnimatePresence mode="popLayout">
-                      {freshIdeas.map((idea) => (
-                        <IdeaCard
-                          key={idea.id}
-                          idea={idea}
-                          onVote={handleVote}
-                          userVote={userVotesByIdea[idea.id]}
-                        />
-                      ))}
-                    </AnimatePresence>
-                  </div>
-                </section>
-              )}
+          {/* Status Filter Chips */}
+          {ideas.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {(["ALL", "ACTIVE", "SELECTED", "IN_PROGRESS", "COMPLETED"] as const).map((f) => {
+                const count = f === "ALL"
+                  ? ideas.length
+                  : ideas.filter((i) => i.status === f).length;
+                if (f !== "ALL" && count === 0) return null;
+                const labels: Record<string, string> = { ALL: "All", ACTIVE: "Active", SELECTED: "Selected", IN_PROGRESS: "In Progress", COMPLETED: "Completed" };
+                const icons: Record<string, React.ReactNode> = {
+                  ALL: null,
+                  ACTIVE: <Lightbulb className="w-3 h-3" />,
+                  SELECTED: <Rocket className="w-3 h-3" />,
+                  IN_PROGRESS: <Wrench className="w-3 h-3" />,
+                  COMPLETED: <CheckCircle2 className="w-3 h-3" />,
+                };
+                return (
+                  <button
+                    key={f}
+                    type="button"
+                    onClick={() => { playClick(); setStatusFilter(f); }}
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all border ${
+                      statusFilter === f
+                        ? "bg-brand-blue text-white border-brand-blue shadow-sm"
+                        : "bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:border-brand-blue/40 hover:text-brand-blue"
+                    }`}
+                  >
+                    {icons[f]}
+                    {labels[f]}
+                    <span className={`text-[9px] px-1 py-0 rounded-full font-bold ${
+                      statusFilter === f ? "bg-white/20 text-white" : "bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400"
+                    }`}>{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
-              {/* Empty state */}
-              {activeIdeas.length === 0 && (
+          {/* Sort Toggle — shown when viewing ideas that can be sorted */}
+          {(statusFilter === "ALL" || statusFilter === "ACTIVE") && activeIdeas.length > 0 && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">Sort:</span>
+              <button
+                type="button"
+                onClick={() => { playClick(); setWallSort("votes"); }}
+                className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold transition-all border ${
+                  wallSort === "votes"
+                    ? "bg-brand-blue text-white border-brand-blue shadow-sm"
+                    : "bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:border-brand-blue/40 hover:text-brand-blue"
+                }`}
+              >
+                <ArrowDownWideNarrow className="w-3 h-3" />
+                Highest Votes
+              </button>
+              <button
+                type="button"
+                onClick={() => { playClick(); setWallSort("recent"); }}
+                className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold transition-all border ${
+                  wallSort === "recent"
+                    ? "bg-brand-blue text-white border-brand-blue shadow-sm"
+                    : "bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:border-brand-blue/40 hover:text-brand-blue"
+                }`}
+              >
+                <Clock className="w-3 h-3" />
+                Most Recent
+              </button>
+            </div>
+          )}
+
+          {/* ── Filtered Content ── */}
+          {(() => {
+            // Show active ideas (IdeaCards)
+            const showActive = statusFilter === "ALL" || statusFilter === "ACTIVE";
+            // Show status'd ideas (SelectedIdeaRows)
+            const filteredStatusIdeas = statusFilter === "ALL"
+              ? selectedIdeas
+              : statusFilter === "ACTIVE"
+                ? []
+                : selectedIdeas.filter((i) => i.status === statusFilter);
+
+            const hasActiveContent = showActive && activeIdeas.length > 0;
+            const hasStatusContent = filteredStatusIdeas.length > 0;
+
+            if (!hasActiveContent && !hasStatusContent) {
+              return (
                 <div className="text-center py-6">
                   <Lightbulb className="w-8 h-8 text-brand-grey/30 mx-auto mb-2" />
-                  <p className="text-sm text-brand-grey">No ideas yet — be the first!</p>
+                  <p className="text-sm text-brand-grey">
+                    {statusFilter === "ALL" ? "No ideas yet — be the first!" : "No ideas match this filter."}
+                  </p>
                 </div>
-              )}
-            </motion.div>
-          ) : (
-            <motion.div
-              key="pipeline"
-              initial={{ opacity: 0, x: 10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 10 }}
-              transition={{ duration: 0.15 }}
-              className="space-y-4"
-            >
-              {selectedIdeas.length > 0 ? (
-                <div className="space-y-1.5">
-                  {selectedIdeas.map((idea) => (
-                    <SelectedIdeaRow key={idea.id} idea={idea} />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-6">
-                  <Rocket className="w-8 h-8 text-brand-grey/30 mx-auto mb-2" />
-                  <p className="text-sm text-brand-grey">No ideas in the pipeline yet.</p>
-                  <p className="text-xs text-brand-grey/60 mt-1">Selected ideas will appear here as they progress.</p>
-                </div>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
+              );
+            }
+
+            return (
+              <>
+                {/* Active ideas */}
+                {hasActiveContent && (
+                  <>
+                    {wallSort === "votes" ? (
+                      <>
+                        {trendingIdeas.length > 0 && (
+                          <section>
+                            <h4 className="text-[11px] font-bold text-orange-600 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                              <Flame className="w-3.5 h-3.5" />
+                              Trending Now
+                              <Badge
+                                variant="secondary"
+                                className="text-[9px] px-1.5 py-0 bg-orange-100 text-orange-600 font-semibold ml-auto"
+                              >
+                                {TRENDING_THRESHOLD}+ votes
+                              </Badge>
+                            </h4>
+                            <div className="space-y-2">
+                              <AnimatePresence mode="popLayout">
+                                {trendingIdeas.map((idea) => (
+                                  <IdeaCard
+                                    key={idea.id}
+                                    idea={idea}
+                                    onVote={handleVote}
+                                    userVote={userVotesByIdea[idea.id]}
+                                    isTrending
+                                  />
+                                ))}
+                              </AnimatePresence>
+                            </div>
+                          </section>
+                        )}
+                        {freshIdeas.length > 0 && (
+                          <section>
+                            <h4 className="text-[11px] font-bold text-brand-blue uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                              <Sparkles className="w-3.5 h-3.5" />
+                              Fresh Ideas
+                            </h4>
+                            <div className="space-y-2">
+                              <AnimatePresence mode="popLayout">
+                                {freshIdeas.map((idea) => (
+                                  <IdeaCard
+                                    key={idea.id}
+                                    idea={idea}
+                                    onVote={handleVote}
+                                    userVote={userVotesByIdea[idea.id]}
+                                  />
+                                ))}
+                              </AnimatePresence>
+                            </div>
+                          </section>
+                        )}
+                      </>
+                    ) : (
+                      recentSorted.length > 0 && (
+                        <section>
+                          <div className="space-y-2">
+                            <AnimatePresence mode="popLayout">
+                              {recentSorted.map((idea) => (
+                                <IdeaCard
+                                  key={idea.id}
+                                  idea={idea}
+                                  onVote={handleVote}
+                                  userVote={userVotesByIdea[idea.id]}
+                                  isTrending={idea.votes >= TRENDING_THRESHOLD}
+                                />
+                              ))}
+                            </AnimatePresence>
+                          </div>
+                        </section>
+                      )
+                    )}
+                  </>
+                )}
+
+                {/* Status'd ideas (Selected / In Progress / Completed) */}
+                {hasStatusContent && (
+                  <section>
+                    {showActive && hasActiveContent && (
+                      <h4 className="text-[11px] font-bold text-emerald-600 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                        <Rocket className="w-3.5 h-3.5" />
+                        Ideas in Motion
+                      </h4>
+                    )}
+                    <div className="space-y-1.5">
+                      {filteredStatusIdeas.map((idea) => (
+                        <SelectedIdeaRow key={idea.id} idea={idea} />
+                      ))}
+                    </div>
+                  </section>
+                )}
+              </>
+            );
+          })()}
+        </div>
       </div>
     </div>
   );

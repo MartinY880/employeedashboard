@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "redeploy": "docker-compose up -d --build --force-recreate",
-    "deploy:pm2": "npm run build && pm2 restart proconnect --update-env",
+    "deploy:pm2": "npm run build && cp -r .next/static .next/standalone/proconnect/.next/static && cp -r public .next/standalone/proconnect/public && pm2 restart proconnect --update-env",
     "db:setup": "npx tsx prisma/seed.ts",
     "db:seed": "npx tsx prisma/seed.ts"
   },
