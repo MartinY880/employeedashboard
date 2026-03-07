@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useCallback } from "react";
+import { useTheme } from "@/components/shared/ThemeProvider";
 
 const DEFAULT_DJ_URL =
   "https://dj.pros.mortgage/session/66f1f6b7-6bbc-46ec-9bf2-8e5324823da3?embed=true";
@@ -10,6 +11,7 @@ export function IframeHostClient() {
   const djUrl = process.env.NEXT_PUBLIC_DJ_APP_URL || DEFAULT_DJ_URL;
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const { theme } = useTheme();
 
   const djOrigin = (() => {
     try {
@@ -18,6 +20,10 @@ export function IframeHostClient() {
       return "https://dj-dev.pros.mortgage";
     }
   })();
+
+  const sendTheme = useCallback((win: Window) => {
+    win.postMessage({ type: "dj-app:theme", theme }, djOrigin);
+  }, [theme, djOrigin]);
 
   const sendToken = useCallback(async () => {
     const win = iframeRef.current?.contentWindow;
@@ -29,13 +35,13 @@ export function IframeHostClient() {
       const { token, userId, displayName } = await res.json();
       if (!token) return;
       win.postMessage(
-        { type: "dj-app:token", token, userId, displayName },
+        { type: "dj-app:token", token, userId, displayName, theme },
         djOrigin
       );
     } catch (err) {
       console.error("Failed to send DJ token:", err);
     }
-  }, [djOrigin]);
+  }, [djOrigin, theme]);
 
   // Listen for token requests from the DJ iframe
   useEffect(() => {
@@ -48,12 +54,22 @@ export function IframeHostClient() {
     return () => window.removeEventListener("message", handleMessage);
   }, [djOrigin, sendToken]);
 
+  // Push theme changes to the iframe immediately (no token re-fetch needed)
+  useEffect(() => {
+    const win = iframeRef.current?.contentWindow;
+    if (!win) return;
+    sendTheme(win);
+  }, [theme, sendTheme]);
+
   // Proactively send token on load and refresh every 50 min
   const handleLoad = useCallback(() => {
     sendToken();
+    if (iframeRef.current?.contentWindow) {
+      sendTheme(iframeRef.current.contentWindow);
+    }
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(sendToken, TOKEN_REFRESH_MS);
-  }, [sendToken]);
+  }, [sendToken, sendTheme]);
 
   // Clear refresh timer on unmount
   useEffect(
@@ -68,9 +84,15 @@ export function IframeHostClient() {
       ref={iframeRef}
       id="dj-frame"
       src={djUrl}
-      width="100%"
-      height="700"
-      style={{ border: "none", borderRadius: 12 }}
+      style={{
+        display: "block",
+        width: "100%",
+        // Fill viewport minus TopNav (~80px) + BlueStrip (~52px) + footer (~48px)
+        height: "calc(100dvh - 180px)",
+        minHeight: 480,
+        border: "none",
+        background: "var(--brand-bg)",
+      }}
       allow="autoplay; encrypted-media"
       onLoad={handleLoad}
     />
