@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useCallback } from "react";
+import { useTheme } from "@/components/shared/ThemeProvider";
 
 const TOKEN_REFRESH_MS = 50 * 60 * 1000;
 
@@ -15,6 +16,7 @@ export function DynamicIframeClient({
 }) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const { theme } = useTheme();
 
   const targetOrigin = (() => {
     try {
@@ -23,6 +25,11 @@ export function DynamicIframeClient({
       return null;
     }
   })();
+
+  const sendTheme = useCallback((win: Window) => {
+    if (!targetOrigin) return;
+    win.postMessage({ type: "dj-app:theme", theme }, targetOrigin);
+  }, [theme, targetOrigin]);
 
   const sendToken = useCallback(async () => {
     const win = iframeRef.current?.contentWindow;
@@ -34,13 +41,13 @@ export function DynamicIframeClient({
       const { token, userId, displayName } = await res.json();
       if (!token) return;
       win.postMessage(
-        { type: "dj-app:token", token, userId, displayName },
+        { type: "dj-app:token", token, userId, displayName, theme },
         targetOrigin
       );
     } catch (err) {
       console.error("Failed to send DJ token:", err);
     }
-  }, [targetOrigin]);
+  }, [targetOrigin, theme]);
 
   useEffect(() => {
     if (!targetOrigin) return;
@@ -53,11 +60,21 @@ export function DynamicIframeClient({
     return () => window.removeEventListener("message", handleMessage);
   }, [targetOrigin, sendToken]);
 
+  // Push theme changes to the iframe immediately
+  useEffect(() => {
+    const win = iframeRef.current?.contentWindow;
+    if (!win) return;
+    sendTheme(win);
+  }, [theme, sendTheme]);
+
   const handleLoad = useCallback(() => {
     sendToken();
+    if (iframeRef.current?.contentWindow) {
+      sendTheme(iframeRef.current.contentWindow);
+    }
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(sendToken, TOKEN_REFRESH_MS);
-  }, [sendToken]);
+  }, [sendToken, sendTheme]);
 
   useEffect(
     () => () => {
