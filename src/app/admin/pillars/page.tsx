@@ -31,7 +31,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ICON_MAP, type PillarData, type PillarIconName, type PillarHeader } from "@/lib/pillar-icons";
+import { ICON_MAP, type PillarData, type PillarIconName, type PillarHeader, type PillarV2Data, type PillarV2Row, DEFAULT_PILLAR_V2 } from "@/lib/pillar-icons";
 import {
   AVAILABLE_ICON_OPTIONS,
   normalizeQuickLinkIconId,
@@ -75,6 +75,13 @@ export default function AdminPillarsPage() {
   const [showOnDashboard, setShowOnDashboard] = useState<boolean | null>(null);
   const [togglingVisibility, setTogglingVisibility] = useState(false);
 
+  // V2 template state
+  const [v2Data, setV2Data] = useState<PillarV2Data>(DEFAULT_PILLAR_V2);
+  const [v2IconMenuOpenFor, setV2IconMenuOpenFor] = useState<string | null>(null);
+  const [v2IconSearch, setV2IconSearch] = useState("");
+  const deferredV2IconSearch = useDeferredValue(v2IconSearch);
+  const [v2VisibleDefaultIcons, setV2VisibleDefaultIcons] = useState(ICON_INITIAL_RESULTS);
+
   useEffect(() => {
     async function fetchVisibility() {
       try {
@@ -117,6 +124,7 @@ export default function AdminPillarsPage() {
       if (data && data.pillars && Array.isArray(data.pillars)) {
         setPillars(data.pillars);
         if (data.header) setHeader(data.header);
+        if (data.v2) setV2Data(data.v2);
       } else if (Array.isArray(data)) {
         setPillars(data);
       }
@@ -134,7 +142,7 @@ export default function AdminPillarsPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      // Save pillars and header in parallel
+      // Save pillars and header (with v2 data) in parallel
       const [pillarsRes, headerRes] = await Promise.all([
         fetch("/api/pillars", {
           method: "PUT",
@@ -144,7 +152,7 @@ export default function AdminPillarsPage() {
         fetch("/api/pillars", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(header),
+          body: JSON.stringify({ ...header, v2: v2Data }),
         }),
       ]);
       if (pillarsRes.ok && headerRes.ok) {
@@ -187,6 +195,63 @@ export default function AdminPillarsPage() {
     setPillars(newOrder);
     setHasChanges(true);
   };
+
+  /* ── V2 helpers ───────────────────────────────── */
+
+  const updateV2ColumnTitle = (colIdx: number, value: string) => {
+    setV2Data((prev) => {
+      const titles = [...prev.columnTitles] as [string, string, string];
+      titles[colIdx] = value;
+      return { ...prev, columnTitles: titles };
+    });
+    setHasChanges(true);
+  };
+
+  const updateV2Row = (rowId: string, field: keyof PillarV2Row, value: string) => {
+    setV2Data((prev) => ({
+      ...prev,
+      rows: prev.rows.map((r) => (r.id === rowId ? { ...r, [field]: value } : r)),
+    }));
+    setHasChanges(true);
+  };
+
+  const addV2Row = () => {
+    if (v2Data.rows.length >= 10) return;
+    const newRow: PillarV2Row = {
+      id: `v2r${Date.now()}`,
+      col1Icon: "Star",
+      col1Title: "New Pillar",
+      col2Text: "Description here.",
+      col3Text: "Action here.",
+    };
+    setV2Data((prev) => ({ ...prev, rows: [...prev.rows, newRow] }));
+    setHasChanges(true);
+  };
+
+  const deleteV2Row = (rowId: string) => {
+    setV2Data((prev) => ({ ...prev, rows: prev.rows.filter((r) => r.id !== rowId) }));
+    setHasChanges(true);
+  };
+
+  const v2FilteredIconOptions = useMemo(() => {
+    if (!v2IconMenuOpenFor) return [];
+    const query = deferredV2IconSearch.trim().toLowerCase();
+    if (!query) return AVAILABLE_ICON_OPTIONS.slice(0, v2VisibleDefaultIcons);
+    if (query.length < ICON_MIN_QUERY_LENGTH) return [];
+    return AVAILABLE_ICON_OPTIONS.filter((option) =>
+      [option.label, option.id, ...option.keywords].join(" ").toLowerCase().includes(query)
+    ).slice(0, ICON_MAX_RESULTS);
+  }, [deferredV2IconSearch, v2IconMenuOpenFor, v2VisibleDefaultIcons]);
+
+  const v2GroupedIconOptions = useMemo(() => ({
+    lucide: v2FilteredIconOptions.filter((o) => o.library === "lucide"),
+    reactIcons: v2FilteredIconOptions.filter((o) => o.library === "react-icons"),
+    fontAwesome: v2FilteredIconOptions.filter((o) => o.library === "fontawesome"),
+  }), [v2FilteredIconOptions]);
+
+  const v2HasMoreDefaultIcons = useMemo(() => {
+    return !deferredV2IconSearch.trim() && v2VisibleDefaultIcons < AVAILABLE_ICON_OPTIONS.length;
+  }, [deferredV2IconSearch, v2VisibleDefaultIcons]);
 
   const filteredIconOptions = useMemo(() => {
     if (!iconMenuOpenFor) return [];
@@ -304,7 +369,37 @@ export default function AdminPillarsPage() {
 
       {/* Header Editor */}
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-4 space-y-3">
-        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Pillar Header Banner</h3>
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Pillar Header Banner</h3>
+          {/* Template Selector */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Template:</span>
+            <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => { setHeader((prev) => ({ ...prev, template: "v1" })); setHasChanges(true); }}
+                className={`px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  (header.template ?? "v1") === "v1"
+                    ? "bg-brand-blue text-white"
+                    : "bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
+                }`}
+              >
+                V1 — Cards
+              </button>
+              <button
+                type="button"
+                onClick={() => { setHeader((prev) => ({ ...prev, template: "v2" })); setHasChanges(true); }}
+                className={`px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  header.template === "v2"
+                    ? "bg-brand-blue text-white"
+                    : "bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
+                }`}
+              >
+                V2 — Grid
+              </button>
+            </div>
+          </div>
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1 block">
@@ -470,7 +565,9 @@ export default function AdminPillarsPage() {
         </motion.div>
       )}
 
-      {/* Pillar list */}
+      {/* Pillar list — v1 or v2 depending on selected template */}
+      {(header.template ?? "v1") === "v1" ? (
+        <>
       <Reorder.Group
         axis="y"
         values={pillars}
@@ -709,6 +806,284 @@ export default function AdminPillarsPage() {
           <Shield className="w-10 h-10 mx-auto mb-3 opacity-30" />
           <p className="font-medium">No pillars yet</p>
           <p className="text-sm mt-1">Click &quot;Add Pillar&quot; to create your first company pillar.</p>
+        </div>
+      )}
+        </>
+      ) : (
+        /* ── V2 Grid Editor ──────────────────────────── */
+        <div className="space-y-4">
+          {/* Column Titles */}
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-4 space-y-3">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Column Titles</h3>
+            <div className="grid grid-cols-3 gap-3">
+              {v2Data.columnTitles.map((title, colIdx) => (
+                <div key={colIdx}>
+                  <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1 block">
+                    Column {colIdx + 1}
+                  </label>
+                  <Input
+                    value={title}
+                    onChange={(e) => updateV2ColumnTitle(colIdx, e.target.value)}
+                    placeholder={`Column ${colIdx + 1} title`}
+                    className="h-9"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* V2 Rows */}
+          {v2Data.rows.map((row, rowIdx) => {
+            const normalizedIcon = normalizeQuickLinkIconId(row.col1Icon);
+            const selectedIconOption =
+              AVAILABLE_ICON_OPTIONS.find((option) => option.id === normalizedIcon) ?? null;
+            const selectedLabel = selectedIconOption
+              ? selectedIconOption.label
+              : (row.col1Icon ? `Legacy: ${row.col1Icon}` : "Select an icon");
+
+            return (
+              <motion.div
+                key={row.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25, delay: rowIdx * 0.03 }}
+                className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-4 hover:shadow-md hover:border-brand-blue/15 transition-all"
+              >
+                <div className="flex items-start gap-3">
+                  {/* Row number badge */}
+                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-brand-blue text-white text-xs font-bold shrink-0 mt-1">
+                    {rowIdx + 1}
+                  </div>
+
+                  {/* Icon preview */}
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-brand-blue to-[#084f96] text-white shrink-0 mt-1">
+                    {renderPillarIconPreview(row.col1Icon, "w-6 h-6")}
+                  </div>
+
+                  {/* Fields */}
+                  <div className="flex-1 min-w-0 space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {/* Icon selector */}
+                      <div>
+                        <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1 block">
+                          Icon
+                        </label>
+                        <div className="relative">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-9 w-full justify-between"
+                            onClick={() => {
+                              setV2IconMenuOpenFor((current) => {
+                                const next = current === row.id ? null : row.id;
+                                if (next) {
+                                  setV2VisibleDefaultIcons(ICON_INITIAL_RESULTS);
+                                } else {
+                                  setV2IconSearch("");
+                                }
+                                return next;
+                              });
+                            }}
+                          >
+                            <span className="inline-flex items-center gap-2 min-w-0">
+                              {renderPillarIconPreview(row.col1Icon, "w-4 h-4")}
+                              <span className="truncate">{selectedLabel}</span>
+                            </span>
+                            <ChevronDown className="w-4 h-4 opacity-60" />
+                          </Button>
+
+                          {v2IconMenuOpenFor === row.id && (
+                            <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-50 rounded-md border bg-popover text-popover-foreground shadow-md">
+                              <div className="p-1 border-b border-border">
+                                <Input
+                                  placeholder="Search icons..."
+                                  value={v2IconSearch}
+                                  onChange={(e) => setV2IconSearch(e.target.value)}
+                                  className="h-8"
+                                  autoFocus
+                                />
+                              </div>
+                              <div
+                                className="max-h-64 overflow-y-auto p-1"
+                                onScroll={(e) => {
+                                  if (deferredV2IconSearch.trim()) return;
+                                  const element = e.currentTarget;
+                                  const nearBottom =
+                                    element.scrollTop + element.clientHeight >= element.scrollHeight - 24;
+                                  if (nearBottom) {
+                                    setV2VisibleDefaultIcons((prev) =>
+                                      Math.min(prev + ICON_LOAD_STEP, AVAILABLE_ICON_OPTIONS.length)
+                                    );
+                                  }
+                                }}
+                              >
+                                {v2IconSearch.trim().length === 1 && (
+                                  <div className="px-2 py-1.5 text-xs text-brand-grey">
+                                    Type at least 2 characters to search
+                                  </div>
+                                )}
+
+                                {v2GroupedIconOptions.lucide.length > 0 && (
+                                  <>
+                                    <div className="px-2 py-1 text-xs text-brand-grey">Lucide</div>
+                                    {v2GroupedIconOptions.lucide.map((icon) => (
+                                      <button
+                                        key={icon.id}
+                                        type="button"
+                                        className="w-full text-left px-2 py-1.5 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground"
+                                        onMouseDown={(e) => e.preventDefault()}
+                                        onClick={() => {
+                                          updateV2Row(row.id, "col1Icon", icon.id);
+                                          setV2IconMenuOpenFor(null);
+                                          setV2IconSearch("");
+                                        }}
+                                      >
+                                        <span className="inline-flex items-center gap-2">
+                                          {renderQuickLinkIconPreview(icon.id, "w-4 h-4")}
+                                          {icon.label}
+                                        </span>
+                                      </button>
+                                    ))}
+                                  </>
+                                )}
+
+                                {v2GroupedIconOptions.reactIcons.length > 0 && (
+                                  <>
+                                    <div className="px-2 py-1 text-xs text-brand-grey">React Icons</div>
+                                    {v2GroupedIconOptions.reactIcons.map((icon) => (
+                                      <button
+                                        key={icon.id}
+                                        type="button"
+                                        className="w-full text-left px-2 py-1.5 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground"
+                                        onMouseDown={(e) => e.preventDefault()}
+                                        onClick={() => {
+                                          updateV2Row(row.id, "col1Icon", icon.id);
+                                          setV2IconMenuOpenFor(null);
+                                          setV2IconSearch("");
+                                        }}
+                                      >
+                                        <span className="inline-flex items-center gap-2">
+                                          {renderQuickLinkIconPreview(icon.id, "w-4 h-4")}
+                                          {icon.label}
+                                        </span>
+                                      </button>
+                                    ))}
+                                  </>
+                                )}
+
+                                {v2GroupedIconOptions.fontAwesome.length > 0 && (
+                                  <>
+                                    <div className="px-2 py-1 text-xs text-brand-grey">Font Awesome</div>
+                                    {v2GroupedIconOptions.fontAwesome.map((icon) => (
+                                      <button
+                                        key={icon.id}
+                                        type="button"
+                                        className="w-full text-left px-2 py-1.5 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground"
+                                        onMouseDown={(e) => e.preventDefault()}
+                                        onClick={() => {
+                                          updateV2Row(row.id, "col1Icon", icon.id);
+                                          setV2IconMenuOpenFor(null);
+                                          setV2IconSearch("");
+                                        }}
+                                      >
+                                        <span className="inline-flex items-center gap-2">
+                                          {renderQuickLinkIconPreview(icon.id, "w-4 h-4")}
+                                          {icon.label}
+                                        </span>
+                                      </button>
+                                    ))}
+                                  </>
+                                )}
+
+                                {v2FilteredIconOptions.length === 0 && v2IconSearch.trim().length !== 1 && (
+                                  <div className="px-2 py-1.5 text-xs text-brand-grey">No icons found</div>
+                                )}
+                                {v2HasMoreDefaultIcons && (
+                                  <div className="px-2 py-1.5 text-xs text-brand-grey">Scroll to load more icons…</div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Col 1 Title */}
+                      <div>
+                        <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1 block">
+                          Title
+                        </label>
+                        <Input
+                          value={row.col1Title}
+                          onChange={(e) => updateV2Row(row.id, "col1Title", e.target.value)}
+                          placeholder="Pillar title"
+                          className="h-9"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Col 2 & 3 text */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1 block">
+                          {v2Data.columnTitles[1] || "Column 2"}
+                        </label>
+                        <Textarea
+                          value={row.col2Text}
+                          onChange={(e) => updateV2Row(row.id, "col2Text", e.target.value)}
+                          placeholder="Column 2 text…"
+                          rows={2}
+                          className="resize-none text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1 block">
+                          {v2Data.columnTitles[2] || "Column 3"}
+                        </label>
+                        <Textarea
+                          value={row.col3Text}
+                          onChange={(e) => updateV2Row(row.id, "col3Text", e.target.value)}
+                          placeholder="Column 3 text…"
+                          rows={2}
+                          className="resize-none text-sm"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Delete button */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => deleteV2Row(row.id)}
+                    className="text-gray-400 dark:text-gray-500 hover:text-red-500 hover:bg-red-50 shrink-0 mt-1"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              </motion.div>
+            );
+          })}
+
+          {/* Add Row button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={addV2Row}
+            disabled={v2Data.rows.length >= 10}
+            className="w-full"
+          >
+            <Plus className="w-4 h-4 mr-1.5" />
+            Add Row {v2Data.rows.length >= 10 && "(Max 10)"}
+          </Button>
+
+          {/* V2 empty state */}
+          {v2Data.rows.length === 0 && (
+            <div className="text-center py-12 text-brand-grey">
+              <Shield className="w-10 h-10 mx-auto mb-3 opacity-30" />
+              <p className="font-medium">No rows yet</p>
+              <p className="text-sm mt-1">Click &quot;Add Row&quot; to create your first grid row.</p>
+            </div>
+          )}
         </div>
       )}
 
