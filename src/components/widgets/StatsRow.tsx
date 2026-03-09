@@ -1,13 +1,16 @@
 // ProConnect — StatsRow Widget
 // Header banner + dynamic pillar card grid — fetches from /api/pillars (admin-editable)
+// Supports two templates: v1 (card grid) and v2 (5×3 table grid)
 
 "use client";
 
 import { useState, useEffect } from "react";
 import { PillarCard } from "./PillarCard";
+import { PillarGridV2 } from "./PillarGridV2";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
-import type { PillarData, PillarHeader } from "@/lib/pillar-icons";
+import type { PillarData, PillarHeader, PillarV2Data } from "@/lib/pillar-icons";
+import { DEFAULT_PILLAR_V2 } from "@/lib/pillar-icons";
 
 const DEFAULT_PILLARS: PillarData[] = [
   { id: "p1", icon: "Shield", title: "Integrity", message: "We act with honesty and transparency in everything we do." },
@@ -27,16 +30,18 @@ const DEFAULT_HEADER: PillarHeader = {
 export function StatsRow() {
   const [pillars, setPillars] = useState<PillarData[]>(DEFAULT_PILLARS);
   const [header, setHeader] = useState<PillarHeader>(DEFAULT_HEADER);
+  const [v2Data, setV2Data] = useState<PillarV2Data>(DEFAULT_PILLAR_V2);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetch("/api/pillars")
       .then((r) => r.json())
       .then((data) => {
-        // New format: { pillars, header }
+        // New format: { pillars, header, v2 }
         if (data && data.pillars && Array.isArray(data.pillars)) {
           setPillars(data.pillars);
           if (data.header) setHeader(data.header);
+          if (data.v2) setV2Data(data.v2);
         } else if (Array.isArray(data) && data.length > 0) {
           // Legacy format: plain array
           setPillars(data);
@@ -46,6 +51,8 @@ export function StatsRow() {
       .finally(() => setLoading(false));
   }, []);
 
+  const template = header.template ?? "v1";
+
   if (loading) {
     return (
       <div className="max-w-[1400px] mx-auto space-y-4">
@@ -53,11 +60,11 @@ export function StatsRow() {
         <div
           className="grid gap-4 mx-auto"
           style={{
-            gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+            gridTemplateColumns: template === "v2" ? "repeat(3, 1fr)" : "repeat(auto-fit, minmax(150px, 1fr))",
             maxWidth: "1400px",
           }}
         >
-          {Array.from({ length: 6 }).map((_, i) => (
+          {Array.from({ length: template === "v2" ? 15 : 6 }).map((_, i) => (
             <motion.div
               key={i}
               initial={{ opacity: 0, y: 20 }}
@@ -99,35 +106,46 @@ export function StatsRow() {
         </p>
       </motion.div>
 
-      {/* Pillar Cards — 2-col on mobile, auto-fit on sm+ */}
-      <style>{`
-        @media (min-width: 640px) {
-          .pillar-grid {
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)) !important;
-          }
-        }
-      `}</style>
-      <div className="pillar-grid grid grid-cols-2 gap-4 mx-auto">
-        {pillars.map((pillar, i) => {
-          const isLast = i === pillars.length - 1;
-          const isOddCount = pillars.length % 2 !== 0;
-          return (
-            <div
-              key={pillar.id}
-              className={isLast && isOddCount ? "col-span-2 sm:col-span-1" : ""}
-            >
-              <PillarCard
-                iconName={pillar.icon}
-                title={pillar.title}
-                message={pillar.message}
-                index={i}
-                titleSize={header.cardTitleSize}
-                messageSize={header.cardMessageSize}
-              />
-            </div>
-          );
-        })}
-      </div>
+      {/* Template switch: v1 = card grid, v2 = 5×3 table grid */}
+      {template === "v2" ? (
+        <PillarGridV2
+          data={v2Data}
+          cardTitleSize={header.cardTitleSize}
+          cardMessageSize={header.cardMessageSize}
+        />
+      ) : (
+        <>
+          {/* Pillar Cards — 2-col on mobile, auto-fit on sm+ */}
+          <style>{`
+            @media (min-width: 640px) {
+              .pillar-grid {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)) !important;
+              }
+            }
+          `}</style>
+          <div className="pillar-grid grid grid-cols-2 gap-4 mx-auto">
+            {pillars.map((pillar, i) => {
+              const isLast = i === pillars.length - 1;
+              const isOddCount = pillars.length % 2 !== 0;
+              return (
+                <div
+                  key={pillar.id}
+                  className={isLast && isOddCount ? "col-span-2 sm:col-span-1" : ""}
+                >
+                  <PillarCard
+                    iconName={pillar.icon}
+                    title={pillar.title}
+                    message={pillar.message}
+                    index={i}
+                    titleSize={header.cardTitleSize}
+                    messageSize={header.cardMessageSize}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
     </div>
   );
 }

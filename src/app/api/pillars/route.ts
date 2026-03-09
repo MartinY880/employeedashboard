@@ -1,17 +1,19 @@
 // ProConnect — Pillars API Route
-// GET: Fetch all pillars + header | PUT: Replace all pillars (admin)
+// GET: Fetch all pillars + header + v2 data | PUT: Replace all pillars (admin)
 // PATCH: Update pillar header only
 
 import { NextResponse } from "next/server";
 import { readFile, writeFile, mkdir } from "fs/promises";
 import { join } from "path";
-import type { PillarData, PillarHeader } from "@/lib/pillar-icons";
+import type { PillarData, PillarHeader, PillarV2Data } from "@/lib/pillar-icons";
+import { DEFAULT_PILLAR_V2 } from "@/lib/pillar-icons";
 import { getAuthUser } from "@/lib/logto";
 import { hasPermission, PERMISSIONS } from "@/lib/rbac";
 
 const DATA_DIR = join(process.cwd(), "src", "data");
 const PILLARS_FILE = join(DATA_DIR, "pillars.json");
 const HEADER_FILE = join(DATA_DIR, "pillar-header.json");
+const V2_FILE = join(DATA_DIR, "pillar-v2.json");
 
 const DEFAULT_PILLARS: PillarData[] = [
   { id: "p1", icon: "Shield", title: "Integrity", message: "We act with honesty and transparency in everything we do." },
@@ -56,9 +58,23 @@ async function saveHeader(header: PillarHeader): Promise<void> {
   await writeFile(HEADER_FILE, JSON.stringify(header, null, 2), "utf-8");
 }
 
+async function loadV2(): Promise<PillarV2Data> {
+  try {
+    const raw = await readFile(V2_FILE, "utf-8");
+    return JSON.parse(raw);
+  } catch {
+    return DEFAULT_PILLAR_V2;
+  }
+}
+
+async function saveV2(data: PillarV2Data): Promise<void> {
+  await mkdir(DATA_DIR, { recursive: true });
+  await writeFile(V2_FILE, JSON.stringify(data, null, 2), "utf-8");
+}
+
 export async function GET() {
-  const [pillars, header] = await Promise.all([loadPillars(), loadHeader()]);
-  return NextResponse.json({ pillars, header });
+  const [pillars, header, v2] = await Promise.all([loadPillars(), loadHeader(), loadV2()]);
+  return NextResponse.json({ pillars, header, v2 });
 }
 
 export async function PUT(request: Request) {
@@ -113,8 +129,15 @@ export async function PATCH(request: Request) {
       bannerSubtitleSize: body.bannerSubtitleSize ?? 11,
       cardTitleSize: body.cardTitleSize ?? 14,
       cardMessageSize: body.cardMessageSize ?? 11,
+      template: body.template ?? "v1",
     };
     await saveHeader(header);
+
+    // If v2 data is included, save it too
+    if (body.v2) {
+      await saveV2(body.v2);
+    }
+
     return NextResponse.json(header);
   } catch {
     return NextResponse.json({ error: "Failed to save header" }, { status: 500 });
