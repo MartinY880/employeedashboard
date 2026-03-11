@@ -6,8 +6,9 @@ import { join } from "path";
 import { NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/logto";
 import { getVideoSpotlightById } from "@/lib/video-spotlight-store";
+import { UPLOADS_BASE } from "@/lib/uploads-dir";
 
-const VIDEOS_DIR = join(process.cwd(), "uploads", "videos");
+const VIDEOS_DIR = join(UPLOADS_BASE, "videos");
 
 interface Params {
   params: Promise<{ id: string }>;

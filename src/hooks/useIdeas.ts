@@ -190,7 +190,14 @@ export function useIdeas() {
   const deleteIdea = useCallback(async (id: string) => {
     const res = await fetch(`/api/ideas?id=${id}`, { method: "DELETE" });
     if (!res.ok) throw new Error("Failed to delete idea");
-    setIdeas((prev) => prev.filter((idea) => idea.id !== id));
+    const data = await res.json().catch(() => ({}));
+    if (data?.deleted === "hard") {
+      setIdeas((prev) => prev.filter((idea) => idea.id !== id));
+      return;
+    }
+    setIdeas((prev) =>
+      prev.map((idea) => (idea.id === id ? { ...idea, status: "ARCHIVED" } : idea))
+    );
   }, []);
 
   return {

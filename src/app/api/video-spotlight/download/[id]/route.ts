@@ -9,10 +9,11 @@ import { promisify } from "util";
 import { NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/logto";
 import { getVideoSpotlightById } from "@/lib/video-spotlight-store";
+import { UPLOADS_BASE } from "@/lib/uploads-dir";
 
 const execFileAsync = promisify(execFile);
-const VIDEOS_DIR = join(process.cwd(), "uploads", "videos");
-const CACHE_DIR = join(process.cwd(), "uploads", "videos", ".dl-cache");
+const VIDEOS_DIR = join(UPLOADS_BASE, "videos");
+const CACHE_DIR = join(UPLOADS_BASE, "videos", ".dl-cache");
 
 interface Params {
   params: Promise<{ id: string }>;

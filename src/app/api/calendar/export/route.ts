@@ -3,15 +3,7 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-
-// Nodemailer is dynamically imported to avoid build issues if not installed
-async function getNodemailer() {
-  try {
-    return await import("nodemailer");
-  } catch {
-    return null;
-  }
-}
+import nodemailer from "nodemailer";
 
 interface SmtpSettings {
   host: string;
@@ -192,10 +184,7 @@ export async function POST(request: Request) {
       const smtp = await getSmtpSettings();
       if (!smtp) return NextResponse.json({ error: "SMTP not configured" }, { status: 400 });
 
-      const nodemailer = await getNodemailer();
-      if (!nodemailer) return NextResponse.json({ error: "nodemailer not installed" }, { status: 500 });
-
-      const transporter = nodemailer.default.createTransport({
+      const transporter = nodemailer.createTransport({
         host: smtp.host,
         port: parseInt(smtp.port || "587", 10),
         secure: smtp.port === "465",
@@ -235,10 +224,7 @@ export async function POST(request: Request) {
       const smtp = await getSmtpSettings();
       if (!smtp) return NextResponse.json({ error: "SMTP not configured" }, { status: 400 });
 
-      const nodemailer = await getNodemailer();
-      if (!nodemailer) return NextResponse.json({ error: "nodemailer not installed" }, { status: 500 });
-
-      const transporter = nodemailer.default.createTransport({
+      const transporter = nodemailer.createTransport({
         host: smtp.host,
         port: parseInt(smtp.port || "587", 10),
         secure: smtp.port === "465",

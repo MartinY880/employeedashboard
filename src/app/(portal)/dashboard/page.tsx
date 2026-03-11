@@ -23,7 +23,12 @@ interface SliderConfig {
   objectFit: "cover" | "contain" | "fill" | "auto";
 }
 
-const DEFAULT_VIS = { showCompanyPillars: true, showTournamentBracketLive: true, showImportantDates: true };
+const DEFAULT_VIS = {
+  showCompanyPillars: true,
+  showTournamentBracketLive: true,
+  showImportantDates: true,
+  showLenderAccountExecutives: true,
+};
 const DEFAULT_SLIDER_CONFIG: SliderConfig = {
   enabled: false,
   hasMedia: false,
@@ -54,6 +59,7 @@ export default async function DashboardPage() {
           showCompanyPillars: parsed.showCompanyPillars !== false,
           showTournamentBracketLive: parsed.showTournamentBracketLive !== false,
           showImportantDates: parsed.showImportantDates !== false,
+          showLenderAccountExecutives: parsed.showLenderAccountExecutives !== false,
         };
       } catch {
         /* keep defaults */

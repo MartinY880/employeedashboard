@@ -3,9 +3,9 @@
 
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { CalendarClock, ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarClock } from "lucide-react";
 import type { ImportantDate } from "@/types";
 
 /** Parse a DB date string into a local Date without timezone shift */
@@ -90,9 +90,6 @@ const ACCENT_COLORS = [
 export function ImportantDatesWidget() {
   const [dates, setDates] = useState<ImportantDate[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -131,111 +128,85 @@ export function ImportantDatesWidget() {
     })
     .sort((a, b) => a.resolved.getTime() - b.resolved.getTime());
 
-  // Check scroll arrows
-  const checkScroll = () => {
-    const el = scrollRef.current;
-    if (!el) return;
-    setCanScrollLeft(el.scrollLeft > 2);
-    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 2);
-  };
-
-  useEffect(() => {
-    checkScroll();
-    const el = scrollRef.current;
-    if (el) el.addEventListener("scroll", checkScroll, { passive: true });
-    window.addEventListener("resize", checkScroll);
-    return () => {
-      if (el) el.removeEventListener("scroll", checkScroll);
-      window.removeEventListener("resize", checkScroll);
-    };
-  }, [sorted.length]);
-
-  const scroll = (dir: "left" | "right") => {
-    const el = scrollRef.current;
-    if (!el) return;
-    el.scrollBy({ left: dir === "left" ? -220 : 220, behavior: "smooth" });
-  };
-
-  if (!loaded || sorted.length === 0) return null;
+  if (!loaded) {
+    return (
+      <div className="h-full flex flex-col bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+        <div className="px-3.5 py-2 bg-gradient-to-r from-slate-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 border-t-[3px] border-t-brand-blue flex items-center justify-between gap-2">
+          <h3 className="text-sm font-bold text-brand-blue tracking-wide uppercase">Important Dates</h3>
+          <CalendarClock className="w-4 h-4 text-brand-blue" />
+        </div>
+        <div className="flex-1 p-3.5 animate-pulse">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div className="h-[74px] rounded-xl bg-gray-100 dark:bg-gray-800" />
+            <div className="h-[74px] rounded-xl bg-gray-100 dark:bg-gray-800" />
+            <div className="h-[74px] rounded-xl bg-gray-100 dark:bg-gray-800" />
+            <div className="h-[74px] rounded-xl bg-gray-100 dark:bg-gray-800" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="relative group/dates">
-      {/* Header */}
-      <div className="flex items-center justify-center gap-2 mb-2.5 px-1">
-        <CalendarClock className="w-4 h-4 text-pink-500" />
-        <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-          Important Dates
-        </h3>
+    <div className="h-full flex flex-col bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+      {/* Card Header */}
+      <div className="px-3.5 py-2 bg-gradient-to-r from-slate-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 border-t-[3px] border-t-brand-blue flex items-center justify-between gap-2">
+        <h3 className="text-sm font-bold text-brand-blue tracking-wide uppercase">Important Dates</h3>
+        <CalendarClock className="w-4 h-4 text-brand-blue" />
       </div>
 
-      {/* Scroll arrows */}
-      {canScrollLeft && (
-        <button
-          onClick={() => scroll("left")}
-          className="absolute left-0 top-1/2 translate-y-1 z-10 w-7 h-7 flex items-center justify-center rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-md opacity-0 group-hover/dates:opacity-100 transition-opacity hover:bg-gray-50 dark:hover:bg-gray-700"
-        >
-          <ChevronLeft className="w-4 h-4 text-gray-600 dark:text-gray-300" />
-        </button>
-      )}
-      {canScrollRight && (
-        <button
-          onClick={() => scroll("right")}
-          className="absolute right-0 top-1/2 translate-y-1 z-10 w-7 h-7 flex items-center justify-center rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-md opacity-0 group-hover/dates:opacity-100 transition-opacity hover:bg-gray-50 dark:hover:bg-gray-700"
-        >
-          <ChevronRight className="w-4 h-4 text-gray-600 dark:text-gray-300" />
-        </button>
-      )}
+      {/* Body */}
+      <div className="flex-1 p-3.5">
+        {sorted.length === 0 ? (
+          <div className="h-full flex items-center justify-center rounded-lg border border-dashed border-gray-200 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400">
+            No upcoming dates this cycle.
+          </div>
+        ) : (
+          <div className="h-full grid grid-cols-1 sm:grid-cols-2 gap-2.5 content-center">
+            {sorted.map((entry, i) => {
+              const resolved = entry.resolved;
+              const days = daysUntil(resolved);
+              const color = ACCENT_COLORS[i % ACCENT_COLORS.length];
+              const isToday = days === 0;
 
-      {/* Horizontal scroll row */}
-      <div
-        ref={scrollRef}
-        className="flex gap-3 overflow-x-auto scrollbar-hide pb-1 justify-center"
-        style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-      >
-        {sorted.map((entry, i) => {
-          const resolved = entry.resolved;
-          const days = daysUntil(resolved);
-          const color = ACCENT_COLORS[i % ACCENT_COLORS.length];
-          const isToday = days === 0;
+              return (
+                <motion.div
+                  key={entry.id}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.04 }}
+                  className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 min-h-[74px] ${color.bg} ${color.border} ${isToday ? "ring-2 ring-brand-blue/30 dark:ring-brand-blue/40" : ""}`}
+                >
+                  <div className="flex flex-col items-center justify-center w-10 shrink-0">
+                    <span className={`text-[10px] font-bold uppercase tracking-wider leading-none ${color.month}`}>
+                      {formatMonth(resolved)}
+                    </span>
+                    <span className={`text-xl font-extrabold leading-tight ${color.text}`}>
+                      {formatDay(resolved)}
+                    </span>
+                    <span className="text-[10px] text-gray-400 dark:text-gray-500 leading-none">
+                      {formatWeekday(resolved)}
+                    </span>
+                  </div>
 
-          return (
-            <motion.div
-              key={entry.id}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.05 }}
-              className={`shrink-0 flex items-center gap-3 rounded-xl border px-4 py-3 min-w-[200px] max-w-[260px] ${color.bg} ${color.border} ${isToday ? "ring-2 ring-brand-blue/30 dark:ring-brand-blue/40" : ""}`}
-            >
-              {/* Date block */}
-              <div className="flex flex-col items-center justify-center w-12 shrink-0">
-                <span className={`text-[10px] font-bold uppercase tracking-wider leading-none ${color.month}`}>
-                  {formatMonth(resolved)}
-                </span>
-                <span className={`text-2xl font-extrabold leading-tight ${color.text}`}>
-                  {formatDay(resolved)}
-                </span>
-                <span className="text-[10px] text-gray-400 dark:text-gray-500 leading-none">
-                  {formatWeekday(resolved)}
-                </span>
-              </div>
-
-              {/* Label + countdown */}
-              <div className="min-w-0 flex-1">
-                <p className={`text-[13px] font-semibold text-gray-800 dark:text-gray-100 leading-tight ${entry.label.length > 15 ? "break-words whitespace-normal" : "truncate"}`}>
-                  {entry.label}
-                </p>
-                {entry.subtitle && (
-                  <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-tight mt-0.5 truncate">
-                    {entry.subtitle}
-                  </p>
-                )}
-                <p className={`text-[11px] mt-0.5 ${isToday ? "font-bold text-brand-blue" : "text-gray-400 dark:text-gray-500"}`}>
-                  {days >= 0 ? daysLabel(days) : `${Math.abs(days)}d ago`}
-                </p>
-              </div>
-            </motion.div>
-          );
-        })}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold text-gray-800 dark:text-gray-100 leading-tight line-clamp-2">
+                      {entry.label}
+                    </p>
+                    {entry.subtitle && (
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-tight mt-0.5 line-clamp-2">
+                        {entry.subtitle}
+                      </p>
+                    )}
+                    <p className={`text-[10px] mt-0.5 ${isToday ? "font-bold text-brand-blue" : "text-gray-400 dark:text-gray-500"}`}>
+                      {days >= 0 ? daysLabel(days) : `${Math.abs(days)}d ago`}
+                    </p>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

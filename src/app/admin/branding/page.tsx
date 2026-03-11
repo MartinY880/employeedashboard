@@ -25,7 +25,6 @@ import {
   ArrowUp,
   ArrowDown,
   ChevronDown,
-  GripVertical,
   Moon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -57,6 +56,7 @@ interface DashboardVisibilitySettings {
   showCompanyPillars: boolean;
   showTournamentBracketLive: boolean;
   showImportantDates: boolean;
+  showLenderAccountExecutives: boolean;
 }
 
 interface TopNavMenuItem {
@@ -92,6 +92,11 @@ interface SmtpSettings {
   fromName: string;
 }
 
+interface WeatherSettings {
+  city: string;
+  apiKey: string;
+}
+
 const DEFAULT_SMTP: SmtpSettings = {
   host: "",
   port: "587",
@@ -105,6 +110,12 @@ const DEFAULT_DASHBOARD_VISIBILITY: DashboardVisibilitySettings = {
   showCompanyPillars: true,
   showTournamentBracketLive: true,
   showImportantDates: true,
+  showLenderAccountExecutives: true,
+};
+
+const DEFAULT_WEATHER_SETTINGS: WeatherSettings = {
+  city: "",
+  apiKey: "",
 };
 
 const ICON_INITIAL_RESULTS = 80;
@@ -135,6 +146,8 @@ export default function AdminBrandingPage() {
   const [initialSmtpSettings, setInitialSmtpSettings] = useState<SmtpSettings>(DEFAULT_SMTP);
   const [dashboardVisibility, setDashboardVisibility] = useState<DashboardVisibilitySettings>(DEFAULT_DASHBOARD_VISIBILITY);
   const [initialDashboardVisibility, setInitialDashboardVisibility] = useState<DashboardVisibilitySettings>(DEFAULT_DASHBOARD_VISIBILITY);
+  const [weatherSettings, setWeatherSettings] = useState<WeatherSettings>(DEFAULT_WEATHER_SETTINGS);
+  const [initialWeatherSettings, setInitialWeatherSettings] = useState<WeatherSettings>(DEFAULT_WEATHER_SETTINGS);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [testEmail, setTestEmail] = useState("");
@@ -174,6 +187,9 @@ export default function AdminBrandingPage() {
         const visibility = { ...DEFAULT_DASHBOARD_VISIBILITY, ...(data.dashboardVisibility || {}) };
         setDashboardVisibility(visibility);
         setInitialDashboardVisibility(visibility);
+        const weather = { ...DEFAULT_WEATHER_SETTINGS, ...(data.weatherSettings || {}) };
+        setWeatherSettings(weather);
+        setInitialWeatherSettings(weather);
 
       }
     } catch {
@@ -280,6 +296,8 @@ export default function AdminBrandingPage() {
       formData.append("smtpPass", smtpSettings.pass);
       formData.append("smtpFrom", smtpSettings.from);
       formData.append("smtpFromName", smtpSettings.fromName);
+      formData.append("weatherCity", weatherSettings.city);
+      formData.append("weatherApiKey", weatherSettings.apiKey);
       formData.append("topNavMenu", JSON.stringify(topNavMenu.map((item, index) => ({
         ...item,
         href: item.href.startsWith("/") ? item.href : `/${item.href}`,
@@ -309,6 +327,8 @@ export default function AdminBrandingPage() {
       setRemoveFavicon(false);
       setSmtpSettings({ ...DEFAULT_SMTP, ...(updated.smtpSettings || {}) });
       setInitialSmtpSettings({ ...DEFAULT_SMTP, ...(updated.smtpSettings || {}) });
+      setWeatherSettings({ ...DEFAULT_WEATHER_SETTINGS, ...(updated.weatherSettings || {}) });
+      setInitialWeatherSettings({ ...DEFAULT_WEATHER_SETTINGS, ...(updated.weatherSettings || {}) });
       const updatedVisibility = { ...DEFAULT_DASHBOARD_VISIBILITY, ...(updated.dashboardVisibility || {}) };
       setDashboardVisibility(updatedVisibility);
       setInitialDashboardVisibility(updatedVisibility);
@@ -346,6 +366,7 @@ export default function AdminBrandingPage() {
   const currentFavicon = faviconPreview ?? (removeFavicon ? null : branding.faviconData);
   const menuChanged = JSON.stringify(topNavMenu) !== JSON.stringify(initialTopNavMenu);
   const visibilityChanged = JSON.stringify(dashboardVisibility) !== JSON.stringify(initialDashboardVisibility);
+  const weatherChanged = JSON.stringify(weatherSettings) !== JSON.stringify(initialWeatherSettings);
   const hasChanges =
     logoFile !== null ||
     darkLogoFile !== null ||
@@ -354,6 +375,7 @@ export default function AdminBrandingPage() {
     removeDarkLogo ||
     removeFavicon ||
     JSON.stringify(smtpSettings) !== JSON.stringify(initialSmtpSettings) ||
+    weatherChanged ||
     menuChanged ||
     visibilityChanged;
 
@@ -858,6 +880,7 @@ export default function AdminBrandingPage() {
             { key: "showCompanyPillars" as const, label: "Company Pillars", desc: "Stats row at the top of the dashboard" },
             { key: "showImportantDates" as const, label: "Important Dates", desc: "Horizontal date cards below the slider" },
             { key: "showTournamentBracketLive" as const, label: "Tournament Bracket Banner", desc: "Tournament bracket CTA banner" },
+            { key: "showLenderAccountExecutives" as const, label: "Account Executive Contacts", desc: "Dropdown between search and alerts" },
           ] as const).map((item) => (
             <label
               key={item.key}
@@ -884,6 +907,40 @@ export default function AdminBrandingPage() {
               </div>
             </label>
           ))}
+        </div>
+      </div>
+
+      {/* Weather Settings */}
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Globe className="w-5 h-5 text-brand-blue" />
+          <div>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Weather Settings</h2>
+            <p className="text-sm text-brand-grey mt-0.5">Configure city-based weather for dashboard widgets and the blue top strip.</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">City</label>
+            <Input
+              placeholder="Troy,US"
+              value={weatherSettings.city}
+              onChange={(e) => setWeatherSettings({ ...weatherSettings, city: e.target.value })}
+              className="text-sm"
+            />
+            <p className="text-[11px] text-gray-400 mt-1">Use OpenWeather city format like `Troy,US`.</p>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">OpenWeather API Key</label>
+            <Input
+              type="password"
+              placeholder="Enter API key"
+              value={weatherSettings.apiKey}
+              onChange={(e) => setWeatherSettings({ ...weatherSettings, apiKey: e.target.value })}
+              className="text-sm"
+            />
+          </div>
         </div>
       </div>
 

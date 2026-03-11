@@ -42,7 +42,7 @@ export function BlueStrip({ userName = "User" }: BlueStripProps) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.4, delay: 0.15 }}
-      className="relative overflow-hidden bg-gradient-to-r from-brand-blue to-[#084f96] h-auto min-h-[44px] sm:h-[52px] flex flex-wrap sm:flex-nowrap items-center justify-between px-4 sm:px-6 py-2 sm:py-0 text-white shadow-md gap-y-1"
+      className="relative overflow-visible bg-gradient-to-r from-brand-blue to-[#084f96] h-auto min-h-[44px] sm:h-[52px] flex flex-wrap sm:flex-nowrap items-center justify-between px-4 sm:px-6 py-2 sm:py-0 text-white shadow-md gap-y-1"
     >
       {/* Subtle pattern overlay */}
       <div className="absolute inset-0 opacity-[0.04]" style={{
@@ -57,9 +57,11 @@ export function BlueStrip({ userName = "User" }: BlueStripProps) {
         </span>
       </div>
 
-      <div className="relative flex items-center gap-3 sm:gap-6 text-xs sm:text-sm">
-        {today && <span className="opacity-80 hidden sm:inline">{today}</span>}
+      <div className="relative flex items-center gap-3 sm:gap-5 text-xs sm:text-sm">
+        {today && <span className="opacity-85 hidden sm:inline">{today}</span>}
         {today && <div className="w-px h-4 bg-white/30 hidden sm:block" />}
+
+        <div className="w-px h-4 bg-white/30 hidden sm:block" />
         {greeting && (
           <span className="font-medium">
             {greeting}, <span className="text-blue-200">{firstName}</span>

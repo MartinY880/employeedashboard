@@ -224,19 +224,50 @@ export async function PATCH(request: Request) {
 export async function DELETE(request: Request) {
   try {
     const { isAuthenticated, user } = await getAuthUser();
-    if (!isAuthenticated || !user || !hasPermission(user, PERMISSIONS.MANAGE_IDEAS)) {
+    if (!isAuthenticated || !user) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
+    const hardDeleteRequested = searchParams.get("hard") === "true";
 
     if (!id) {
       return NextResponse.json({ error: "ID is required" }, { status: 400 });
     }
 
-    await prisma.idea.delete({ where: { id } });
-    return NextResponse.json({ success: true });
+    const idea = await prisma.idea.findUnique({
+      where: { id },
+      select: { authorId: true, status: true },
+    });
+
+    if (!idea) {
+      return NextResponse.json({ error: "Idea not found" }, { status: 404 });
+    }
+
+    const isAdmin = hasPermission(user, PERMISSIONS.MANAGE_IDEAS);
+    const isAuthor = idea.authorId === user.sub;
+    const isLockedStage = idea.status === "IN_PROGRESS" || idea.status === "COMPLETED";
+
+    if (!isAdmin && (!isAuthor || isLockedStage)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // Hard delete is opt-in and admin-only.
+    if (hardDeleteRequested) {
+      if (!isAdmin) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+      await prisma.idea.delete({ where: { id } });
+      return NextResponse.json({ success: true, deleted: "hard" });
+    }
+
+    // Default behavior: soft-delete into ARCHIVED (visible in admin, hidden from widget).
+    await prisma.idea.update({
+      where: { id },
+      data: { status: "ARCHIVED" },
+    });
+    return NextResponse.json({ success: true, deleted: "soft" });
   } catch {
     return NextResponse.json({ error: "Failed to delete idea" }, { status: 500 });
   }

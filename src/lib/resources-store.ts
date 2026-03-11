@@ -1,5 +1,6 @@
 import { mkdir, readFile, unlink, writeFile } from "fs/promises";
 import { join } from "path";
+import { UPLOADS_BASE } from "@/lib/uploads-dir";
 
 export type ResourceKind = "link" | "document";
 
@@ -23,7 +24,7 @@ export interface ResourceItem {
 }
 
 const DATA_DIR = join(process.cwd(), "src", "data");
-const FILES_DIR = join(process.cwd(), "uploads", "resources");
+const FILES_DIR = join(UPLOADS_BASE, "resources");
 const RESOURCES_FILE = join(DATA_DIR, "resources.json");
 
 export const ALLOWED_DOCUMENT_MIME_TYPES = new Set([

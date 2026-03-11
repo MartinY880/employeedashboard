@@ -8,7 +8,9 @@ import { useEffect, useState } from "react";
 import { StatsRow } from "@/components/widgets/StatsRow";
 import { QuickLinksBar } from "@/components/widgets/QuickLinksBar";
 import { ImportantDatesWidget } from "@/components/widgets/ImportantDatesWidget";
+import { WeatherForecastWidget } from "@/components/widgets/WeatherForecastWidget";
 import { DirectorySearchBar } from "@/components/widgets/DirectorySearchBar";
+import { LenderAccountExecutivesDropdown } from "@/components/widgets/LenderAccountExecutivesDropdown";
 import { AlertsDropdown } from "@/components/widgets/AlertsDropdown";
 import { BeBrilliantWidget } from "@/components/widgets/BeBrilliantWidget";
 import { CalendarWidget } from "@/components/widgets/CalendarWidget";
@@ -25,6 +27,7 @@ interface DashboardVisibilitySettings {
   showCompanyPillars: boolean;
   showTournamentBracketLive: boolean;
   showImportantDates: boolean;
+  showLenderAccountExecutives: boolean;
 }
 
 interface SliderConfig {
@@ -105,20 +108,21 @@ export default function DashboardClient({ visibility, sliderConfig, showVideoSpo
         </section>
       ) : null}
 
-      {/* Important Dates */}
-      {visibility.showImportantDates !== false ? (
-        <section className="mb-4">
-          <ErrorBoundary label="Important Dates" compact>
-            <ImportantDatesWidget />
-          </ErrorBoundary>
-        </section>
-      ) : null}
-
-      {/* Quick Links */}
+      {/* Quick Links + Important Dates + Weather */}
       <section className="mb-4">
-        <ErrorBoundary label="Quick Links" compact>
-          <QuickLinksBar />
-        </ErrorBoundary>
+        <div className={`grid grid-cols-1 gap-4 ${visibility.showImportantDates !== false ? "xl:grid-cols-3" : "xl:grid-cols-2"}`}>
+          <ErrorBoundary label="Quick Links" compact>
+            <QuickLinksBar />
+          </ErrorBoundary>
+          {visibility.showImportantDates !== false && (
+            <ErrorBoundary label="Important Dates" compact>
+              <ImportantDatesWidget />
+            </ErrorBoundary>
+          )}
+          <ErrorBoundary label="Weather Forecast" compact>
+            <WeatherForecastWidget />
+          </ErrorBoundary>
+        </div>
       </section>
 
       {/* Tournament Banner */}
@@ -152,10 +156,15 @@ export default function DashboardClient({ visibility, sliderConfig, showVideoSpo
       ) : null}
 
       {/* Directory Search + Alerts Bar */}
-      <section className="mb-5 grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <section className={`mb-5 grid grid-cols-1 ${visibility.showLenderAccountExecutives ? "lg:grid-cols-3" : "lg:grid-cols-2"} gap-4`}>
         <ErrorBoundary label="Directory Search" compact>
           <DirectorySearchBar />
         </ErrorBoundary>
+        {visibility.showLenderAccountExecutives ? (
+          <ErrorBoundary label="Account Executive Contacts" compact>
+            <LenderAccountExecutivesDropdown />
+          </ErrorBoundary>
+        ) : null}
         <ErrorBoundary label="Alerts" compact>
           <AlertsDropdown />
         </ErrorBoundary>
@@ -184,11 +193,11 @@ export default function DashboardClient({ visibility, sliderConfig, showVideoSpo
             </ErrorBoundary>
           </div>
 
-          {/* Upcoming Holidays */}
+          {/* Upcoming Important Dates */}
           <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
             <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 border-t-[3px] border-t-brand-blue">
               <h3 className="text-sm font-bold text-brand-blue tracking-wide uppercase">
-                Upcoming Holidays
+                Upcoming Important Dates
               </h3>
               <p className="text-[11px] text-brand-grey mt-0.5">Company calendar</p>
             </div>

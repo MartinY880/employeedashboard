@@ -4,8 +4,9 @@
 import { readFile, stat } from "fs/promises";
 import { join, extname } from "path";
 import { NextResponse } from "next/server";
+import { UPLOADS_BASE } from "@/lib/uploads-dir";
 
-const LOGOS_DIR = join(process.cwd(), "uploads", "vendor-logos");
+const LOGOS_DIR = join(UPLOADS_BASE, "vendor-logos");
 
 const MIME_MAP: Record<string, string> = {
   ".png": "image/png",

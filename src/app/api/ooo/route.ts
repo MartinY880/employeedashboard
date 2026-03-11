@@ -28,6 +28,16 @@ type ForwardingPayload = {
 
 // ─── Demo OOF status (when Graph API is not configured) ──
 
+/** Ensure Graph datetime objects produce proper ISO strings with UTC indicator */
+function graphDateTimeToIso(
+  dt: { dateTime: string; timeZone: string } | undefined | null
+): string | null {
+  if (!dt?.dateTime) return null;
+  const s = dt.dateTime;
+  if (dt.timeZone === "UTC" && !s.endsWith("Z")) return s + "Z";
+  return s;
+}
+
 const demoOof = {
   status: "disabled" as const,
   externalAudience: "all" as const,
@@ -80,8 +90,8 @@ export async function GET() {
     return NextResponse.json({
       status: settings.status || "disabled",
       externalAudience: settings.externalAudience || "all",
-      scheduledStartDateTime: settings.scheduledStartDateTime?.dateTime || null,
-      scheduledEndDateTime: settings.scheduledEndDateTime?.dateTime || null,
+      scheduledStartDateTime: graphDateTimeToIso(settings.scheduledStartDateTime),
+      scheduledEndDateTime: graphDateTimeToIso(settings.scheduledEndDateTime),
       internalReplyMessage: settings.internalReplyMessage || null,
       externalReplyMessage: settings.externalReplyMessage || null,
       forwarding: forwardingPayload,
@@ -289,9 +299,9 @@ export async function POST(request: Request) {
       status: result?.status || body.status || "disabled",
       externalAudience: result?.externalAudience || body.externalAudience || "all",
       scheduledStartDateTime:
-        result?.scheduledStartDateTime?.dateTime || body.scheduledStartDateTime || null,
+        graphDateTimeToIso(result?.scheduledStartDateTime) || body.scheduledStartDateTime || null,
       scheduledEndDateTime:
-        result?.scheduledEndDateTime?.dateTime || body.scheduledEndDateTime || null,
+        graphDateTimeToIso(result?.scheduledEndDateTime) || body.scheduledEndDateTime || null,
       internalReplyMessage: result?.internalReplyMessage || body.internalReplyMessage || null,
       externalReplyMessage: result?.externalReplyMessage || body.externalReplyMessage || null,
       forwarding: forwardingResult,

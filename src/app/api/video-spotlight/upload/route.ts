@@ -13,8 +13,9 @@ import {
   MAX_VIDEO_FILE_SIZE,
   ACCEPTED_VIDEO_TYPES,
 } from "@/lib/video-spotlight";
+import { UPLOADS_BASE } from "@/lib/uploads-dir";
 
-const VIDEOS_DIR = join(process.cwd(), "uploads", "videos");
+const VIDEOS_DIR = join(UPLOADS_BASE, "videos");
 
 async function ensureVideosDir() {
   await mkdir(VIDEOS_DIR, { recursive: true });

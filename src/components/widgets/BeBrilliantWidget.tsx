@@ -30,6 +30,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { useIdeas } from "@/hooks/useIdeas";
 import { useSounds } from "@/components/shared/SoundProvider";
 import type { Idea, IdeaComment } from "@/types";
@@ -348,11 +355,17 @@ function CommentThread({ ideaId, commentCount }: { ideaId: string; commentCount:
 function IdeaCard({
   idea,
   onVote,
+  onDeleteIdea,
+  canDeleteIdea = false,
+  isDeleting = false,
   userVote,
   isTrending,
 }: {
   idea: Idea;
   onVote: (id: string, dir: "up" | "down") => void;
+  onDeleteIdea?: (id: string) => void;
+  canDeleteIdea?: boolean;
+  isDeleting?: boolean;
   userVote?: "up" | "down" | null;
   isTrending?: boolean;
 }) {
@@ -379,7 +392,7 @@ function IdeaCard({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
       transition={{ layout: { type: "spring", stiffness: 400, damping: 30 } }}
-      className={`group flex items-start gap-3 p-3 rounded-lg border transition-all hover:shadow-sm ${
+      className={`group relative flex items-start gap-3 p-3 rounded-lg border transition-all hover:shadow-sm ${
         isTrending
           ? "border-orange-200 dark:border-orange-800/50 bg-gradient-to-r from-orange-50/60 to-amber-50/40 dark:from-orange-950/40 dark:to-amber-950/30 hover:border-orange-300 dark:hover:border-orange-700"
           : "border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-900 hover:border-gray-200 dark:hover:border-gray-600"
@@ -450,6 +463,19 @@ function IdeaCard({
         </div>
         <CommentThread ideaId={idea.id} commentCount={idea.commentCount ?? 0} />
       </div>
+
+      {canDeleteIdea && onDeleteIdea && (
+        <button
+          type="button"
+          onClick={() => onDeleteIdea(idea.id)}
+          disabled={isDeleting}
+          className="absolute bottom-2.5 right-2.5 text-red-400 hover:text-red-600 transition-colors disabled:opacity-50"
+          title="Delete idea"
+          aria-label="Delete idea"
+        >
+          {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+        </button>
+      )}
     </motion.div>
   );
 }
@@ -638,12 +664,24 @@ function SubmitIdeaForm({
 /* ─── Main Be Brilliant Widget ─────────────────────────── */
 
 export function BeBrilliantWidget() {
-  const { ideas, isLoading, submitIdea, voteIdea, userVotesByIdea } = useIdeas();
+  const { ideas, isLoading, submitIdea, voteIdea, userVotesByIdea, deleteIdea } = useIdeas();
   const { playSuccess, playClick } = useSounds();
   const [showForm, setShowForm] = useState(false);
   const [justSubmitted, setJustSubmitted] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<"ALL" | "ACTIVE" | "SELECTED" | "IN_PROGRESS" | "COMPLETED">("ALL");
+  const [statusFilter, setStatusFilter] = useState<"ACTIVE" | "SELECTED" | "IN_PROGRESS" | "COMPLETED">("ACTIVE");
   const [wallSort, setWallSort] = useState<"votes" | "recent">("votes");
+  const [currentUserSub, setCurrentUserSub] = useState<string | null>(null);
+  const [deletingIdeaId, setDeletingIdeaId] = useState<string | null>(null);
+  const [deleteTargetIdea, setDeleteTargetIdea] = useState<Idea | null>(null);
+
+  // Active tab cards (IdeaCard) are taller; status tabs (SelectedIdeaRow) are compact
+  const batchSize = 5;
+  const [visibleCount, setVisibleCount] = useState(8);
+
+  // Reset visible count to the appropriate batch when tab or sort changes
+  useEffect(() => {
+    setVisibleCount(8);
+  }, [statusFilter, wallSort]);
 
   // Debounced re-sort: keep a "frozen" sort order while voting,
   // then re-sort 1.5s after the last vote click
@@ -664,6 +702,26 @@ export function BeBrilliantWidget() {
     };
   }, []);
 
+  useEffect(() => {
+    let mounted = true;
+    const loadCurrentUser = async () => {
+      try {
+        const res = await fetch("/api/me", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (mounted) {
+          setCurrentUserSub(typeof data?.sub === "string" ? data.sub : null);
+        }
+      } catch {
+        // silent
+      }
+    };
+    void loadCurrentUser();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const handleVote = useCallback(
     async (id: string, dir: "up" | "down") => {
       const didVote = await voteIdea(id, dir);
@@ -674,7 +732,8 @@ export function BeBrilliantWidget() {
     [voteIdea, triggerDebouncedSort]
   );
 
-  const activeIdeas = ideas.filter((i) => i.status === "ACTIVE");
+  const visibleIdeas = ideas.filter((i) => i.status !== "ARCHIVED");
+  const activeIdeas = visibleIdeas.filter((i) => i.status === "ACTIVE");
 
   // Memoized sort order — only re-sorts when sortKey bumps (1.5s after last vote)
   const sortedOrderRef = useRef<string[]>([]);
@@ -708,16 +767,20 @@ export function BeBrilliantWidget() {
     .filter((i) => i.votes >= TRENDING_THRESHOLD);
   const freshIdeas = orderedActive
     .filter((i) => i.votes < TRENDING_THRESHOLD);
-  const selectedIdeas = ideas
-    .filter((i) => i.status === "SELECTED" || i.status === "IN_PROGRESS" || i.status === "COMPLETED")
-    .sort((a, b) => {
-      // Sort by stage: COMPLETED first, then IN_PROGRESS, then SELECTED
-      const stageOrder: Record<string, number> = { COMPLETED: 0, IN_PROGRESS: 1, SELECTED: 2 };
-      const aOrder = stageOrder[a.status] ?? 3;
-      const bOrder = stageOrder[b.status] ?? 3;
-      if (aOrder !== bOrder) return aOrder - bOrder;
-      return b.votes - a.votes;
-    });
+
+  // Build the sorted list for the current tab
+  const getSortedForTab = useCallback((): Idea[] => {
+    const pool = visibleIdeas.filter((i) => i.status === statusFilter);
+    if (statusFilter === "ACTIVE") {
+      return wallSort === "votes" ? orderedActive : recentSorted;
+    }
+    // For non-active tabs: apply sort
+    return [...pool].sort((a, b) =>
+      wallSort === "votes"
+        ? b.votes - a.votes
+        : new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  }, [visibleIdeas, statusFilter, wallSort, orderedActive, recentSorted]);
 
   const handleSubmit = async (title: string, description: string) => {
     await submitIdea(title, description);
@@ -726,6 +789,29 @@ export function BeBrilliantWidget() {
     setJustSubmitted(true);
     setTimeout(() => setJustSubmitted(false), 3000);
   };
+
+  const handleDeleteIdea = useCallback(
+    async (idea: Idea) => {
+      if (deletingIdeaId) return;
+      if (idea.status === "IN_PROGRESS" || idea.status === "COMPLETED") return;
+      setDeleteTargetIdea(idea);
+    },
+    [deletingIdeaId]
+  );
+
+  const confirmDeleteIdea = useCallback(async () => {
+    if (!deleteTargetIdea || deletingIdeaId) return;
+      try {
+      setDeletingIdeaId(deleteTargetIdea.id);
+      await deleteIdea(deleteTargetIdea.id);
+      setDeleteTargetIdea(null);
+      playSuccess();
+      } catch {
+        // silent
+      } finally {
+        setDeletingIdeaId(null);
+      }
+  }, [deleteIdea, deleteTargetIdea, deletingIdeaId, playSuccess]);
 
   if (isLoading) {
     return (
@@ -745,7 +831,28 @@ export function BeBrilliantWidget() {
   }
 
   return (
-    <div>
+    <>
+      <Dialog open={!!deleteTargetIdea} onOpenChange={(open) => !open && setDeleteTargetIdea(null)}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle className="text-red-600">Delete Idea</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-brand-grey py-2">
+            Are you sure you want to delete this idea?
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTargetIdea(null)} disabled={!!deletingIdeaId}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={() => void confirmDeleteIdea()} disabled={!!deletingIdeaId}>
+              {deletingIdeaId ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5 mr-1.5" />}
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <div>
       {/* Tab Content */}
       <div className="p-4 space-y-4">
         {/* Success Banner */}
@@ -795,16 +902,12 @@ export function BeBrilliantWidget() {
           </div>
 
           {/* Status Filter Chips */}
-          {ideas.length > 0 && (
+          {visibleIdeas.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
-              {(["ALL", "ACTIVE", "SELECTED", "IN_PROGRESS", "COMPLETED"] as const).map((f) => {
-                const count = f === "ALL"
-                  ? ideas.length
-                  : ideas.filter((i) => i.status === f).length;
-                if (f !== "ALL" && count === 0) return null;
-                const labels: Record<string, string> = { ALL: "All", ACTIVE: "Active", SELECTED: "Selected", IN_PROGRESS: "In Progress", COMPLETED: "Completed" };
+              {(["ACTIVE", "SELECTED", "IN_PROGRESS", "COMPLETED"] as const).map((f) => {
+                const count = visibleIdeas.filter((i) => i.status === f).length;
+                const labels: Record<string, string> = { ACTIVE: "Active", SELECTED: "Selected", IN_PROGRESS: "In Progress", COMPLETED: "Completed" };
                 const icons: Record<string, React.ReactNode> = {
-                  ALL: null,
                   ACTIVE: <Lightbulb className="w-3 h-3" />,
                   SELECTED: <Rocket className="w-3 h-3" />,
                   IN_PROGRESS: <Wrench className="w-3 h-3" />,
@@ -832,8 +935,8 @@ export function BeBrilliantWidget() {
             </div>
           )}
 
-          {/* Sort Toggle — shown when viewing ideas that can be sorted */}
-          {(statusFilter === "ALL" || statusFilter === "ACTIVE") && activeIdeas.length > 0 && (
+          {/* Sort Toggle — shown on all tabs */}
+          {visibleIdeas.filter((i) => i.status === statusFilter).length > 0 && (
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">Sort:</span>
               <button
@@ -865,128 +968,170 @@ export function BeBrilliantWidget() {
 
           {/* ── Filtered Content ── */}
           {(() => {
-            // Show active ideas (IdeaCards)
-            const showActive = statusFilter === "ALL" || statusFilter === "ACTIVE";
-            // Show status'd ideas (SelectedIdeaRows)
-            const filteredStatusIdeas = statusFilter === "ALL"
-              ? selectedIdeas
-              : statusFilter === "ACTIVE"
-                ? []
-                : selectedIdeas.filter((i) => i.status === statusFilter);
+            const allForTab = getSortedForTab();
+            const paged = allForTab.slice(0, visibleCount);
+            const hasMore = allForTab.length > visibleCount;
 
-            const hasActiveContent = showActive && activeIdeas.length > 0;
-            const hasStatusContent = filteredStatusIdeas.length > 0;
-
-            if (!hasActiveContent && !hasStatusContent) {
+            if (allForTab.length === 0) {
               return (
                 <div className="text-center py-6">
                   <Lightbulb className="w-8 h-8 text-brand-grey/30 mx-auto mb-2" />
-                  <p className="text-sm text-brand-grey">
-                    {statusFilter === "ALL" ? "No ideas yet — be the first!" : "No ideas match this filter."}
-                  </p>
+                  <p className="text-sm text-brand-grey">No ideas match this filter.</p>
                 </div>
               );
             }
 
+            if (statusFilter === "ACTIVE") {
+              return (
+                <>
+                  {wallSort === "votes" ? (
+                    <>
+                      {(() => {
+                        const pagedTrending = paged.filter((i) => i.votes >= TRENDING_THRESHOLD);
+                        const pagedFresh = paged.filter((i) => i.votes < TRENDING_THRESHOLD);
+                        return (
+                          <>
+                            {pagedTrending.length > 0 && (
+                              <section>
+                                <h4 className="text-[11px] font-bold text-orange-600 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                  <Flame className="w-3.5 h-3.5" />
+                                  Trending Now
+                                  <Badge
+                                    variant="secondary"
+                                    className="text-[9px] px-1.5 py-0 bg-orange-100 text-orange-600 font-semibold ml-auto"
+                                  >
+                                    {TRENDING_THRESHOLD}+ votes
+                                  </Badge>
+                                </h4>
+                                <div className="space-y-2">
+                                  <AnimatePresence mode="popLayout">
+                                    {pagedTrending.map((idea) => (
+                                      <IdeaCard
+                                        key={idea.id}
+                                        idea={idea}
+                                        onVote={handleVote}
+                                        onDeleteIdea={() => void handleDeleteIdea(idea)}
+                                        canDeleteIdea={currentUserSub === idea.authorId && idea.status !== "IN_PROGRESS" && idea.status !== "COMPLETED"}
+                                        isDeleting={deletingIdeaId === idea.id}
+                                        userVote={userVotesByIdea[idea.id]}
+                                        isTrending
+                                      />
+                                    ))}
+                                  </AnimatePresence>
+                                </div>
+                              </section>
+                            )}
+                            {pagedFresh.length > 0 && (
+                              <section>
+                                <h4 className="text-[11px] font-bold text-brand-blue uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                  <Sparkles className="w-3.5 h-3.5" />
+                                  Fresh Ideas
+                                </h4>
+                                <div className="space-y-2">
+                                  <AnimatePresence mode="popLayout">
+                                    {pagedFresh.map((idea) => (
+                                      <IdeaCard
+                                        key={idea.id}
+                                        idea={idea}
+                                        onVote={handleVote}
+                                        onDeleteIdea={() => void handleDeleteIdea(idea)}
+                                        canDeleteIdea={currentUserSub === idea.authorId && idea.status !== "IN_PROGRESS" && idea.status !== "COMPLETED"}
+                                        isDeleting={deletingIdeaId === idea.id}
+                                        userVote={userVotesByIdea[idea.id]}
+                                      />
+                                    ))}
+                                  </AnimatePresence>
+                                </div>
+                              </section>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </>
+                  ) : (
+                    <section>
+                      <h4 className="text-[11px] font-bold text-brand-blue uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5" />
+                        Fresh Ideas
+                      </h4>
+                      <div className="space-y-2">
+                        <AnimatePresence mode="popLayout">
+                          {paged.map((idea) => (
+                            <IdeaCard
+                              key={idea.id}
+                              idea={idea}
+                              onVote={handleVote}
+                              onDeleteIdea={() => void handleDeleteIdea(idea)}
+                              canDeleteIdea={currentUserSub === idea.authorId && idea.status !== "IN_PROGRESS" && idea.status !== "COMPLETED"}
+                              isDeleting={deletingIdeaId === idea.id}
+                              userVote={userVotesByIdea[idea.id]}
+                              isTrending={idea.votes >= TRENDING_THRESHOLD}
+                            />
+                          ))}
+                        </AnimatePresence>
+                      </div>
+                    </section>
+                  )}
+                  {hasMore && (
+                    <div className="flex justify-center pt-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => { playClick(); setVisibleCount((c) => c + batchSize); }}
+                        className="h-8 text-xs border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:text-brand-blue hover:border-brand-blue/40 gap-1.5"
+                      >
+                        View More
+                        <span className="text-[10px] text-gray-400 dark:text-gray-500">({allForTab.length - visibleCount} remaining)</span>
+                      </Button>
+                    </div>
+                  )}
+                </>
+              );
+            }
+
+            // Non-active tabs: Selected / In Progress / Completed
+            const tabHeadings: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
+              SELECTED: { label: "Selected Ideas", icon: <Rocket className="w-3.5 h-3.5" />, color: "text-emerald-600" },
+              IN_PROGRESS: { label: "Ideas in Motion", icon: <Wrench className="w-3.5 h-3.5" />, color: "text-amber-600" },
+              COMPLETED: { label: "Completed Ideas", icon: <CheckCircle2 className="w-3.5 h-3.5" />, color: "text-violet-600" },
+            };
+            const heading = tabHeadings[statusFilter];
+
             return (
               <>
-                {/* Active ideas */}
-                {hasActiveContent && (
-                  <>
-                    {wallSort === "votes" ? (
-                      <>
-                        {trendingIdeas.length > 0 && (
-                          <section>
-                            <h4 className="text-[11px] font-bold text-orange-600 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                              <Flame className="w-3.5 h-3.5" />
-                              Trending Now
-                              <Badge
-                                variant="secondary"
-                                className="text-[9px] px-1.5 py-0 bg-orange-100 text-orange-600 font-semibold ml-auto"
-                              >
-                                {TRENDING_THRESHOLD}+ votes
-                              </Badge>
-                            </h4>
-                            <div className="space-y-2">
-                              <AnimatePresence mode="popLayout">
-                                {trendingIdeas.map((idea) => (
-                                  <IdeaCard
-                                    key={idea.id}
-                                    idea={idea}
-                                    onVote={handleVote}
-                                    userVote={userVotesByIdea[idea.id]}
-                                    isTrending
-                                  />
-                                ))}
-                              </AnimatePresence>
-                            </div>
-                          </section>
-                        )}
-                        {freshIdeas.length > 0 && (
-                          <section>
-                            <h4 className="text-[11px] font-bold text-brand-blue uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                              <Sparkles className="w-3.5 h-3.5" />
-                              Fresh Ideas
-                            </h4>
-                            <div className="space-y-2">
-                              <AnimatePresence mode="popLayout">
-                                {freshIdeas.map((idea) => (
-                                  <IdeaCard
-                                    key={idea.id}
-                                    idea={idea}
-                                    onVote={handleVote}
-                                    userVote={userVotesByIdea[idea.id]}
-                                  />
-                                ))}
-                              </AnimatePresence>
-                            </div>
-                          </section>
-                        )}
-                      </>
-                    ) : (
-                      recentSorted.length > 0 && (
-                        <section>
-                          <div className="space-y-2">
-                            <AnimatePresence mode="popLayout">
-                              {recentSorted.map((idea) => (
-                                <IdeaCard
-                                  key={idea.id}
-                                  idea={idea}
-                                  onVote={handleVote}
-                                  userVote={userVotesByIdea[idea.id]}
-                                  isTrending={idea.votes >= TRENDING_THRESHOLD}
-                                />
-                              ))}
-                            </AnimatePresence>
-                          </div>
-                        </section>
-                      )
-                    )}
-                  </>
-                )}
-
-                {/* Status'd ideas (Selected / In Progress / Completed) */}
-                {hasStatusContent && (
-                  <section>
-                    {showActive && hasActiveContent && (
-                      <h4 className="text-[11px] font-bold text-emerald-600 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                        <Rocket className="w-3.5 h-3.5" />
-                        Ideas in Motion
-                      </h4>
-                    )}
-                    <div className="space-y-1.5">
-                      {filteredStatusIdeas.map((idea) => (
-                        <SelectedIdeaRow key={idea.id} idea={idea} />
-                      ))}
-                    </div>
-                  </section>
+                <section>
+                  {heading && (
+                    <h4 className={`text-[11px] font-bold ${heading.color} uppercase tracking-wider mb-2 flex items-center gap-1.5`}>
+                      {heading.icon}
+                      {heading.label}
+                    </h4>
+                  )}
+                  <div className="space-y-1.5">
+                    {paged.map((idea) => (
+                      <SelectedIdeaRow key={idea.id} idea={idea} />
+                    ))}
+                  </div>
+                </section>
+                {hasMore && (
+                  <div className="flex justify-center pt-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => { playClick(); setVisibleCount((c) => c + batchSize); }}
+                      className="h-8 text-xs border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:text-brand-blue hover:border-brand-blue/40 gap-1.5"
+                    >
+                      View More
+                      <span className="text-[10px] text-gray-400 dark:text-gray-500">({allForTab.length - visibleCount} remaining)</span>
+                    </Button>
+                  </div>
                 )}
               </>
             );
           })()}
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 

@@ -8,11 +8,13 @@ import { prisma } from "@/lib/prisma";
 interface DashboardVisibilitySettings {
   showCompanyPillars: boolean;
   showTournamentBracketLive: boolean;
+  showLenderAccountExecutives: boolean;
 }
 
 const DEFAULT: DashboardVisibilitySettings = {
   showCompanyPillars: true,
   showTournamentBracketLive: true,
+  showLenderAccountExecutives: true,
 };
 
 export async function GET() {
@@ -27,6 +29,7 @@ export async function GET() {
         return NextResponse.json({
           showCompanyPillars: parsed.showCompanyPillars !== false,
           showTournamentBracketLive: parsed.showTournamentBracketLive !== false,
+          showLenderAccountExecutives: parsed.showLenderAccountExecutives !== false,
         });
       } catch {
         /* fall through to default */

@@ -30,6 +30,12 @@ interface DashboardVisibilitySettings {
   showCompanyPillars: boolean;
   showTournamentBracketLive: boolean;
   showImportantDates: boolean;
+  showLenderAccountExecutives: boolean;
+}
+
+interface WeatherSettings {
+  city: string;
+  apiKey: string;
 }
 
 const DEFAULT_SMTP: SmtpSettings = {
@@ -54,6 +60,12 @@ const DEFAULT_DASHBOARD_VISIBILITY: DashboardVisibilitySettings = {
   showCompanyPillars: true,
   showTournamentBracketLive: true,
   showImportantDates: true,
+  showLenderAccountExecutives: true,
+};
+
+const DEFAULT_WEATHER_SETTINGS: WeatherSettings = {
+  city: "",
+  apiKey: "",
 };
 
 // In-memory branding for demo mode
@@ -68,11 +80,12 @@ const demoBranding = {
 
 export async function GET() {
   try {
-    const [branding, smtpSetting, topNavSetting, dashboardVisibilitySetting] = await Promise.all([
+    const [branding, smtpSetting, topNavSetting, dashboardVisibilitySetting, weatherSetting] = await Promise.all([
       prisma.siteBranding.findUnique({ where: { id: "singleton" } }),
       prisma.calendarSetting.findUnique({ where: { id: "smtp_settings" } }),
       prisma.calendarSetting.findUnique({ where: { id: "topnav_menu" } }),
       prisma.calendarSetting.findUnique({ where: { id: "dashboard_visibility" } }),
+      prisma.calendarSetting.findUnique({ where: { id: "weather_settings" } }),
     ]);
 
     let smtpSettings = DEFAULT_SMTP;
@@ -126,9 +139,23 @@ export async function GET() {
           showCompanyPillars: parsed.showCompanyPillars !== false,
           showTournamentBracketLive: parsed.showTournamentBracketLive !== false,
           showImportantDates: parsed.showImportantDates !== false,
+          showLenderAccountExecutives: parsed.showLenderAccountExecutives !== false,
         };
       } catch {
         dashboardVisibility = DEFAULT_DASHBOARD_VISIBILITY;
+      }
+    }
+
+    let weatherSettings = DEFAULT_WEATHER_SETTINGS;
+    if (weatherSetting?.data) {
+      try {
+        const parsed = JSON.parse(weatherSetting.data) as Partial<WeatherSettings>;
+        weatherSettings = {
+          city: String(parsed.city || "").trim(),
+          apiKey: String(parsed.apiKey || "").trim(),
+        };
+      } catch {
+        weatherSettings = DEFAULT_WEATHER_SETTINGS;
       }
     }
 
@@ -136,13 +163,13 @@ export async function GET() {
     // It contains base64 media blobs (10+ MB) and is only managed via /api/dashboard-settings.
     // Including it here caused 18+ MB responses that crippled page loads.
     if (branding) {
-      return NextResponse.json({ ...branding, smtpSettings, topNavMenu, dashboardVisibility });
+      return NextResponse.json({ ...branding, smtpSettings, topNavMenu, dashboardVisibility, weatherSettings });
     }
     // No DB record yet — return defaults
-    return NextResponse.json({ ...demoBranding, smtpSettings, topNavMenu, dashboardVisibility });
+    return NextResponse.json({ ...demoBranding, smtpSettings, topNavMenu, dashboardVisibility, weatherSettings });
   } catch {
     // DB unavailable — return demo branding
-    return NextResponse.json({ ...demoBranding, smtpSettings: DEFAULT_SMTP, topNavMenu: DEFAULT_TOPNAV_MENU, dashboardVisibility: DEFAULT_DASHBOARD_VISIBILITY });
+    return NextResponse.json({ ...demoBranding, smtpSettings: DEFAULT_SMTP, topNavMenu: DEFAULT_TOPNAV_MENU, dashboardVisibility: DEFAULT_DASHBOARD_VISIBILITY, weatherSettings: DEFAULT_WEATHER_SETTINGS });
   }
 }
 
@@ -169,6 +196,10 @@ export async function POST(request: Request) {
       pass: ((formData.get("smtpPass") as string | null) || "").trim(),
       from: ((formData.get("smtpFrom") as string | null) || "").trim(),
       fromName: ((formData.get("smtpFromName") as string | null) || "ProConnect").trim(),
+    };
+    const weatherSettings: WeatherSettings = {
+      city: ((formData.get("weatherCity") as string | null) || "").trim(),
+      apiKey: ((formData.get("weatherApiKey") as string | null) || "").trim(),
     };
     const topNavRaw = (formData.get("topNavMenu") as string | null) || "";
     const dashboardVisibilityRaw = (formData.get("dashboardVisibility") as string | null) || "";
@@ -208,6 +239,7 @@ export async function POST(request: Request) {
           showCompanyPillars: parsed.showCompanyPillars !== false,
           showTournamentBracketLive: parsed.showTournamentBracketLive !== false,
           showImportantDates: parsed.showImportantDates !== false,
+          showLenderAccountExecutives: parsed.showLenderAccountExecutives !== false,
         };
       } catch {
         dashboardVisibility = DEFAULT_DASHBOARD_VISIBILITY;
@@ -281,10 +313,15 @@ export async function POST(request: Request) {
           update: { data: JSON.stringify(dashboardVisibility) },
           create: { id: "dashboard_visibility", data: JSON.stringify(dashboardVisibility) },
         }),
+        prisma.calendarSetting.upsert({
+          where: { id: "weather_settings" },
+          update: { data: JSON.stringify(weatherSettings) },
+          create: { id: "weather_settings", data: JSON.stringify(weatherSettings) },
+        }),
         // NOTE: dashboard_slider is NOT written here — it's managed by /api/dashboard-settings
       ]);
 
-      return NextResponse.json({ ...branding, smtpSettings, topNavMenu, dashboardVisibility });
+      return NextResponse.json({ ...branding, smtpSettings, topNavMenu, dashboardVisibility, weatherSettings });
     } catch {
       // DB unavailable — update demo branding
       if (companyName) demoBranding.companyName = companyName;
@@ -293,7 +330,7 @@ export async function POST(request: Request) {
       if (faviconData !== undefined) demoBranding.faviconData = faviconData;
       demoBranding.updatedAt = new Date().toISOString();
 
-      return NextResponse.json({ ...demoBranding, smtpSettings, topNavMenu, dashboardVisibility });
+      return NextResponse.json({ ...demoBranding, smtpSettings, topNavMenu, dashboardVisibility, weatherSettings });
     }
   } catch (err) {
     console.error("Branding POST error:", err);

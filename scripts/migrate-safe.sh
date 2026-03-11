@@ -4,7 +4,7 @@
 # Creates ONLY missing tables, columns, indexes, and enum values.
 # NEVER drops or overwrites existing data.
 #
-# Matches: prisma/schema.prisma (as of 2026-03-03)
+# Matches: prisma/schema.prisma (as of 2026-03-11)
 # ──────────────────────────────────────────────────────────────
 set -euo pipefail
 
@@ -88,6 +88,12 @@ echo "── Tables ────────────────────
 table_exists() {
   local t="$1"
   local e=$(run_sql "SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = '${t}';")
+  [ "$e" = "1" ]
+}
+
+column_exists() {
+  local tbl="$1" col="$2"
+  local e=$(run_sql "SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = '${tbl}' AND column_name = '${col}';")
   [ "$e" = "1" ]
 }
 
@@ -396,6 +402,32 @@ CREATE TABLE IF NOT EXISTS preferred_vendors (
   updated_at            TIMESTAMPTZ NOT NULL DEFAULT now()
 );'
 
+# --- lenders ---
+create_table_if_missing "lenders" '
+CREATE TABLE IF NOT EXISTS lenders (
+  id         TEXT PRIMARY KEY,
+  name       TEXT NOT NULL,
+  logo_url   TEXT,
+  active     BOOLEAN NOT NULL DEFAULT true,
+  sort_order INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);'
+
+# --- lender_account_executives ---
+create_table_if_missing "lender_account_executives" '
+CREATE TABLE IF NOT EXISTS lender_account_executives (
+  id                     TEXT PRIMARY KEY,
+  lender_id              TEXT NOT NULL REFERENCES lenders(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  account_executive_name TEXT NOT NULL,
+  phone_number           TEXT NOT NULL,
+  email                  TEXT NOT NULL,
+  active                 BOOLEAN NOT NULL DEFAULT true,
+  sort_order             INT NOT NULL DEFAULT 0,
+  created_at             TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at             TIMESTAMPTZ NOT NULL DEFAULT now()
+);'
+
 # --- video_spotlights ---
 create_table_if_missing "video_spotlights" '
 CREATE TABLE IF NOT EXISTS video_spotlights (
@@ -533,11 +565,110 @@ add_column_if_missing "preferred_vendors" "secondary_phone"       "TEXT"
 add_column_if_missing "preferred_vendors" "secondary_phone_label" "TEXT"
 add_column_if_missing "preferred_vendors" "icon_id"               "TEXT"
 
+# lenders — ensure production-safe additive schema updates
+add_column_if_missing "lenders" "logo_url"   "TEXT"
+add_column_if_missing "lenders" "active"     "BOOLEAN NOT NULL DEFAULT true"
+add_column_if_missing "lenders" "sort_order" "INT NOT NULL DEFAULT 0"
+add_column_if_missing "lenders" "created_at" "TIMESTAMPTZ NOT NULL DEFAULT now()"
+add_column_if_missing "lenders" "updated_at" "TIMESTAMPTZ NOT NULL DEFAULT now()"
+
+# lender_account_executives — support both legacy lender_name and current lender_id layouts
+add_column_if_missing "lender_account_executives" "account_executive_name" "TEXT NOT NULL DEFAULT ''"
+add_column_if_missing "lender_account_executives" "phone_number"           "TEXT NOT NULL DEFAULT ''"
+add_column_if_missing "lender_account_executives" "work_phone_number"      "TEXT NOT NULL DEFAULT ''"
+add_column_if_missing "lender_account_executives" "phone_extension"        "TEXT"
+add_column_if_missing "lender_account_executives" "mobile_phone_number"    "TEXT"
+add_column_if_missing "lender_account_executives" "email"                  "TEXT NOT NULL DEFAULT ''"
+add_column_if_missing "lender_account_executives" "active"                 "BOOLEAN NOT NULL DEFAULT true"
+add_column_if_missing "lender_account_executives" "sort_order"             "INT NOT NULL DEFAULT 0"
+add_column_if_missing "lender_account_executives" "created_at"             "TIMESTAMPTZ NOT NULL DEFAULT now()"
+add_column_if_missing "lender_account_executives" "updated_at"             "TIMESTAMPTZ NOT NULL DEFAULT now()"
+
+# Migrate phone data from legacy combined phone_number into new separate columns
+if table_exists "lender_account_executives"; then
+  NEEDS_PHONE_MIGRATE=$(run_sql "
+    SELECT COUNT(*) FROM \"lender_account_executives\"
+    WHERE \"phone_number\" <> ''
+      AND \"work_phone_number\" = ''
+      AND \"mobile_phone_number\" IS NULL;
+  ")
+  if [ "${NEEDS_PHONE_MIGRATE:-0}" != "0" ] && [ "${NEEDS_PHONE_MIGRATE:-0}" != "" ]; then
+    echo "  ℹ️  Migrating ${NEEDS_PHONE_MIGRATE} row(s) from phone_number → work/mobile columns"
+    # Extract mobile from "... | m:MOBILE"
+    run_sql "
+      UPDATE \"lender_account_executives\"
+      SET \"mobile_phone_number\" = TRIM(SUBSTRING(\"phone_number\" FROM '\|\s*m:(.+)$'))
+      WHERE \"phone_number\" ~ '\|\s*m:'
+        AND \"mobile_phone_number\" IS NULL;
+    " > /dev/null
+    # Extract work phone (everything before | m: and before extension)
+    run_sql "
+      UPDATE \"lender_account_executives\"
+      SET \"work_phone_number\" = TRIM(REGEXP_REPLACE(
+        REGEXP_REPLACE(\"phone_number\", '\|\s*m:.+$', ''),
+        '\s*x\d+\s*$', ''
+      ))
+      WHERE \"phone_number\" <> ''
+        AND \"phone_number\" NOT LIKE '| m:%'
+        AND \"work_phone_number\" = '';
+    " > /dev/null
+    # Extract extension
+    run_sql "
+      UPDATE \"lender_account_executives\"
+      SET \"phone_extension\" = SUBSTRING(
+        REGEXP_REPLACE(\"phone_number\", '\|\s*m:.+$', '')
+        FROM 'x(\d+)')
+      WHERE \"phone_number\" ~ 'x\d+'
+        AND (\"phone_extension\" IS NULL OR \"phone_extension\" = '');
+    " > /dev/null
+    echo "  ✅ Phone data migration complete"
+  fi
+fi
+
 # video_spotlights — playCount (added later)
 add_column_if_missing "video_spotlights" "playCount" "INT NOT NULL DEFAULT 0"
 
 # important_dates — subtitle (added later)
 add_column_if_missing "important_dates" "subtitle" "TEXT"
+
+# lender migration bridge — backfill current schema from legacy lender_name data without dropping old columns
+if table_exists "lender_account_executives"; then
+  if column_exists "lender_account_executives" "lender_name"; then
+    echo "  ℹ️  Backfilling lenders from lender_account_executives.lender_name"
+    run_sql "
+      INSERT INTO \"lenders\" (\"id\", \"name\", \"updated_at\")
+      SELECT
+        md5(t.lender_name || 'lender')::text,
+        t.lender_name,
+        NOW()
+      FROM (
+        SELECT DISTINCT TRIM(\"lender_name\") AS lender_name
+        FROM \"lender_account_executives\"
+        WHERE \"lender_name\" IS NOT NULL AND TRIM(\"lender_name\") <> ''
+      ) t
+      ON CONFLICT (\"name\") DO NOTHING;
+    " > /dev/null
+  fi
+
+  add_column_if_missing "lender_account_executives" "lender_id" "TEXT"
+
+  if column_exists "lender_account_executives" "lender_name"; then
+    run_sql '
+      UPDATE "lender_account_executives" ae
+      SET "lender_id" = l."id"
+      FROM "lenders" l
+      WHERE ae."lender_id" IS NULL
+        AND ae."lender_name" = l."name";
+    ' > /dev/null
+  fi
+
+  NULL_LENDER_IDS=$(run_sql 'SELECT COUNT(*) FROM "lender_account_executives" WHERE "lender_id" IS NULL;')
+  if [ "${NULL_LENDER_IDS:-0}" = "0" ]; then
+    run_sql 'ALTER TABLE "lender_account_executives" ALTER COLUMN "lender_id" SET NOT NULL;' > /dev/null
+  else
+    echo "  ⚠️  Skipping NOT NULL on lender_account_executives.lender_id (${NULL_LENDER_IDS} row(s) still missing lender_id)"
+  fi
+fi
 
 # ══════════════════════════════════════════════════════════════
 # 4. INDEXES — create if not exists
@@ -624,6 +755,44 @@ ensure_index "matches_nextMatchId_idx"            "tournament_matches" '"nextMat
 ensure_index "vendors_active_sortOrder_idx" "preferred_vendors" 'active, sort_order'
 ensure_index "vendors_category_idx"         "preferred_vendors" 'category'
 ensure_index "vendors_featured_idx"         "preferred_vendors" 'featured'
+
+# lenders
+LENDER_NAME_UNIQUE=$(run_sql "SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND indexname = 'lenders_name_key';")
+if [ "$LENDER_NAME_UNIQUE" != "1" ]; then
+  LENDER_NAME_DUPES=$(run_sql 'SELECT COUNT(*) FROM (SELECT name FROM "lenders" GROUP BY name HAVING COUNT(*) > 1) dupes;')
+  if [ "${LENDER_NAME_DUPES:-0}" = "0" ]; then
+    run_sql 'CREATE UNIQUE INDEX "lenders_name_key" ON "lenders"("name");' > /dev/null
+    echo "  ✅ Created index: lenders_name_key"
+    CREATED_INDEXES=$((CREATED_INDEXES + 1))
+  else
+    echo "  ⚠️  Skipping unique index lenders_name_key (${LENDER_NAME_DUPES} duplicate lender name set(s) found)"
+  fi
+fi
+
+# lender_account_executives
+ensure_index "lender_account_executives_active_lender_id_idx"    "lender_account_executives" 'active, lender_id'
+ensure_index "lender_account_executives_lender_id_sort_order_idx" "lender_account_executives" 'lender_id, sort_order'
+
+LENDER_AE_FK=$(run_sql "SELECT 1 FROM information_schema.table_constraints WHERE table_schema = 'public' AND table_name = 'lender_account_executives' AND constraint_name = 'lender_account_executives_lender_id_fkey';")
+if [ "$LENDER_AE_FK" != "1" ] && table_exists "lenders" && table_exists "lender_account_executives" && column_exists "lender_account_executives" "lender_id"; then
+  ORPHANED_LENDER_IDS=$(run_sql '
+    SELECT COUNT(*)
+    FROM "lender_account_executives" ae
+    LEFT JOIN "lenders" l ON l."id" = ae."lender_id"
+    WHERE ae."lender_id" IS NOT NULL AND l."id" IS NULL;
+  ')
+  if [ "${ORPHANED_LENDER_IDS:-0}" = "0" ]; then
+    run_sql '
+      ALTER TABLE "lender_account_executives"
+      ADD CONSTRAINT "lender_account_executives_lender_id_fkey"
+      FOREIGN KEY ("lender_id") REFERENCES "lenders"("id")
+      ON DELETE CASCADE ON UPDATE CASCADE;
+    ' > /dev/null
+    echo "  ✅ Added foreign key: lender_account_executives_lender_id_fkey"
+  else
+    echo "  ⚠️  Skipping foreign key lender_account_executives_lender_id_fkey (${ORPHANED_LENDER_IDS} orphaned lender_id value(s) found)"
+  fi
+fi
 
 # video_spotlights
 ensure_index "spotlights_featured_status_idx" "video_spotlights" 'featured, status'

@@ -28,8 +28,7 @@ import {
   CalendarClock,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
-import { PERMISSIONS, ROUTE_PERMISSION, type Permission } from "@/lib/rbac";
+import { PERMISSIONS, ROUTE_PERMISSION } from "@/lib/rbac";
 
 interface AdminStats {
   totalAlerts: number;
@@ -231,6 +230,16 @@ const adminPages = [
     color: "text-pink-500",
     bgColor: "bg-pink-50",
     permission: PERMISSIONS.MANAGE_IMPORTANT_DATES,
+  },
+  {
+    title: "Account Executive Contacts",
+    description: "Manage account executive contacts shown on the dashboard, including multiple AEs under the same lender.",
+    icon: Users,
+    href: "/admin/lender-account-executives",
+    badge: "CRUD",
+    color: "text-cyan-600",
+    bgColor: "bg-cyan-50",
+    permission: PERMISSIONS.MANAGE_LENDER_ACCOUNT_EXECUTIVES,
   },
 ];
 
