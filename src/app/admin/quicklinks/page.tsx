@@ -156,6 +156,9 @@ export default function AdminQuickLinksPage() {
       fontAwesome: filteredIconOptions.filter(
         (option) => option.library === "fontawesome"
       ),
+      iconify: filteredIconOptions.filter(
+        (option) => option.library === "iconify"
+      ),
     };
   }, [filteredIconOptions]);
 
@@ -570,6 +573,26 @@ export default function AdminQuickLinksPage() {
                         <>
                           <div className="px-2 py-1 text-xs text-brand-grey">Font Awesome</div>
                           {groupedIconOptions.fontAwesome.map((icon) => (
+                            <button
+                              key={icon.id}
+                              type="button"
+                              className="w-full text-left px-2 py-1.5 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground"
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => selectIcon(icon.id)}
+                            >
+                              <span className="inline-flex items-center gap-2">
+                                {renderQuickLinkIconPreview(icon.id, "w-4 h-4")}
+                                {icon.label}
+                              </span>
+                            </button>
+                          ))}
+                        </>
+                      )}
+
+                      {groupedIconOptions.iconify.length > 0 && (
+                        <>
+                          <div className="px-2 py-1 text-xs text-brand-grey">Iconify (Phosphor, Heroicons, Tabler, Hugeicons)</div>
+                          {groupedIconOptions.iconify.map((icon) => (
                             <button
                               key={icon.id}
                               type="button"

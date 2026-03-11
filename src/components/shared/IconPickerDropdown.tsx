@@ -73,6 +73,7 @@ export function IconPickerDropdown({
     lucide: filteredOptions.filter((o) => o.library === "lucide"),
     reactIcons: filteredOptions.filter((o) => o.library === "react-icons"),
     fontAwesome: filteredOptions.filter((o) => o.library === "fontawesome"),
+    iconify: filteredOptions.filter((o) => o.library === "iconify"),
   }), [filteredOptions]);
 
   const selectedOption = useMemo(() => {
@@ -200,6 +201,26 @@ export function IconPickerDropdown({
               <>
                 <div className="px-2 py-1 text-[10px] text-gray-400 font-medium">Font Awesome</div>
                 {grouped.fontAwesome.map((icon) => (
+                  <button
+                    key={icon.id}
+                    type="button"
+                    className="w-full text-left px-2 py-1.5 text-xs rounded-sm hover:bg-accent hover:text-accent-foreground"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => selectIcon(icon.id)}
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      {renderQuickLinkIconPreview(icon.id, "w-3.5 h-3.5")}
+                      {icon.label}
+                    </span>
+                  </button>
+                ))}
+              </>
+            )}
+
+            {grouped.iconify.length > 0 && (
+              <>
+                <div className="px-2 py-1 text-[10px] text-gray-400 font-medium">Iconify (Phosphor, Heroicons, Tabler, Hugeicons)</div>
+                {grouped.iconify.map((icon) => (
                   <button
                     key={icon.id}
                     type="button"

@@ -37,11 +37,12 @@ import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import * as FaBrandIcons from "@fortawesome/free-brands-svg-icons";
 import * as FaSolidIcons from "@fortawesome/free-solid-svg-icons";
 import { NMLSIcon } from "@/components/shared/icons/NMLSIcon";
+import { Icon as IconifyIcon } from "@iconify/react";
 
 interface IconOption {
   id: string;
   label: string;
-  library: "lucide" | "react-icons" | "fontawesome";
+  library: "lucide" | "react-icons" | "fontawesome" | "iconify";
   keywords: string[];
 }
 
@@ -181,10 +182,113 @@ const FONT_AWESOME_OPTIONS: IconOption[] = FONT_AWESOME_SET_DEFS.flatMap((setDef
   }, []);
 });
 
+/* ── Iconify Icon Sets (Phosphor, Heroicons, Tabler, Hugeicons) ───────────── */
+
+const ICONIFY_SET_DEFS: { prefix: string; label: string; icons: string[] }[] = [
+  {
+    prefix: "ph",
+    label: "Phosphor",
+    icons: [
+      "house","gear","user","heart","star","magnifying-glass","envelope","phone",
+      "camera","bell","chat-circle","lock","key","globe","map-pin","calendar",
+      "clock","check","x","plus","minus","arrow-right","arrow-left","trash",
+      "pencil","eye","download","upload","share","bookmark","folder","file",
+      "image","video-camera","music-note","lightning","fire","sun","moon","cloud",
+      "airplane","car","shopping-cart","credit-card","currency-dollar","chart-line",
+      "trophy","medal","crown","hand-waving","smiley","warning","info","question",
+      "shield-check","buildings","bank","target","rocket","puzzle-piece","robot",
+      "brain","dna","tree","paint-brush","megaphone","gift","graduation-cap",
+      "briefcase","code","terminal","database","wifi","bluetooth","battery-full",
+      "cpu","hard-drive","monitor","device-mobile","printer","headphones",
+      "microphone","speaker-high","palette","scissors","wrench","hammer",
+      "binoculars","compass","flag","lightbulb","handshake","users-three",
+      "chart-bar","chart-pie","presentation","newspaper","note","tag",
+    ],
+  },
+  {
+    prefix: "heroicons",
+    label: "Heroicons",
+    icons: [
+      "academic-cap","arrow-path","bell","bolt","bookmark","briefcase",
+      "building-office","cake","calculator","calendar","camera","chart-bar",
+      "chat-bubble-left","check","check-circle","chevron-down","clipboard",
+      "clock","cloud","cog-6-tooth","credit-card","cube","document","envelope",
+      "eye","face-smile","film","fire","flag","folder","gift","globe-alt",
+      "hand-thumb-up","heart","home","identification","key","light-bulb","link",
+      "lock-closed","magnifying-glass","map-pin","megaphone","microphone","moon",
+      "musical-note","paint-brush","paper-airplane","pencil","phone","photo",
+      "puzzle-piece","rocket-launch","scale","scissors","server","shield-check",
+      "shopping-cart","signal","sparkles","star","sun","tag","trash","trophy",
+      "truck","user","video-camera","wifi","wrench","arrow-right","arrow-left",
+      "arrow-down","arrow-up","bars-3","x-mark","plus","minus","at-symbol",
+      "command-line","cpu-chip","globe-americas","hand-raised","hashtag",
+      "language","newspaper","presentation-chart-bar","qr-code","radio",
+      "rectangle-group","share","speaker-wave","table-cells","tv","variable",
+    ],
+  },
+  {
+    prefix: "tabler",
+    label: "Tabler",
+    icons: [
+      "home","user","settings","search","mail","phone","calendar","clock",
+      "star","heart","bookmark","download","upload","edit","trash","eye",
+      "lock","key","globe","map-pin","building","briefcase","chart-bar",
+      "chart-line","trophy","award","rocket","bulb","shield-check","bell",
+      "message","camera","photo","video","music","headphones","cloud",
+      "sun","moon","bolt","flame","diamond","crown","flag","puzzle",
+      "robot","brain","atom","dna","cpu","database","server","terminal",
+      "code","git-branch","api","brand-github","brand-slack","brand-google",
+      "brand-apple","brand-windows","brand-linkedin","brand-twitter",
+      "brand-facebook","brand-instagram","brand-youtube","brand-discord",
+      "brand-figma","brand-notion","brand-spotify","brand-amazon",
+      "palette","brush","scissors","tool","hammer","anchor","compass",
+      "binoculars","microscope","telescope","stethoscope","vaccine",
+      "first-aid-kit","heartbeat","pill","wheelchair","car","plane",
+      "ship","bike","walk","drone","satellite","world","map","route",
+    ],
+  },
+  {
+    prefix: "hugeicons",
+    label: "Hugeicons",
+    icons: [
+      "home-01","user","settings-01","search-01","mail-01","phone-01",
+      "calendar-01","clock-01","star","heart-check","bookmark-01","download-01",
+      "upload-01","edit-01","delete-01","view","lock","key-01","globe",
+      "location-01","building-01","briefcase-01","chart","trophy","award-01",
+      "rocket","bulb","shield-01","notification-01","message-01","camera-01",
+      "image-01","video-01","music-01","headphones","cloud","sun-01","moon",
+      "flash","fire","diamond","crown","flag-01","puzzle","artificial-intelligence-01",
+      "brain","atom-01","dashboard-browsing","code","database","server-01",
+      "computer","smartphone-01","printer","wifi-01","bluetooth","battery-full",
+      "paint-board","pencil-edit-01","scissors-01","wrench-01","hammer",
+      "compass-01","telescope-01","stethoscope-01","car-01","airplane-01",
+      "bus-01","bicycle","running-shoes","drone","satellite-01","globe-02",
+      "map-01","route-01","shopping-cart-01","credit-card","money-01",
+      "gift","cake","handshake","thumbs-up","clapping","party-popper",
+    ],
+  },
+];
+
+const ICONIFY_OPTIONS: IconOption[] = ICONIFY_SET_DEFS.flatMap((setDef) =>
+  setDef.icons.map((name) => ({
+    id: `iconify:${setDef.prefix}:${name}`,
+    label: `${toTitleCase(name)}`,
+    library: "iconify" as const,
+    keywords: [
+      setDef.prefix,
+      setDef.label.toLowerCase(),
+      name,
+      name.replace(/-/g, " "),
+      "iconify",
+    ],
+  }))
+);
+
 export const AVAILABLE_ICON_OPTIONS: IconOption[] = [
   ...LUCIDE_OPTIONS,
   ...REACT_ICON_OPTIONS,
   ...FONT_AWESOME_OPTIONS,
+  ...ICONIFY_OPTIONS,
 ];
 
 export const AVAILABLE_ICONS = AVAILABLE_ICON_OPTIONS.map((option) => option.id);
@@ -196,6 +300,7 @@ export const normalizeQuickLinkIconId = (icon: string): string => {
     if (FONT_AWESOME_ICON_MAP[raw]) return icon;
     if (FONT_AWESOME_LEGACY_ALIAS[raw]) return `fontawesome:${FONT_AWESOME_LEGACY_ALIAS[raw]}`;
   }
+  if (icon.startsWith("iconify:")) return icon;
   if (icon.includes(":")) return icon;
   if (LUCIDE_ICON_MAP[icon]) return `lucide:${icon}`;
   if (REACT_ICON_LEGACY_ALIAS[icon]) return `react-icons:${REACT_ICON_LEGACY_ALIAS[icon]}`;
@@ -206,6 +311,11 @@ export const normalizeQuickLinkIconId = (icon: string): string => {
 export const renderQuickLinkIconPreview = (icon: string, className = "w-3.5 h-3.5") => {
   const normalized = normalizeQuickLinkIconId(icon);
   const [library, setOrName, maybeName] = normalized.split(":");
+
+  if (library === "iconify") {
+    const iconName = maybeName ? `${setOrName}:${maybeName}` : setOrName;
+    return <IconifyIcon icon={iconName} className={className} />;
+  }
 
   if (library === "react-icons") {
     const resolvedName = maybeName ? `${setOrName}:${maybeName}` : (REACT_ICON_LEGACY_ALIAS[setOrName] ?? "fa:FaLink");
