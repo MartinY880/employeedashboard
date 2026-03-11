@@ -28,11 +28,9 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# Install Prisma CLI globally
-RUN npm install -g prisma@latest
-
-# Install psql client for data seeding, bash for migration script, ffmpeg for video
-RUN apk add --no-cache postgresql-client bash ffmpeg
+# Install Prisma CLI globally and tools needed by the entrypoint migrations
+RUN npm install -g prisma@latest && \
+    apk add --no-cache postgresql-client bash
 
 # Copy standalone output
 COPY --from=builder /app/.next/standalone ./
@@ -55,10 +53,10 @@ RUN rm -f prisma.config.ts prisma.config.js && \
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
-# Copy entrypoint + migration scripts
+# Copy entrypoint and additive migration script
 COPY docker-entrypoint.sh ./docker-entrypoint.sh
 COPY scripts/migrate-safe.sh ./scripts/migrate-safe.sh
-RUN chmod +x scripts/migrate-safe.sh
+RUN chmod +x docker-entrypoint.sh scripts/migrate-safe.sh
 
 # Install su-exec for dropping privileges after volume setup
 RUN apk add --no-cache su-exec && \

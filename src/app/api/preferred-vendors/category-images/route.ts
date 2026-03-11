@@ -8,8 +8,9 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/logto";
 import { hasPermission, PERMISSIONS } from "@/lib/rbac";
+import { UPLOADS_BASE } from "@/lib/uploads-dir";
 
-const LOGOS_DIR = join(process.cwd(), "uploads", "vendor-logos");
+const LOGOS_DIR = join(UPLOADS_BASE, "vendor-logos");
 const MAX_SIZE = 5 * 1024 * 1024;
 const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/jpg", "image/webp", "image/svg+xml", "image/gif"];
 const SETTINGS_ID = "vendor_category_images";

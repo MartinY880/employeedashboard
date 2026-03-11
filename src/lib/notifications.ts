@@ -3,6 +3,7 @@
 
 import { prisma } from "@/lib/prisma";
 import type { NotificationType } from "@/generated/prisma/client";
+import nodemailer from "nodemailer";
 
 interface SmtpSettings {
   host: string;
@@ -26,11 +27,18 @@ interface CreateNotificationInput {
 async function getSmtpSettings(): Promise<SmtpSettings | null> {
   try {
     const setting = await prisma.calendarSetting.findUnique({ where: { id: "smtp_settings" } });
-    if (!setting) return null;
+    if (!setting) {
+      console.warn("[Notification] smtp_settings row not found in calendar_settings");
+      return null;
+    }
     const parsed = JSON.parse(setting.data) as SmtpSettings;
-    if (!parsed.host || !parsed.user || !parsed.pass) return null;
+    if (!parsed.host || !parsed.user || !parsed.pass) {
+      console.warn("[Notification] SMTP settings incomplete — host/user/pass missing");
+      return null;
+    }
     return parsed;
-  } catch {
+  } catch (err) {
+    console.error("[Notification] Failed to read SMTP settings:", err instanceof Error ? err.message : err);
     return null;
   }
 }
@@ -95,33 +103,39 @@ export async function createNotification(input: CreateNotificationInput) {
   // 2. Try to send email notification
   try {
     const smtp = await getSmtpSettings();
-    if (!smtp) return notification; // no SMTP configured, skip email
+    if (!smtp) {
+      console.warn("[Notification] No SMTP settings configured, skipping email");
+      return notification;
+    }
 
     // Get recipient email
     const recipient = await prisma.user.findUnique({
       where: { id: recipientUserId },
       select: { email: true, displayName: true },
     });
-    if (!recipient?.email) return notification;
+    if (!recipient?.email) {
+      console.warn(`[Notification] Recipient ${recipientUserId} has no email, skipping`);
+      return notification;
+    }
 
     const companyName = await getCompanyName();
-    const nodemailer = await import("nodemailer");
-    const transporter = nodemailer.default.createTransport({
+    const transporter = nodemailer.createTransport({
       host: smtp.host,
       port: parseInt(smtp.port || "587", 10),
       secure: smtp.port === "465",
       auth: { user: smtp.user, pass: smtp.pass },
     });
 
-    await transporter.sendMail({
+    const info = await transporter.sendMail({
       from: `"${smtp.fromName || companyName}" <${smtp.from || smtp.user}>`,
       to: recipient.email,
       subject: title,
       html: buildEmailHtml(title, message, companyName),
     });
+    console.log(`[Notification] Email sent to ${recipient.email}: ${info.response}`);
   } catch (err) {
     // Email failure should not block the notification creation
-    console.error("[Notification] Email send failed:", err);
+    console.error("[Notification] Email send failed:", err instanceof Error ? err.message : err);
   }
 
   return notification;

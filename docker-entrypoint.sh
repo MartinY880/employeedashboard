@@ -3,7 +3,7 @@ set -e
 
 # Fix ownership of mounted volumes (they may be root-owned if auto-created)
 echo "🔧 Ensuring volume permissions..."
-mkdir -p /app/src/data /app/uploads/resources /app/uploads/vendor-logos /app/uploads/videos
+mkdir -p /app/src/data /app/uploads/resources /app/uploads/lender-logos
 chown -R 1001:1001 /app/src/data /app/uploads
 
 # Seed resources.json if missing (volume mount may shadow baked-in copy)
@@ -64,19 +64,19 @@ if [ "$RETRIES" -lt "$MAX_RETRIES" ]; then
   done
   echo "✅ Database init complete."
 
-  # Apply Prisma migrations
+  # Apply Prisma migrations first, then heal any missing objects with additive SQL.
   echo "🔄 Running Prisma migrations..."
-  prisma migrate deploy --schema=prisma/schema.prisma || echo "⚠️  Migration failed — server will start anyway"
-  echo "✅ Migrations complete."
+  if prisma migrate deploy --schema=prisma/schema.prisma; then
+    echo "✅ Prisma migrations complete."
+  else
+    echo "⚠️  Prisma migrations failed — continuing with additive safe migration only"
+  fi
 
-  # Create any missing tables/columns/indexes via safe SQL migration
-  echo "🔄 Running safe SQL migration (creating missing tables/columns/indexes)..."
+  echo "🔄 Running additive safe migration..."
   if [ -f scripts/migrate-safe.sh ]; then
     bash scripts/migrate-safe.sh || echo "⚠️  Safe migration had issues — continuing anyway"
   else
-    echo "⚠️  scripts/migrate-safe.sh not found — falling back to prisma db push"
-    prisma db push --schema=prisma/schema.prisma --skip-generate --accept-data-loss 2>/dev/null \
-      || echo "⚠️  db push had issues — continuing anyway"
+    echo "⚠️  scripts/migrate-safe.sh not found — skipping additive safe migration"
   fi
   echo "✅ Schema sync complete."
 

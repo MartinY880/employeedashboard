@@ -238,7 +238,19 @@ export async function getAuthUser(): Promise<{
 
   // fetchUserInfo: true → calls Logto /oidc/userinfo on every request
   // so role changes take effect immediately (no sign-out needed)
-  const context = await getLogtoContext(logtoConfig, { fetchUserInfo: true });
+  let context: Awaited<ReturnType<typeof getLogtoContext>>;
+  try {
+    context = await getLogtoContext(logtoConfig, { fetchUserInfo: true });
+  } catch (err) {
+    // Refresh token expired or revoked (oidc.invalid_grant) — treat as signed
+    // out so the portal layout redirects to sign-in cleanly instead of crashing.
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("invalid_grant") || msg.includes("Grant request is invalid")) {
+      console.warn("[Auth] Refresh token expired — treating session as signed out");
+      return { isAuthenticated: false, user: null };
+    }
+    throw err;
+  }
 
   if (!context.isAuthenticated) {
     return { isAuthenticated: false, user: null };

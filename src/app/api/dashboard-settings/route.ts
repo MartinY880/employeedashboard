@@ -12,18 +12,19 @@ import {
   deriveDashboardSliderMeta,
   normalizeDashboardSliderMeta,
   normalizeDashboardSliderSettings,
-  type DashboardSliderSettings,
 } from "@/lib/dashboard-slider";
 import { saveDashboardSliderMeta } from "@/lib/dashboard-slider-store";
 
 interface DashboardVisibilitySettings {
   showCompanyPillars: boolean;
   showTournamentBracketLive: boolean;
+  showLenderAccountExecutives: boolean;
 }
 
 const DEFAULT_DASHBOARD_VISIBILITY: DashboardVisibilitySettings = {
   showCompanyPillars: true,
   showTournamentBracketLive: true,
+  showLenderAccountExecutives: true,
 };
 
 export async function GET() {
@@ -41,6 +42,7 @@ export async function GET() {
         visibility = {
           showCompanyPillars: parsed.showCompanyPillars !== false,
           showTournamentBracketLive: parsed.showTournamentBracketLive !== false,
+          showLenderAccountExecutives: parsed.showLenderAccountExecutives !== false,
         };
       } catch {
         visibility = DEFAULT_DASHBOARD_VISIBILITY;
@@ -99,8 +101,9 @@ export async function PATCH(request: Request) {
     const canManageTournament = hasPermission(user, PERMISSIONS.MANAGE_TOURNAMENT);
     const canManageBranding = hasPermission(user, PERMISSIONS.MANAGE_BRANDING);
     const canManageSlider = hasPermission(user, PERMISSIONS.MANAGE_SLIDER);
+    const canManageLenderAes = hasPermission(user, PERMISSIONS.MANAGE_LENDER_ACCOUNT_EXECUTIVES);
 
-    if (!canManagePillars && !canManageTournament && !canManageBranding && !canManageSlider) {
+    if (!canManagePillars && !canManageTournament && !canManageBranding && !canManageSlider && !canManageLenderAes) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
@@ -130,6 +133,21 @@ export async function PATCH(request: Request) {
         try { existing = { ...DEFAULT_DASHBOARD_VISIBILITY, ...JSON.parse(current.data) }; } catch { /* keep default */ }
       }
       const updated = { ...existing, showTournamentBracketLive: value === true };
+      await prisma.calendarSetting.upsert({
+        where: { id: "dashboard_visibility" },
+        update: { data: JSON.stringify(updated) },
+        create: { id: "dashboard_visibility", data: JSON.stringify(updated) },
+      });
+      return NextResponse.json({ success: true, visibility: updated });
+    }
+
+    if (key === "showLenderAccountExecutives" && canManageLenderAes) {
+      const current = await prisma.calendarSetting.findUnique({ where: { id: "dashboard_visibility" } });
+      let existing = DEFAULT_DASHBOARD_VISIBILITY;
+      if (current?.data) {
+        try { existing = { ...DEFAULT_DASHBOARD_VISIBILITY, ...JSON.parse(current.data) }; } catch { /* keep default */ }
+      }
+      const updated = { ...existing, showLenderAccountExecutives: value === true };
       await prisma.calendarSetting.upsert({
         where: { id: "dashboard_visibility" },
         update: { data: JSON.stringify(updated) },

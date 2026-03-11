@@ -69,7 +69,7 @@ const STATUS_LABELS: Record<string, string> = {
   SELECTED: "Selected for Development",
   IN_PROGRESS: "In Progress",
   COMPLETED: "Completed",
-  ARCHIVED: "Archived",
+  ARCHIVED: "Deleted by User",
 };
 
 const STATUS_STYLES: Record<string, string> = {
@@ -142,7 +142,7 @@ export default function AdminIdeasPage() {
   async function handleDelete() {
     if (!deleteTarget) return;
     try {
-      await fetch(`/api/ideas?id=${deleteTarget.id}`, { method: "DELETE" });
+      await fetch(`/api/ideas?id=${deleteTarget.id}&hard=true`, { method: "DELETE" });
       playNotify();
       setDeleteTarget(null);
       fetchIdeas();
@@ -163,7 +163,7 @@ export default function AdminIdeasPage() {
   const selectedCount = ideas.filter((i) => i.status === "SELECTED").length;
   const inProgressCount = ideas.filter((i) => i.status === "IN_PROGRESS").length;
   const completedCount = ideas.filter((i) => i.status === "COMPLETED").length;
-  const archivedCount = ideas.filter((i) => i.status === "ARCHIVED").length;
+  const deletedByUsersCount = ideas.filter((i) => i.status === "ARCHIVED").length;
 
   const filters = [
     { label: "All", value: null, count: ideas.length },
@@ -171,7 +171,7 @@ export default function AdminIdeasPage() {
     { label: "Selected", value: "SELECTED", count: selectedCount },
     { label: "In Progress", value: "IN_PROGRESS", count: inProgressCount },
     { label: "Completed", value: "COMPLETED", count: completedCount },
-    { label: "Archived", value: "ARCHIVED", count: archivedCount },
+    { label: "Deleted by Users", value: "ARCHIVED", count: deletedByUsersCount },
   ];
 
   return (
@@ -196,7 +196,7 @@ export default function AdminIdeasPage() {
           <div>
             <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Ideas Moderation</h1>
             <p className="text-xs text-brand-grey">
-              {ideas.length} total &middot; {activeCount} active &middot; {selectedCount} selected &middot; {inProgressCount} in progress &middot; {completedCount} completed
+              {ideas.length} total &middot; {activeCount} active &middot; {selectedCount} selected &middot; {inProgressCount} in progress &middot; {completedCount} completed &middot; {deletedByUsersCount} deleted by users
             </p>
           </div>
         </div>

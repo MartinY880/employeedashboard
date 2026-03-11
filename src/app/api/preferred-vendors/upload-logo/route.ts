@@ -7,8 +7,9 @@ import { join, extname } from "path";
 import { NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/logto";
 import { hasPermission, PERMISSIONS } from "@/lib/rbac";
+import { UPLOADS_BASE } from "@/lib/uploads-dir";
 
-const LOGOS_DIR = join(process.cwd(), "uploads", "vendor-logos");
+const LOGOS_DIR = join(UPLOADS_BASE, "vendor-logos");
 const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
 const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/jpg", "image/webp", "image/svg+xml", "image/gif"];
 

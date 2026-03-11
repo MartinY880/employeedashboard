@@ -454,6 +454,45 @@ model PreferredVendor {
   @@map("preferred_vendors")
 }
 
+// ─── Lenders ──────────────────────────────────────────────
+
+model Lender {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  logoUrl   String?  @map("logo_url")
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  accountExecutives LenderAccountExecutive[]
+
+  @@map("lenders")
+}
+
+// ─── Lender Account Executives ───────────────────────────
+
+model LenderAccountExecutive {
+  id                   String   @id @default(cuid())
+  lenderId             String   @map("lender_id")
+  accountExecutiveName String   @map("account_executive_name")
+  phoneNumber          String   @default("") @map("phone_number")
+  workPhoneNumber      String   @default("") @map("work_phone_number")
+  phoneExtension       String?  @map("phone_extension")
+  mobilePhoneNumber    String?  @map("mobile_phone_number")
+  email                String   @default("")
+  active               Boolean  @default(true)
+  sortOrder            Int      @default(0) @map("sort_order")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  lender Lender @relation(fields: [lenderId], references: [id], onDelete: Cascade)
+
+  @@index([active, lenderId])
+  @@index([lenderId, sortOrder])
+  @@map("lender_account_executives")
+}
+
 // ─── Video Spotlight ──────────────────────────────────────
 
 model VideoSpotlight {

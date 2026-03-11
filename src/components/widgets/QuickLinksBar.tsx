@@ -237,6 +237,7 @@ interface QuickLink {
 export function QuickLinksBar() {
   const [links, setLinks] = useState<QuickLink[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const hasOddCount = links.length % 2 === 1;
 
   const fetchLinks = useCallback(async () => {
     try {
@@ -254,31 +255,60 @@ export function QuickLinksBar() {
     fetchLinks();
   }, [fetchLinks]);
 
-  if (isLoading || links.length === 0) return null;
+  if (isLoading) {
+    return (
+      <div className="h-full flex flex-col bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+        <div className="px-3.5 py-2 bg-gradient-to-r from-slate-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 border-t-[3px] border-t-brand-blue flex items-center justify-between gap-2">
+          <h3 className="text-sm font-bold text-brand-blue tracking-wide uppercase">Quick Links</h3>
+          <LinkIcon className="w-4 h-4 text-brand-blue" />
+        </div>
+        <div className="flex-1 p-3.5 animate-pulse">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="h-9 rounded-full bg-gray-100 dark:bg-gray-800" />
+            <div className="h-9 rounded-full bg-gray-100 dark:bg-gray-800" />
+            <div className="h-9 rounded-full bg-gray-100 dark:bg-gray-800" />
+            <div className="h-9 rounded-full bg-gray-100 dark:bg-gray-800" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm px-4 py-2.5 flex items-center justify-center gap-1 overflow-x-auto scrollbar-thin">
-      <span className="text-[10px] font-bold text-brand-grey uppercase tracking-wider shrink-0 mr-2">
-        Quick Links
-      </span>
-      <div className="flex items-center gap-1 flex-wrap">
-        {links.map((link, i) => {
-          return (
-            <motion.a
-              key={link.id}
-              href={link.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              initial={{ opacity: 0, y: -4 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.03 }}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-brand-blue/5 hover:text-brand-blue transition-colors shrink-0"
-            >
-              {renderQuickLinkIconPreview(link.icon, "w-3.5 h-3.5")}
-              {link.label}
-            </motion.a>
-          );
-        })}
+    <div className="h-full flex flex-col bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+      {/* Card Header */}
+      <div className="px-3.5 py-2 bg-gradient-to-r from-slate-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 border-t-[3px] border-t-brand-blue flex items-center justify-between gap-2">
+        <h3 className="text-sm font-bold text-brand-blue tracking-wide uppercase">Quick Links</h3>
+        <LinkIcon className="w-4 h-4 text-brand-blue" />
+      </div>
+
+      {/* Body */}
+      <div className="flex-1 p-3.5">
+        {links.length === 0 ? (
+          <div className="h-full flex items-center justify-center rounded-lg border border-dashed border-gray-200 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400">
+            No quick links have been configured.
+          </div>
+        ) : (
+          <div className="h-full grid grid-cols-2 gap-2 content-start auto-rows-min">
+            {links.map((link, i) => (
+              <motion.a
+                key={link.id}
+                href={link.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.02 }}
+                className={`min-h-[38px] inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] font-semibold text-gray-700 dark:text-gray-200 border border-gray-200/80 dark:border-gray-700/80 bg-gray-50/70 dark:bg-gray-800/60 hover:bg-brand-blue/5 hover:text-brand-blue hover:border-brand-blue/25 transition-all ${hasOddCount && i === links.length - 1 ? "col-span-2 justify-self-center w-[min(100%,210px)]" : "w-full"}`}
+              >
+                <span className="h-5 w-5 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 flex items-center justify-center shrink-0 text-gray-500 dark:text-gray-300">
+                  {renderQuickLinkIconPreview(link.icon, "w-3 h-3")}
+                </span>
+                <span className="truncate">{link.label}</span>
+              </motion.a>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

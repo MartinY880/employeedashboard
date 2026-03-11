@@ -88,21 +88,20 @@ export async function POST(request: Request) {
       },
     });
 
-    // ── Email notifications (fire-and-forget) ──────────────
+    // ── Email notifications ──────────────
     const commenterName = user.name || "Someone";
     const truncatedContent = content.trim().length > 120
       ? content.trim().slice(0, 120) + "…"
       : content.trim();
 
-    (async () => {
-      try {
-        // Look up the idea to get authorId + title
-        const idea = await prisma.idea.findUnique({
-          where: { id: ideaId },
-          select: { authorId: true, authorName: true, title: true },
-        });
-        if (!idea) return;
+    try {
+      // Look up the idea to get authorId + title
+      const idea = await prisma.idea.findUnique({
+        where: { id: ideaId },
+        select: { authorId: true, authorName: true, title: true },
+      });
 
+      if (idea) {
         if (parentId) {
           // ── Reply: notify the parent comment's author ──
           const parentComment = await prisma.ideaComment.findUnique({
@@ -159,10 +158,10 @@ export async function POST(request: Request) {
             }
           }
         }
-      } catch (err) {
-        console.error("[IdeaComments] Notification error:", err);
       }
-    })();
+    } catch (err) {
+      console.error("[IdeaComments] Notification error:", err);
+    }
 
     return NextResponse.json({ comment: { ...comment, userLiked: false, replies: [] } }, { status: 201 });
   } catch {
