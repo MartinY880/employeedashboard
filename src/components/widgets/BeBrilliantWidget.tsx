@@ -97,14 +97,16 @@ function CommentBubble({
               </button>
             )}
             <span className="text-gray-400 dark:text-gray-500">{getTimeAgo(comment.createdAt)}</span>
-            <button
-              type="button"
-              onClick={() => onDelete(comment.id)}
-              className="opacity-0 group-hover/comment:opacity-100 text-gray-300 hover:text-red-500 transition-all"
-              title="Delete"
-            >
-              <Trash2 className="w-3 h-3" />
-            </button>
+            {comment.canDelete && (
+              <button
+                type="button"
+                onClick={() => onDelete(comment.id)}
+                className="opacity-0 group-hover/comment:opacity-100 text-gray-300 hover:text-red-500 transition-all"
+                title="Delete"
+              >
+                <Trash2 className="w-3 h-3" />
+              </button>
+            )}
           </div>
         </div>
       </div>

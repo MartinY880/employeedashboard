@@ -40,6 +40,7 @@ model PropsMessage {
   author      User     @relation("PropsAuthor", fields: [authorId], references: [id])
   recipient   User     @relation("PropsRecipient", fields: [recipientId], references: [id])
   reactions   PropsReaction[]
+  comments    PropsComment[]
   likes       Int      @default(0)
   createdAt   DateTime @default(now())
 
@@ -62,6 +63,37 @@ model PropsReaction {
   @@index([propsId, reaction])
   @@index([userId])
   @@map("kudos_reactions")
+}
+
+model PropsComment {
+  id           String             @id @default(cuid())
+  propsId      String
+  authorId     String
+  authorName   String
+  content      String
+  parentId     String?
+  likes        Int                @default(0)
+  createdAt    DateTime           @default(now())
+  props        PropsMessage       @relation(fields: [propsId], references: [id], onDelete: Cascade)
+  parent       PropsComment?      @relation("PropsCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies      PropsComment[]     @relation("PropsCommentReplies")
+  likedBy      PropsCommentLike[]
+
+  @@index([propsId, createdAt])
+  @@index([parentId])
+  @@map("props_comments")
+}
+
+model PropsCommentLike {
+  id           String      @id @default(cuid())
+  commentId    String
+  voterLogtoId String
+  createdAt    DateTime    @default(now())
+  comment      PropsComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, voterLogtoId])
+  @@index([voterLogtoId])
+  @@map("props_comment_likes")
 }
 
 model Alert {
