@@ -247,6 +247,7 @@ export default function AdminPillarsPage() {
     lucide: v2FilteredIconOptions.filter((o) => o.library === "lucide"),
     reactIcons: v2FilteredIconOptions.filter((o) => o.library === "react-icons"),
     fontAwesome: v2FilteredIconOptions.filter((o) => o.library === "fontawesome"),
+    iconify: v2FilteredIconOptions.filter((o) => o.library === "iconify"),
   }), [v2FilteredIconOptions]);
 
   const v2HasMoreDefaultIcons = useMemo(() => {
@@ -281,6 +282,9 @@ export default function AdminPillarsPage() {
       ),
       fontAwesome: filteredIconOptions.filter(
         (option) => option.library === "fontawesome"
+      ),
+      iconify: filteredIconOptions.filter(
+        (option) => option.library === "iconify"
       ),
     };
   }, [filteredIconOptions]);
@@ -739,6 +743,30 @@ export default function AdminPillarsPage() {
                                   </>
                                 )}
 
+                                {groupedIconOptions.iconify.length > 0 && (
+                                  <>
+                                    <div className="px-2 py-1 text-xs text-brand-grey">Iconify (Phosphor, Heroicons, Tabler, Hugeicons)</div>
+                                    {groupedIconOptions.iconify.map((icon) => (
+                                      <button
+                                        key={icon.id}
+                                        type="button"
+                                        className="w-full text-left px-2 py-1.5 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground"
+                                        onMouseDown={(e) => e.preventDefault()}
+                                        onClick={() => {
+                                          updatePillar(pillar.id, "icon", icon.id);
+                                          setIconMenuOpenFor(null);
+                                          setIconSearch("");
+                                        }}
+                                      >
+                                        <span className="inline-flex items-center gap-2">
+                                          {renderQuickLinkIconPreview(icon.id, "w-4 h-4")}
+                                          {icon.label}
+                                        </span>
+                                      </button>
+                                    ))}
+                                  </>
+                                )}
+
                                 {filteredIconOptions.length === 0 && iconSearch.trim().length !== 1 && (
                                   <div className="px-2 py-1.5 text-xs text-brand-grey">No icons found</div>
                                 )}
@@ -975,6 +1003,30 @@ export default function AdminPillarsPage() {
                                   <>
                                     <div className="px-2 py-1 text-xs text-brand-grey">Font Awesome</div>
                                     {v2GroupedIconOptions.fontAwesome.map((icon) => (
+                                      <button
+                                        key={icon.id}
+                                        type="button"
+                                        className="w-full text-left px-2 py-1.5 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground"
+                                        onMouseDown={(e) => e.preventDefault()}
+                                        onClick={() => {
+                                          updateV2Row(row.id, "col1Icon", icon.id);
+                                          setV2IconMenuOpenFor(null);
+                                          setV2IconSearch("");
+                                        }}
+                                      >
+                                        <span className="inline-flex items-center gap-2">
+                                          {renderQuickLinkIconPreview(icon.id, "w-4 h-4")}
+                                          {icon.label}
+                                        </span>
+                                      </button>
+                                    ))}
+                                  </>
+                                )}
+
+                                {v2GroupedIconOptions.iconify.length > 0 && (
+                                  <>
+                                    <div className="px-2 py-1 text-xs text-brand-grey">Iconify (Phosphor, Heroicons, Tabler, Hugeicons)</div>
+                                    {v2GroupedIconOptions.iconify.map((icon) => (
                                       <button
                                         key={icon.id}
                                         type="button"

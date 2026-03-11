@@ -1,19 +1,18 @@
 // ProConnect — Pillars API Route
 // GET: Fetch all pillars + header + v2 data | PUT: Replace all pillars (admin)
 // PATCH: Update pillar header only
+// Storage: PostgreSQL via calendar_settings table (JSON blobs)
 
 import { NextResponse } from "next/server";
-import { readFile, writeFile, mkdir } from "fs/promises";
-import { join } from "path";
 import type { PillarData, PillarHeader, PillarV2Data } from "@/lib/pillar-icons";
 import { DEFAULT_PILLAR_V2 } from "@/lib/pillar-icons";
 import { getAuthUser } from "@/lib/logto";
 import { hasPermission, PERMISSIONS } from "@/lib/rbac";
+import { prisma } from "@/lib/prisma";
 
-const DATA_DIR = join(process.cwd(), "src", "data");
-const PILLARS_FILE = join(DATA_DIR, "pillars.json");
-const HEADER_FILE = join(DATA_DIR, "pillar-header.json");
-const V2_FILE = join(DATA_DIR, "pillar-v2.json");
+const DB_KEY_PILLARS = "pillars_data";
+const DB_KEY_HEADER = "pillars_header";
+const DB_KEY_V2 = "pillars_v2";
 
 const DEFAULT_PILLARS: PillarData[] = [
   { id: "p1", icon: "Shield", title: "Integrity", message: "We act with honesty and transparency in everything we do." },
@@ -32,8 +31,9 @@ const DEFAULT_HEADER: PillarHeader = {
 
 async function loadPillars(): Promise<PillarData[]> {
   try {
-    const raw = await readFile(PILLARS_FILE, "utf-8");
-    return JSON.parse(raw);
+    const row = await prisma.calendarSetting.findUnique({ where: { id: DB_KEY_PILLARS } });
+    if (row?.data) return JSON.parse(row.data);
+    return DEFAULT_PILLARS;
   } catch {
     return DEFAULT_PILLARS;
   }
@@ -41,35 +41,46 @@ async function loadPillars(): Promise<PillarData[]> {
 
 async function loadHeader(): Promise<PillarHeader> {
   try {
-    const raw = await readFile(HEADER_FILE, "utf-8");
-    return JSON.parse(raw);
+    const row = await prisma.calendarSetting.findUnique({ where: { id: DB_KEY_HEADER } });
+    if (row?.data) return JSON.parse(row.data);
+    return DEFAULT_HEADER;
   } catch {
     return DEFAULT_HEADER;
   }
 }
 
-async function savePillars(pillars: PillarData[]): Promise<void> {
-  await mkdir(DATA_DIR, { recursive: true });
-  await writeFile(PILLARS_FILE, JSON.stringify(pillars, null, 2), "utf-8");
-}
-
-async function saveHeader(header: PillarHeader): Promise<void> {
-  await mkdir(DATA_DIR, { recursive: true });
-  await writeFile(HEADER_FILE, JSON.stringify(header, null, 2), "utf-8");
-}
-
 async function loadV2(): Promise<PillarV2Data> {
   try {
-    const raw = await readFile(V2_FILE, "utf-8");
-    return JSON.parse(raw);
+    const row = await prisma.calendarSetting.findUnique({ where: { id: DB_KEY_V2 } });
+    if (row?.data) return JSON.parse(row.data);
+    return DEFAULT_PILLAR_V2;
   } catch {
     return DEFAULT_PILLAR_V2;
   }
 }
 
+async function savePillars(pillars: PillarData[]): Promise<void> {
+  await prisma.calendarSetting.upsert({
+    where: { id: DB_KEY_PILLARS },
+    update: { data: JSON.stringify(pillars) },
+    create: { id: DB_KEY_PILLARS, data: JSON.stringify(pillars) },
+  });
+}
+
+async function saveHeader(header: PillarHeader): Promise<void> {
+  await prisma.calendarSetting.upsert({
+    where: { id: DB_KEY_HEADER },
+    update: { data: JSON.stringify(header) },
+    create: { id: DB_KEY_HEADER, data: JSON.stringify(header) },
+  });
+}
+
 async function saveV2(data: PillarV2Data): Promise<void> {
-  await mkdir(DATA_DIR, { recursive: true });
-  await writeFile(V2_FILE, JSON.stringify(data, null, 2), "utf-8");
+  await prisma.calendarSetting.upsert({
+    where: { id: DB_KEY_V2 },
+    update: { data: JSON.stringify(data) },
+    create: { id: DB_KEY_V2, data: JSON.stringify(data) },
+  });
 }
 
 export async function GET() {
@@ -115,7 +126,7 @@ export async function PATCH(request: Request) {
     }
 
     const body = await request.json();
-    const { title, subtitle, maxWidth } = body;
+    const { title, subtitle } = body;
 
     if (!title || !subtitle) {
       return NextResponse.json({ error: "title and subtitle are required" }, { status: 400 });

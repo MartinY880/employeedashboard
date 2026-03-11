@@ -44,8 +44,20 @@ let forecastCache: {
   expiresAt: number;
 } | null = null;
 
+const EST_TZ = "America/New_York";
+
+function toESTDateKey(date: Date): string {
+  // Returns "YYYY-MM-DD" in Eastern Time so day boundaries match midnight EST.
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: EST_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
 function toDayLabel(date: Date): string {
-  return date.toLocaleDateString("en-US", { weekday: "short" });
+  return date.toLocaleDateString("en-US", { weekday: "short", timeZone: EST_TZ });
 }
 
 function pickRepresentativeIcon(entries: Array<NonNullable<OpenWeatherForecastResponse["list"]>[number]>): {
@@ -131,13 +143,13 @@ export async function GET() {
     for (const entry of entries) {
       const dt = typeof entry.dt === "number" ? new Date(entry.dt * 1000) : null;
       if (!dt) continue;
-      const key = dt.toISOString().slice(0, 10);
+      const key = toESTDateKey(dt);
       const existing = grouped.get(key) ?? [];
       existing.push(entry);
       grouped.set(key, existing);
     }
 
-    const todayKey = new Date().toISOString().slice(0, 10);
+    const todayKey = toESTDateKey(new Date());
     const days: ForecastDay[] = Array.from(grouped.entries())
       .filter(([key]) => key >= todayKey)
       .sort((a, b) => a[0].localeCompare(b[0]))
