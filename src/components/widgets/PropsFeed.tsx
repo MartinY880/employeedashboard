@@ -252,6 +252,7 @@ export function PropsFeed() {
               }}
               createdAt={k.createdAt}
               badge={k.badge}
+              commentCount={k.commentCount}
             />
           </motion.div>
         ))

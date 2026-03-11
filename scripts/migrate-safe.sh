@@ -496,6 +496,29 @@ CREATE TABLE IF NOT EXISTS important_dates (
   "updatedAt"  TIMESTAMPTZ NOT NULL DEFAULT now()
 );'
 
+# --- props_comments ---
+create_table_if_missing "props_comments" '
+CREATE TABLE IF NOT EXISTS "props_comments" (
+  id           TEXT PRIMARY KEY,
+  "propsId"    TEXT NOT NULL REFERENCES kudos_messages(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  "authorId"   TEXT NOT NULL,
+  "authorName" TEXT NOT NULL,
+  content      TEXT NOT NULL,
+  "parentId"   TEXT REFERENCES "props_comments"(id) ON DELETE CASCADE,
+  likes        INT NOT NULL DEFAULT 0,
+  "createdAt"  TIMESTAMPTZ NOT NULL DEFAULT now()
+);'
+
+# --- props_comment_likes ---
+create_table_if_missing "props_comment_likes" '
+CREATE TABLE IF NOT EXISTS "props_comment_likes" (
+  id             TEXT PRIMARY KEY,
+  "commentId"    TEXT NOT NULL REFERENCES "props_comments"(id) ON DELETE CASCADE,
+  "voterLogtoId" TEXT NOT NULL,
+  "createdAt"    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE("commentId", "voterLogtoId")
+);'
+
 # ══════════════════════════════════════════════════════════════
 # 3. COLUMNS — add missing columns to existing tables
 # ══════════════════════════════════════════════════════════════
@@ -811,6 +834,13 @@ ensure_index "vs_comment_likes_voterLogtoId_idx" "video_spotlight_comment_likes"
 # important_dates
 ensure_index "important_dates_active_date_idx"  "important_dates" 'active, date'
 ensure_index "important_dates_sortOrder_idx"    "important_dates" '"sortOrder"'
+
+# props_comments
+ensure_index "props_comments_propsId_createdAt_idx" "props_comments" '"propsId", "createdAt"'
+ensure_index "props_comments_parentId_idx"          "props_comments" '"parentId"'
+
+# props_comment_likes
+ensure_index "props_comment_likes_voterLogtoId_idx" "props_comment_likes" '"voterLogtoId"'
 
 # ══════════════════════════════════════════════════════════════
 # Summary

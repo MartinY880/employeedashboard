@@ -4,10 +4,15 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useSounds } from "@/components/shared/SoundProvider";
 import { motion } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Loader2, MessageCircle, ChevronDown, Reply, X, Trash2, ThumbsUp, Send } from "lucide-react";
+import type { PropsComment } from "@/types";
 
 /* ─── Badge Definitions ────────────────────────────────── */
 
@@ -89,12 +94,341 @@ export function getBadge(key: string | undefined) {
 /* ─── Reactions ────────────────────────────────────────── */
 
 const REACTIONS = [
-  { key: "highfive", emoji: "🙌", label: "High Five", bg: "bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/30 dark:hover:bg-amber-900/40", activeBg: "bg-amber-200 dark:bg-amber-800", ring: "ring-amber-300 dark:ring-amber-700" },
-  { key: "uplift", emoji: "🚀", label: "Uplift", bg: "bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/30 dark:hover:bg-blue-900/40", activeBg: "bg-blue-200 dark:bg-blue-800", ring: "ring-blue-300 dark:ring-blue-700" },
-  { key: "bomb", emoji: "💣", label: "Bomb", bg: "bg-red-50 hover:bg-red-100 dark:bg-red-950/30 dark:hover:bg-red-900/40", activeBg: "bg-red-200 dark:bg-red-800", ring: "ring-red-300 dark:ring-red-700" },
+  { key: "highfive", emoji: "🙌", label: "High Five", activeBg: "bg-amber-100 dark:bg-amber-900/50", activeBorder: "border-amber-300 dark:border-amber-700", ring: "ring-amber-200 dark:ring-amber-700/60" },
+  { key: "uplift", emoji: "🚀", label: "Uplift", activeBg: "bg-blue-100 dark:bg-blue-900/50", activeBorder: "border-blue-300 dark:border-blue-700", ring: "ring-blue-200 dark:ring-blue-700/60" },
+  { key: "bomb", emoji: "💣", label: "Bomb", activeBg: "bg-red-100 dark:bg-red-900/50", activeBorder: "border-red-300 dark:border-red-700", ring: "ring-red-200 dark:ring-red-700/60" },
 ] as const;
 
 type ReactionKey = (typeof REACTIONS)[number]["key"];
+
+const CHIP_BASE_CLASS = "inline-flex h-8 shrink-0 items-center gap-1 rounded-full border px-2.5 py-0 text-[11px] font-medium shadow-sm transition-all";
+const CHIP_IDLE_CLASS = "border-gray-200/80 dark:border-gray-700/80 bg-white/90 dark:bg-gray-800/90 text-gray-600 dark:text-gray-300 hover:border-brand-blue/30 hover:bg-white dark:hover:bg-gray-800";
+
+function CommentBubble({
+  comment,
+  onDelete,
+  onLike,
+  onReplyClick,
+  isReply = false,
+}: {
+  comment: PropsComment;
+  onDelete: (id: string) => void;
+  onLike: (id: string) => void;
+  onReplyClick?: (id: string, authorName: string) => void;
+  isReply?: boolean;
+}) {
+  return (
+    <div className={isReply ? "ml-8" : ""}>
+      <div className="group/comment flex gap-2 items-start">
+        <div className={`shrink-0 rounded-full bg-gradient-to-br from-brand-blue/70 to-brand-blue flex items-center justify-center text-white font-bold ${isReply ? "w-6 h-6 text-[9px]" : "w-7 h-7 text-[10px]"}`}>
+          {comment.authorName.charAt(0).toUpperCase()}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="inline-block bg-gray-100 dark:bg-gray-800 rounded-2xl px-3 py-1.5 max-w-[90%]">
+            <span className="font-semibold text-[12px] text-gray-800 dark:text-gray-200 block leading-tight">{comment.authorName}</span>
+            <p className="text-[12px] text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words leading-relaxed mt-0.5">{comment.content}</p>
+          </div>
+          <div className="flex items-center gap-2.5 mt-0.5 ml-2 text-[11px]">
+            <button
+              type="button"
+              onClick={() => onLike(comment.id)}
+              className={`font-semibold transition-colors ${comment.userLiked ? "text-brand-blue" : "text-gray-400 dark:text-gray-500 hover:text-brand-blue"}`}
+            >
+              {comment.likes > 0 ? (
+                <span className="flex items-center gap-0.5">
+                  <ThumbsUp className={`w-3 h-3 ${comment.userLiked ? "fill-brand-blue" : ""}`} />
+                  {comment.likes}
+                </span>
+              ) : (
+                "Like"
+              )}
+            </button>
+            {!isReply && onReplyClick && (
+              <button
+                type="button"
+                onClick={() => onReplyClick(comment.id, comment.authorName)}
+                className="font-semibold text-gray-400 dark:text-gray-500 hover:text-brand-blue transition-colors"
+              >
+                Reply
+              </button>
+            )}
+            <span className="text-gray-400 dark:text-gray-500">{getRelativeTime(comment.createdAt)}</span>
+            {comment.canDelete && (
+              <button
+                type="button"
+                onClick={() => onDelete(comment.id)}
+                className="opacity-0 group-hover/comment:opacity-100 text-gray-300 hover:text-red-500 transition-all"
+                title="Delete"
+              >
+                <Trash2 className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PropsCommentThread({
+  propsId,
+  commentCount = 0,
+  inline = false,
+}: {
+  propsId: string;
+  commentCount?: number;
+  inline?: boolean;
+}) {
+  const [comments, setComments] = useState<PropsComment[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [newComment, setNewComment] = useState("");
+  const [sending, setSending] = useState(false);
+  const [localCount, setLocalCount] = useState(commentCount);
+  const [replyTo, setReplyTo] = useState<{ id: string; name: string } | null>(null);
+  const { playClick, playSuccess } = useSounds();
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setLocalCount(commentCount);
+  }, [commentCount]);
+
+  const fetchComments = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/props/comments?propsId=${propsId}`);
+      const data = await res.json();
+      setComments(data.comments || []);
+      const total = (data.comments || []).reduce(
+        (acc: number, c: PropsComment) => acc + 1 + (c.replies?.length ?? 0),
+        0
+      );
+      setLocalCount(total || commentCount);
+    } catch {
+      // silent
+    } finally {
+      setLoading(false);
+      setLoaded(true);
+    }
+  }, [propsId, commentCount]);
+
+  useEffect(() => {
+    if (expanded && !loaded) void fetchComments();
+  }, [expanded, loaded, fetchComments]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newComment.trim() || sending) return;
+    setSending(true);
+    try {
+      const res = await fetch("/api/props/comments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          propsId,
+          content: newComment.trim(),
+          parentId: replyTo?.id || null,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (replyTo) {
+          setComments((prev) =>
+            prev.map((c) =>
+              c.id === replyTo.id
+                ? { ...c, replies: [...(c.replies || []), data.comment] }
+                : c
+            )
+          );
+        } else {
+          setComments((prev) => [...prev, data.comment]);
+        }
+        setLocalCount((c) => c + 1);
+        setNewComment("");
+        setReplyTo(null);
+        playSuccess();
+      }
+    } catch {
+      // silent
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleDelete = async (commentId: string) => {
+    try {
+      const res = await fetch(`/api/props/comments?id=${commentId}`, { method: "DELETE" });
+      if (res.ok) {
+        const wasTopLevel = comments.some((c) => c.id === commentId);
+        if (wasTopLevel) {
+          const removed = comments.find((c) => c.id === commentId);
+          const removedCount = 1 + (removed?.replies?.length ?? 0);
+          setComments((prev) => prev.filter((c) => c.id !== commentId));
+          setLocalCount((c) => Math.max(0, c - removedCount));
+        } else {
+          setComments((prev) =>
+            prev.map((c) => ({
+              ...c,
+              replies: (c.replies || []).filter((r) => r.id !== commentId),
+            }))
+          );
+          setLocalCount((c) => Math.max(0, c - 1));
+        }
+      }
+    } catch {
+      // silent
+    }
+  };
+
+  const handleLike = async (commentId: string) => {
+    playClick();
+    const updateLike = (list: PropsComment[]): PropsComment[] =>
+      list.map((c) => {
+        if (c.id === commentId) {
+          const liked = !c.userLiked;
+          return { ...c, userLiked: liked, likes: c.likes + (liked ? 1 : -1) };
+        }
+        return { ...c, replies: updateLike(c.replies || []) };
+      });
+
+    setComments(updateLike);
+
+    try {
+      await fetch("/api/props/comments", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ commentId }),
+      });
+    } catch {
+      setComments(updateLike);
+    }
+  };
+
+  const handleReplyClick = (parentId: string, authorName: string) => {
+    setReplyTo({ id: parentId, name: authorName });
+    inputRef.current?.focus();
+  };
+
+  const toggleButton = (
+    <motion.button
+      type="button"
+      onClick={() => {
+        playClick();
+        setExpanded((prev) => !prev);
+      }}
+      animate={expanded ? { scale: 1.04 } : { scale: 1 }}
+      transition={{ duration: 0.2 }}
+      className={`${CHIP_BASE_CLASS} whitespace-nowrap font-semibold ${
+        expanded
+          ? "border-brand-blue/40 bg-brand-blue/10 text-brand-blue ring-1 ring-brand-blue/20 dark:border-brand-blue/40 dark:bg-brand-blue/15 dark:text-brand-blue dark:ring-brand-blue/30"
+          : `${CHIP_IDLE_CLASS} hover:text-brand-blue dark:hover:text-brand-blue`
+      } ${inline ? "justify-self-end" : "mx-auto"}`}
+    >
+      <MessageCircle className="w-3 h-3 shrink-0" />
+      <span className={`tabular-nums text-[10px] font-bold leading-none ${expanded ? "text-brand-blue" : "text-gray-700 dark:text-gray-200"}`}>
+        {localCount}
+      </span>
+      <span className="whitespace-nowrap leading-none">
+        {localCount === 1 ? "Comment" : "Comments"}
+      </span>
+      <ChevronDown className={`w-3 h-3 transition-transform ${expanded ? "rotate-180" : ""}`} />
+    </motion.button>
+  );
+
+  const commentsPanel = (
+    <AnimatePresence>
+      {expanded && (
+        <motion.div
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: "auto", opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className={`overflow-hidden ${inline ? "col-span-2" : ""}`}
+        >
+          <div className={`space-y-2 ${inline ? "pt-1" : "pt-2"}`}>
+              {loading ? (
+                <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+                  <Loader2 className="w-3 h-3 animate-spin" /> Loading…
+                </div>
+              ) : comments.length === 0 && loaded ? (
+                <p className="text-[11px] text-gray-400 dark:text-gray-500 italic">No comments yet — be the first!</p>
+              ) : (
+                comments.map((c) => (
+                  <div key={c.id}>
+                    <CommentBubble
+                      comment={c}
+                      onDelete={handleDelete}
+                      onLike={handleLike}
+                      onReplyClick={handleReplyClick}
+                    />
+                    {(c.replies || []).map((r) => (
+                      <div key={r.id} className="mt-1.5">
+                        <CommentBubble
+                          comment={r}
+                          onDelete={handleDelete}
+                          onLike={handleLike}
+                          isReply
+                        />
+                      </div>
+                    ))}
+                  </div>
+                ))
+              )}
+
+              {replyTo && (
+                <div className="flex items-center gap-1.5 text-[11px] text-brand-blue ml-1">
+                  <Reply className="w-3 h-3" />
+                  <span>Replying to <strong>{replyTo.name}</strong></span>
+                  <button type="button" onClick={() => setReplyTo(null)} className="text-gray-400 hover:text-red-400">
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
+
+              <form onSubmit={handleSubmit} className="flex gap-1.5 items-center">
+                <div className="shrink-0 w-6 h-6 rounded-full bg-brand-blue/20 dark:bg-brand-blue/30 flex items-center justify-center">
+                  <MessageCircle className="w-3 h-3 text-brand-blue" />
+                </div>
+                <Input
+                  ref={inputRef}
+                  placeholder={replyTo ? `Reply to ${replyTo.name}…` : "Write a comment…"}
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  className="h-7 text-[11px] bg-gray-50 dark:bg-gray-900 dark:border-gray-700 border-gray-200 rounded-full flex-1 px-3"
+                  maxLength={500}
+                />
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={!newComment.trim() || sending}
+                  className="h-7 w-7 p-0 rounded-full bg-brand-blue hover:bg-brand-blue/90 text-white"
+                >
+                  {sending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+                </Button>
+              </form>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+
+  if (inline) {
+    return (
+      <>
+        {toggleButton}
+        {commentsPanel}
+      </>
+    );
+  }
+
+  return (
+    <div className="mt-3 pl-9">
+      {toggleButton}
+      {commentsPanel}
+    </div>
+  );
+}
 
 /* ─── Props Interface ──────────────────────────────────── */
 
@@ -111,11 +445,13 @@ interface PropsCardProps {
   onReact?: (reaction: ReactionKey) => Promise<void>;
   createdAt: string;
   badge?: string;
+  commentCount?: number;
 }
 
 /* ─── Component ────────────────────────────────────────── */
 
 export function PropsCard({
+  id,
   authorName,
   authorInitials,
   authorPhotoUrl,
@@ -127,6 +463,7 @@ export function PropsCard({
   onReact,
   createdAt,
   badge: badgeKey,
+  commentCount,
 }: PropsCardProps) {
   const { playPop } = useSounds();
   const badge = getBadge(badgeKey);
@@ -207,35 +544,40 @@ export function PropsCard({
           &ldquo;{message}&rdquo;
         </p>
 
-        {/* Reactions Row */}
-        <div className="flex items-center gap-1.5 pl-9">
-          {REACTIONS.map((r) => {
-            const isActive = myReactions.has(r.key);
-            const count = reactions[r.key];
-            const isPopping = poppedReaction === r.key;
-            return (
-              <motion.button
-                key={r.key}
-                onClick={() => void handleReaction(r.key)}
-                animate={isPopping ? { scale: [1, 1.35, 1] } : {}}
-                transition={{ duration: 0.3 }}
-                disabled={isToggling === r.key}
-                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
-                  isActive
-                    ? `${r.activeBg} ring-1 ${r.ring} shadow-sm`
-                    : `bg-white/80 dark:bg-gray-800/80 ${r.bg}`
-                }`}
-                title={r.label}
-              >
-                <span className="text-sm leading-none">{r.emoji}</span>
-                {count > 0 && (
-                  <span className={`tabular-nums text-[11px] ${isActive ? "font-bold" : "text-gray-500 dark:text-gray-400"}`}>
-                    {count}
-                  </span>
-                )}
-              </motion.button>
-            );
-          })}
+        <div className="mt-1 border-t border-white/60 pt-3 pl-8 sm:pl-9 dark:border-gray-700/70">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-2">
+            <div className="flex min-w-0 items-center gap-1">
+            {REACTIONS.map((r) => {
+              const isActive = myReactions.has(r.key);
+              const count = reactions[r.key];
+              const isPopping = poppedReaction === r.key;
+              return (
+                <motion.button
+                  key={r.key}
+                  onClick={() => void handleReaction(r.key)}
+                  animate={isPopping ? { scale: [1, 1.35, 1] } : {}}
+                  transition={{ duration: 0.3 }}
+                  disabled={isToggling === r.key}
+                  className={`${CHIP_BASE_CLASS} ${
+                    isActive
+                      ? `${r.activeBg} ${r.activeBorder} ring-1 ${r.ring} text-gray-800 dark:text-gray-100`
+                      : CHIP_IDLE_CLASS
+                  }`}
+                  title={r.label}
+                >
+                  <span className="text-[13px] leading-none">{r.emoji}</span>
+                  {count > 0 && (
+                    <span className={`tabular-nums text-[10px] ${isActive ? "font-bold" : "text-gray-500 dark:text-gray-400"}`}>
+                      {count}
+                    </span>
+                  )}
+                </motion.button>
+              );
+            })}
+            </div>
+
+            {id && <PropsCommentThread propsId={id} commentCount={commentCount} inline />}
+          </div>
         </div>
       </div>
     </motion.div>

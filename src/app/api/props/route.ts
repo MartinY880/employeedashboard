@@ -53,6 +53,16 @@ export async function GET(request: Request) {
     });
 
     const propsIds = props.map((k) => k.id);
+    const commentCounts = propsIds.length
+      ? await prisma.propsComment.groupBy({
+          by: ["propsId"],
+          where: { propsId: { in: propsIds } },
+          _count: { id: true },
+        })
+      : [];
+
+    const commentCountMap = new Map(commentCounts.map((c) => [c.propsId, c._count.id]));
+
     const groupedReactions = propsIds.length
       ? await prisma.propsReaction.groupBy({
           by: ["propsId", "reaction"],
@@ -97,6 +107,7 @@ export async function GET(request: Request) {
       ...k,
       reactions: reactionCountsMap.get(k.id) || { highfive: 0, uplift: 0, bomb: 0 },
       myReactions: myReactionsMap.get(k.id) || [],
+      commentCount: commentCountMap.get(k.id) ?? 0,
     }));
 
     return NextResponse.json({ props: hydratedProps, currentUserId });

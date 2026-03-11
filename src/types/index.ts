@@ -41,7 +41,22 @@ export interface PropsMessage {
     bomb: number;
   };
   myReactions?: Array<"highfive" | "uplift" | "bomb">;
+  commentCount?: number;
   createdAt: string;
+}
+
+export interface PropsComment {
+  id: string;
+  propsId: string;
+  authorId: string;
+  authorName: string;
+  content: string;
+  parentId: string | null;
+  likes: number;
+  userLiked?: boolean;
+  canDelete?: boolean;
+  createdAt: string;
+  replies?: PropsComment[];
 }
 
 // ─── Alerts ───────────────────────────────────────────────
@@ -126,6 +141,7 @@ export interface IdeaComment {
   parentId: string | null;
   likes: number;
   userLiked?: boolean;
+  canDelete?: boolean;
   createdAt: string;
   replies?: IdeaComment[];
 }

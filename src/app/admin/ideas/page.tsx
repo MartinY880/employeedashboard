@@ -225,7 +225,7 @@ export default function AdminIdeasPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden overflow-x-hidden">
         {isLoading ? (
           <div className="p-6 space-y-3">
             {Array.from({ length: 5 }).map((_, i) => (
@@ -239,24 +239,24 @@ export default function AdminIdeasPage() {
             <p className="text-sm mt-1">Ideas submitted by employees will appear here.</p>
           </div>
         ) : (
-          <Table>
+          <Table className="table-fixed w-full">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[40%]">Idea</TableHead>
-                <TableHead>Author</TableHead>
-                <TableHead>
+                <TableHead className="w-[35%]">Idea</TableHead>
+                <TableHead className="w-[10%]">Author</TableHead>
+                <TableHead className="w-[6%]">
                   <span className="flex items-center gap-1">
                     <ChevronUp className="w-3 h-3" /> Votes
                   </span>
                 </TableHead>
-                <TableHead>
+                <TableHead className="w-[8%]">
                   <span className="flex items-center gap-1">
                     <MessageCircle className="w-3 h-3" /> Comments
                   </span>
                 </TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Submitted</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="w-[14%]">Status</TableHead>
+                <TableHead className="w-[9%]">Submitted</TableHead>
+                <TableHead className="w-[18%] text-right pr-6">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -275,14 +275,14 @@ export default function AdminIdeasPage() {
                       }`}
                     >
                       <TableCell>
-                        <div>
-                          <div className="font-semibold text-sm text-gray-900 dark:text-gray-100 truncate max-w-[340px] flex items-center gap-1.5">
-                            {idea.title}
+                        <div className="overflow-hidden">
+                          <div className="font-semibold text-sm text-gray-900 dark:text-gray-100 flex items-start gap-1.5 whitespace-normal break-words overflow-wrap-anywhere" style={{ overflowWrap: 'anywhere' }}>
+                            <span className="min-w-0">{idea.title}</span>
                             {isTrending && (
-                              <span className="text-xs" title="Trending">🔥</span>
+                              <span className="text-xs shrink-0" title="Trending">🔥</span>
                             )}
                           </div>
-                          <div className="text-xs text-brand-grey truncate max-w-[340px] mt-0.5">
+                          <div className="text-xs text-brand-grey mt-0.5 whitespace-normal break-words" style={{ overflowWrap: 'anywhere' }}>
                             {idea.description}
                           </div>
                         </div>
@@ -324,7 +324,7 @@ export default function AdminIdeasPage() {
                         </span>
                       </TableCell>
                       <TableCell>
-                        <div className="flex justify-end items-center gap-1.5">
+                        <div className="flex justify-end items-center gap-1.5 pr-3">
                           {updatingId === idea.id ? (
                             <div className="flex items-center gap-1.5 text-xs text-brand-grey">
                               <Loader2 className="w-3.5 h-3.5 animate-spin" />

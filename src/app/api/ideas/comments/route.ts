@@ -4,7 +4,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/logto";
-import { hasPermission, PERMISSIONS } from "@/lib/rbac";
 import { createNotification } from "@/lib/notifications";
 
 export async function GET(request: Request) {
@@ -39,11 +38,19 @@ export async function GET(request: Request) {
       }
     }
 
-    // Enrich with userLiked
+    const canDeleteAny = isAuthenticated && user?.role === "SUPER_ADMIN";
+
+    // Enrich with userLiked + canDelete
     const enriched = comments.map((c) => ({
       ...c,
       userLiked: userLikedIds.has(c.id),
-      replies: c.replies.map((r) => ({ ...r, userLiked: userLikedIds.has(r.id), replies: [] })),
+      canDelete: canDeleteAny || (isAuthenticated && user?.sub === c.authorId),
+      replies: c.replies.map((r) => ({
+        ...r,
+        userLiked: userLikedIds.has(r.id),
+        canDelete: canDeleteAny || (isAuthenticated && user?.sub === r.authorId),
+        replies: [],
+      })),
     }));
 
     return NextResponse.json({ comments: enriched });
@@ -163,7 +170,7 @@ export async function POST(request: Request) {
       console.error("[IdeaComments] Notification error:", err);
     }
 
-    return NextResponse.json({ comment: { ...comment, userLiked: false, replies: [] } }, { status: 201 });
+    return NextResponse.json({ comment: { ...comment, userLiked: false, canDelete: true, replies: [] } }, { status: 201 });
   } catch {
     return NextResponse.json({ error: "Failed to add comment" }, { status: 500 });
   }
@@ -228,11 +235,11 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "Comment not found" }, { status: 404 });
     }
 
-    // Allow author or admin to delete
+    // Allow author or SUPER_ADMIN to delete
     const isAuthor = comment.authorId === user.sub;
-    const isAdmin = hasPermission(user, PERMISSIONS.MANAGE_IDEAS);
+    const isSuperAdmin = user.role === "SUPER_ADMIN";
 
-    if (!isAuthor && !isAdmin) {
+    if (!isAuthor && !isSuperAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
