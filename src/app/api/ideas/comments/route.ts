@@ -101,6 +101,9 @@ export async function POST(request: Request) {
       ? content.trim().slice(0, 120) + "…"
       : content.trim();
 
+    const logCtx = { ideaId, commentId: comment.id, parentId: parentId || null, commenter: user.sub, commenterName };
+    console.log(`[IdeaComments] Starting email notifications`, JSON.stringify(logCtx));
+
     try {
       // Look up the idea to get authorId + title
       const idea = await prisma.idea.findUnique({
@@ -108,19 +111,27 @@ export async function POST(request: Request) {
         select: { authorId: true, authorName: true, title: true },
       });
 
-      if (idea) {
-        if (parentId) {
+      if (!idea) {
+        console.warn(`[IdeaComments] Idea ${ideaId} not found — skipping all email notifications`);
+      } else if (parentId) {
           // ── Reply: notify the parent comment's author ──
           const parentComment = await prisma.ideaComment.findUnique({
             where: { id: parentId },
             select: { authorId: true, authorName: true },
           });
-          if (parentComment && parentComment.authorId !== user.sub) {
+          if (!parentComment) {
+            console.warn(`[IdeaComments] Parent comment ${parentId} not found — skipping reply notification`);
+          } else if (parentComment.authorId === user.sub) {
+            console.log(`[IdeaComments] Commenter is parent comment author (${user.sub}) — skipping reply notification`);
+          } else {
             const recipient = await prisma.user.findFirst({
               where: { logtoId: parentComment.authorId },
               select: { id: true },
             });
-            if (recipient) {
+            if (!recipient) {
+              console.warn(`[IdeaComments] No DB user found for parent comment author logtoId=${parentComment.authorId} — skipping reply email`);
+            } else {
+              console.log(`[IdeaComments] Sending IDEA_REPLY notification to userId=${recipient.id} (parent comment author logtoId=${parentComment.authorId})`);
               await createNotification({
                 recipientUserId: recipient.id,
                 type: "IDEA_REPLY",
@@ -132,12 +143,19 @@ export async function POST(request: Request) {
           }
 
           // Also notify idea author if different from both commenter and parent author
-          if (idea.authorId !== user.sub && idea.authorId !== parentComment?.authorId) {
+          if (idea.authorId === user.sub) {
+            console.log(`[IdeaComments] Commenter is idea author (${user.sub}) — skipping idea-owner notification`);
+          } else if (idea.authorId === parentComment?.authorId) {
+            console.log(`[IdeaComments] Idea author same as parent comment author (${idea.authorId}) — already notified, skipping`);
+          } else {
             const ideaOwner = await prisma.user.findFirst({
               where: { logtoId: idea.authorId },
               select: { id: true },
             });
-            if (ideaOwner) {
+            if (!ideaOwner) {
+              console.warn(`[IdeaComments] No DB user found for idea author logtoId=${idea.authorId} — skipping idea-owner email`);
+            } else {
+              console.log(`[IdeaComments] Sending IDEA_COMMENT notification to userId=${ideaOwner.id} (idea author logtoId=${idea.authorId})`);
               await createNotification({
                 recipientUserId: ideaOwner.id,
                 type: "IDEA_COMMENT",
@@ -149,12 +167,17 @@ export async function POST(request: Request) {
           }
         } else {
           // ── Top-level comment: notify idea author ──
-          if (idea.authorId !== user.sub) {
+          if (idea.authorId === user.sub) {
+            console.log(`[IdeaComments] Commenter is idea author (${user.sub}) — skipping self-notification`);
+          } else {
             const ideaOwner = await prisma.user.findFirst({
               where: { logtoId: idea.authorId },
               select: { id: true },
             });
-            if (ideaOwner) {
+            if (!ideaOwner) {
+              console.warn(`[IdeaComments] No DB user found for idea author logtoId=${idea.authorId} — skipping email`);
+            } else {
+              console.log(`[IdeaComments] Sending IDEA_COMMENT notification to userId=${ideaOwner.id} (idea author logtoId=${idea.authorId})`);
               await createNotification({
                 recipientUserId: ideaOwner.id,
                 type: "IDEA_COMMENT",
@@ -165,9 +188,8 @@ export async function POST(request: Request) {
             }
           }
         }
-      }
     } catch (err) {
-      console.error("[IdeaComments] Notification error:", err);
+      console.error(`[IdeaComments] Notification error for ideaId=${ideaId} commentId=${comment.id}:`, err);
     }
 
     return NextResponse.json({ comment: { ...comment, userLiked: false, canDelete: true, replies: [] } }, { status: 201 });

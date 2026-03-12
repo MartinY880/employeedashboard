@@ -99,11 +99,14 @@ export async function createNotification(input: CreateNotificationInput) {
 
   // 2. Try to send email notification
   try {
+    console.log(`[Notification] Attempting email for type=${type} to recipientUserId=${recipientUserId} title="${title}"`);
+
     const smtp = getEnvSmtpSettings();
     if (!smtp) {
-      console.warn("[Notification] No SMTP env vars configured (SENDGRID_API_KEY or SMTP_HOST/USER/PASS), skipping email");
+      console.warn("[Notification] No SMTP env vars configured (SENDGRID_API_KEY or SMTP_HOST/USER/PASS) — skipping email");
       return notification;
     }
+    console.log(`[Notification] SMTP configured: host=${smtp.host} port=${smtp.port} from=${smtp.from || smtp.user}`);
 
     // Get recipient email
     const recipient = await prisma.user.findUnique({
@@ -111,9 +114,11 @@ export async function createNotification(input: CreateNotificationInput) {
       select: { email: true, displayName: true },
     });
     if (!recipient?.email) {
-      console.warn(`[Notification] Recipient ${recipientUserId} has no email, skipping`);
+      console.warn(`[Notification] Recipient userId=${recipientUserId} has no email address — skipping email. Display name: ${recipient?.displayName || "(none)"}`);
       return notification;
     }
+
+    console.log(`[Notification] Sending email to ${recipient.email} (${recipient.displayName || "no display name"}) for type=${type}`);
 
     const companyName = await getCompanyName();
     const mailOptions = {
@@ -131,10 +136,11 @@ export async function createNotification(input: CreateNotificationInput) {
     });
 
     const info = await transporter.sendMail(mailOptions);
-    console.log(`[Notification] Email sent to ${recipient.email}: ${info.response}`);
+    console.log(`[Notification] Email SENT successfully to=${recipient.email} type=${type} messageId=${info.messageId} response="${info.response}"`);
   } catch (err) {
     // Email failure should not block the notification creation
-    console.error("[Notification] Email send failed:", err instanceof Error ? err.message : err);
+    const errMsg = err instanceof Error ? `${err.message}\n${err.stack}` : String(err);
+    console.error(`[Notification] Email FAILED for type=${type} recipientUserId=${recipientUserId}: ${errMsg}`);
   }
 
   return notification;

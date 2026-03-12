@@ -22,7 +22,7 @@ services:
 
   # ─── ProConnect (Next.js Portal) ────────────────────────
   portal:
-    image: crystal02202/proconnect:1.0.12
+    image: crystal02202/proconnect:1.2.1
     container_name: proconnect
     restart: unless-stopped
     labels:

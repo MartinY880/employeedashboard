@@ -75,7 +75,7 @@ export interface PillarHeader {
   bannerSubtitleSize?: number; // px — header banner subtitle font size (default 11)
   cardTitleSize?: number;      // px — all pillar card titles font size (default 14)
   cardMessageSize?: number;    // px — all pillar card messages font size (default 11)
-  template?: "v1" | "v2";     // layout template — v1 = card grid (default), v2 = 5×3 table grid
+  template?: "v1" | "v2" | "v3";     // layout template — v1 = card grid (default), v2 = 5×3 table grid, v3 = stacked cards
 }
 
 /* ── V2 Grid Template Types ───────────────────────────── */
@@ -94,6 +94,8 @@ export interface PillarV2Row {
 export interface PillarV2Data {
   columnTitles: [string, string, string]; // editable column headers
   columnWidths?: [number, number, number]; // percentage widths for each column (must sum to 100)
+  columnTitleAlignment?: "left" | "center" | "right"; // alignment for column title labels
+  columnTitleFontSize?: number; // px — font size for column title labels (default 10)
   rows: PillarV2Row[];                     // up to 5 rows
 }
 

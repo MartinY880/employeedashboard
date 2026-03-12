@@ -3,7 +3,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Lightbulb,
@@ -13,6 +13,8 @@ import {
   Archive,
   Loader2,
   ChevronUp,
+  ChevronDown,
+  ChevronsUpDown,
   Flame,
   Sparkles,
   Wrench,
@@ -92,6 +94,17 @@ const STATUS_ICON: Record<string, React.ReactNode> = {
 /* Component                                                           */
 /* ------------------------------------------------------------------ */
 
+type SortField = "title" | "authorName" | "votes" | "commentCount" | "status" | "createdAt";
+type SortDir = "asc" | "desc";
+
+const STATUS_ORDER: Record<string, number> = {
+  ACTIVE: 0,
+  SELECTED: 1,
+  IN_PROGRESS: 2,
+  COMPLETED: 3,
+  ARCHIVED: 4,
+};
+
 export default function AdminIdeasPage() {
   const { playClick, playSuccess, playNotify } = useSounds();
   const [ideas, setIdeas] = useState<IdeaItem[]>([]);
@@ -99,6 +112,53 @@ export default function AdminIdeasPage() {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<IdeaItem | null>(null);
   const [filterStatus, setFilterStatus] = useState<string | null>(null);
+  const [sortField, setSortField] = useState<SortField>("createdAt");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+
+  function toggleSort(field: SortField) {
+    if (sortField === field) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortDir(field === "votes" || field === "commentCount" || field === "createdAt" ? "desc" : "asc");
+    }
+  }
+
+  function SortIcon({ field }: { field: SortField }) {
+    if (sortField !== field) return <ChevronsUpDown className="w-3 h-3 opacity-30" />;
+    return sortDir === "asc"
+      ? <ChevronUp className="w-3 h-3" />
+      : <ChevronDown className="w-3 h-3" />;
+  }
+
+  const sortedIdeas = useMemo(() => {
+    const arr = [...ideas];
+    arr.sort((a, b) => {
+      let cmp = 0;
+      switch (sortField) {
+        case "title":
+          cmp = a.title.localeCompare(b.title, undefined, { sensitivity: "base" });
+          break;
+        case "authorName":
+          cmp = a.authorName.localeCompare(b.authorName, undefined, { sensitivity: "base" });
+          break;
+        case "votes":
+          cmp = a.votes - b.votes;
+          break;
+        case "commentCount":
+          cmp = (a.commentCount ?? 0) - (b.commentCount ?? 0);
+          break;
+        case "status":
+          cmp = (STATUS_ORDER[a.status] ?? 99) - (STATUS_ORDER[b.status] ?? 99);
+          break;
+        case "createdAt":
+          cmp = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+          break;
+      }
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+    return arr;
+  }, [ideas, sortField, sortDir]);
 
   const fetchIdeas = useCallback(async () => {
     try {
@@ -242,26 +302,30 @@ export default function AdminIdeasPage() {
           <Table className="table-fixed w-full">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[35%]">Idea</TableHead>
-                <TableHead className="w-[10%]">Author</TableHead>
-                <TableHead className="w-[6%]">
-                  <span className="flex items-center gap-1">
-                    <ChevronUp className="w-3 h-3" /> Votes
-                  </span>
+                <TableHead className="w-[35%] cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors" onClick={() => toggleSort("title")}>
+                  <span className="flex items-center gap-1">Idea <SortIcon field="title" /></span>
                 </TableHead>
-                <TableHead className="w-[8%]">
-                  <span className="flex items-center gap-1">
-                    <MessageCircle className="w-3 h-3" /> Comments
-                  </span>
+                <TableHead className="w-[10%] cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors" onClick={() => toggleSort("authorName")}>
+                  <span className="flex items-center gap-1">Author <SortIcon field="authorName" /></span>
                 </TableHead>
-                <TableHead className="w-[14%]">Status</TableHead>
-                <TableHead className="w-[9%]">Submitted</TableHead>
+                <TableHead className="w-[6%] cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors" onClick={() => toggleSort("votes")}>
+                  <span className="flex items-center gap-1">Votes <SortIcon field="votes" /></span>
+                </TableHead>
+                <TableHead className="w-[8%] cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors" onClick={() => toggleSort("commentCount")}>
+                  <span className="flex items-center gap-1"><MessageCircle className="w-3 h-3" /> Comments <SortIcon field="commentCount" /></span>
+                </TableHead>
+                <TableHead className="w-[14%] cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors" onClick={() => toggleSort("status")}>
+                  <span className="flex items-center gap-1">Status <SortIcon field="status" /></span>
+                </TableHead>
+                <TableHead className="w-[9%] cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors" onClick={() => toggleSort("createdAt")}>
+                  <span className="flex items-center gap-1">Submitted <SortIcon field="createdAt" /></span>
+                </TableHead>
                 <TableHead className="w-[18%] text-right pr-6">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               <AnimatePresence>
-                {ideas.map((idea, i) => {
+                {sortedIdeas.map((idea, i) => {
                   const isTrending = idea.votes >= 15 && idea.status === "ACTIVE";
                   return (
                     <motion.tr
