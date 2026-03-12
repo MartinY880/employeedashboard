@@ -217,6 +217,16 @@ export default function AdminPillarsPage() {
     setHasChanges(true);
   };
 
+  const updateV2TitleAlignment = (value: "left" | "center" | "right") => {
+    setV2Data((prev) => ({ ...prev, columnTitleAlignment: value }));
+    setHasChanges(true);
+  };
+
+  const updateV2TitleFontSize = (value: number) => {
+    setV2Data((prev) => ({ ...prev, columnTitleFontSize: value }));
+    setHasChanges(true);
+  };
+
   const updateV2Row = (rowId: string, field: keyof PillarV2Row, value: string) => {
     setV2Data((prev) => ({
       ...prev,
@@ -410,6 +420,17 @@ export default function AdminPillarsPage() {
                 }`}
               >
                 V2 — Grid
+              </button>
+              <button
+                type="button"
+                onClick={() => { setHeader((prev) => ({ ...prev, template: "v3" })); setHasChanges(true); }}
+                className={`px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  header.template === "v3"
+                    ? "bg-brand-blue text-white"
+                    : "bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
+                }`}
+              >
+                V3 — Cards
               </button>
             </div>
           </div>
@@ -892,6 +913,37 @@ export default function AdminPillarsPage() {
             <p className="text-xs text-gray-400 dark:text-gray-500">
               Values are proportional — e.g. 25 / 50 / 25 means column 2 is twice as wide.
             </p>
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider pt-2">Column Title Alignment</h3>
+            <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden w-fit">
+              {(["left", "center", "right"] as const).map((align) => (
+                <button
+                  key={align}
+                  type="button"
+                  onClick={() => updateV2TitleAlignment(align)}
+                  className={`px-3 py-1.5 text-xs font-semibold capitalize transition-colors ${
+                    (v2Data.columnTitleAlignment ?? "left") === align
+                      ? "bg-brand-blue text-white"
+                      : "bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
+                  }`}
+                >
+                  {align}
+                </button>
+              ))}
+            </div>
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider pt-2">Column Title Font Size</h3>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-gray-400 dark:text-gray-500 w-6">6</span>
+              <input
+                type="range"
+                min={6}
+                max={20}
+                value={v2Data.columnTitleFontSize ?? 10}
+                onChange={(e) => updateV2TitleFontSize(Number(e.target.value))}
+                className="flex-1 h-2 accent-brand-blue cursor-pointer"
+              />
+              <span className="text-xs text-gray-400 dark:text-gray-500 w-6 text-right">20</span>
+              <span className="text-xs font-semibold text-gray-600 dark:text-gray-300 w-8 text-right">{v2Data.columnTitleFontSize ?? 10}px</span>
+            </div>
           </div>
 
           {/* V2 Rows */}

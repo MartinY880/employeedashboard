@@ -54,6 +54,8 @@ export function PillarGridV2({ data, cardTitleSize = 14, cardMessageSize = 12 }:
   const { playPop } = useSounds();
   const [w1, w2, w3] = data.columnWidths ?? [33, 34, 33];
   const gridCols = `${w1}fr ${w2}fr ${w3}fr`;
+  const titleAlign = data.columnTitleAlignment ?? "left";
+  const colTitleSize = data.columnTitleFontSize ?? 10;
 
   return (
     <div className="w-full">
@@ -208,8 +210,12 @@ export function PillarGridV2({ data, cardTitleSize = 14, cardMessageSize = 12 }:
               style={row.col2Color ? { backgroundColor: row.col2Color } : undefined}
             >
               <p
-                className="text-[10px] font-semibold uppercase tracking-wider mb-1 opacity-50"
-                style={{ color: row.col2Color ? (isLightColor(row.col2Color) ? "#333333" : "#ffffff") : undefined }}
+                className="font-semibold uppercase tracking-wider mb-1 opacity-50"
+                style={{
+                  fontSize: `${colTitleSize}px`,
+                  textAlign: titleAlign,
+                  color: row.col2Color ? (isLightColor(row.col2Color) ? "#333333" : "#ffffff") : undefined,
+                }}
               >
                 {data.columnTitles[1]}
               </p>
@@ -235,8 +241,12 @@ export function PillarGridV2({ data, cardTitleSize = 14, cardMessageSize = 12 }:
               style={row.col3Color ? { backgroundColor: row.col3Color } : undefined}
             >
               <p
-                className="text-[10px] font-semibold uppercase tracking-wider mb-1 opacity-50"
-                style={{ color: row.col3Color ? (isLightColor(row.col3Color) ? "#333333" : "#ffffff") : undefined }}
+                className="font-semibold uppercase tracking-wider mb-1 opacity-50"
+                style={{
+                  fontSize: `${colTitleSize}px`,
+                  textAlign: titleAlign,
+                  color: row.col3Color ? (isLightColor(row.col3Color) ? "#333333" : "#ffffff") : undefined,
+                }}
               >
                 {data.columnTitles[2]}
               </p>

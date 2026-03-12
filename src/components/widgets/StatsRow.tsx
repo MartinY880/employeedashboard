@@ -1,12 +1,13 @@
 // ProConnect — StatsRow Widget
 // Header banner + dynamic pillar card grid — fetches from /api/pillars (admin-editable)
-// Supports two templates: v1 (card grid) and v2 (5×3 table grid)
+// Supports three templates: v1 (card grid), v2 (5×3 table grid), v3 (stacked cards)
 
 "use client";
 
 import { useState, useEffect } from "react";
 import { PillarCard } from "./PillarCard";
 import { PillarGridV2 } from "./PillarGridV2";
+import { PillarGridV3 } from "./PillarGridV3";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
 import type { PillarData, PillarHeader, PillarV2Data } from "@/lib/pillar-icons";
@@ -60,11 +61,11 @@ export function StatsRow() {
         <div
           className="grid gap-4 mx-auto"
           style={{
-            gridTemplateColumns: template === "v2" ? "repeat(3, 1fr)" : "repeat(auto-fit, minmax(150px, 1fr))",
+            gridTemplateColumns: (template === "v2" || template === "v3") ? "repeat(3, 1fr)" : "repeat(auto-fit, minmax(150px, 1fr))",
             maxWidth: "1400px",
           }}
         >
-          {Array.from({ length: template === "v2" ? 15 : 6 }).map((_, i) => (
+          {Array.from({ length: (template === "v2" || template === "v3") ? 15 : 6 }).map((_, i) => (
             <motion.div
               key={i}
               initial={{ opacity: 0, y: 20 }}
@@ -106,8 +107,14 @@ export function StatsRow() {
         </p>
       </motion.div>
 
-      {/* Template switch: v1 = card grid, v2 = 5×3 table grid */}
-      {template === "v2" ? (
+      {/* Template switch: v1 = card grid, v2 = 5×3 table grid, v3 = stacked cards */}
+      {template === "v3" ? (
+        <PillarGridV3
+          data={v2Data}
+          cardTitleSize={header.cardTitleSize}
+          cardMessageSize={header.cardMessageSize}
+        />
+      ) : template === "v2" ? (
         <PillarGridV2
           data={v2Data}
           cardTitleSize={header.cardTitleSize}
