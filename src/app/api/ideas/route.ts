@@ -3,7 +3,7 @@
 // PATCH: Vote on idea or update status | DELETE: Remove idea (admin)
 
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma, ensureDbUser } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/logto";
 import { hasPermission, PERMISSIONS } from "@/lib/rbac";
 import { createNotification } from "@/lib/notifications";
@@ -62,11 +62,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Title and description are required" }, { status: 400 });
     }
 
+    // Resolve DB user ID for authorId (instead of storing logtoId)
+    let dbUserId = "anonymous";
+    if (isAuthenticated && user) {
+      const dbUser = await ensureDbUser(user.sub, user.email, user.name);
+      dbUserId = dbUser.id;
+    }
+
     const idea = await prisma.idea.create({
       data: {
         title: title.trim(),
         description: description.trim(),
-        authorId: isAuthenticated && user ? user.sub : "anonymous",
+        authorId: dbUserId,
         authorName: authorName?.trim() || (isAuthenticated && user ? user.name : "Anonymous"),
       },
     });
@@ -191,25 +198,16 @@ export async function PATCH(request: Request) {
         },
       };
 
+      // authorId is now a DB User.id — send notification directly
       const notifConfig = stageNotifications[status];
       if (notifConfig && idea.authorId && idea.authorId !== "anonymous") {
-        const author = await prisma.user.findFirst({
-          where: {
-            OR: [
-              { logtoId: idea.authorId },
-              { email: idea.authorId },
-            ],
-          },
-        });
-        if (author) {
-          createNotification({
-            recipientUserId: author.id,
-            type: notifConfig.type,
-            title: notifConfig.title,
-            message: notifConfig.message(idea.title),
-            metadata: { ideaId: idea.id, title: idea.title, status },
-          }).catch((err) => console.error("[Ideas] notification error:", err));
-        }
+        createNotification({
+          recipientUserId: idea.authorId,
+          type: notifConfig.type,
+          title: notifConfig.title,
+          message: notifConfig.message(idea.title),
+          metadata: { ideaId: idea.id, title: idea.title, status },
+        }).catch((err) => console.error("[Ideas] notification error:", err));
       }
 
       return NextResponse.json({ idea });
@@ -246,7 +244,9 @@ export async function DELETE(request: Request) {
     }
 
     const isAdmin = hasPermission(user, PERMISSIONS.MANAGE_IDEAS);
-    const isAuthor = idea.authorId === user.sub;
+    // authorId is now a DB User.id — look up current user's DB id for comparison
+    const currentDbUser = await prisma.user.findFirst({ where: { logtoId: user.sub }, select: { id: true } });
+    const isAuthor = currentDbUser ? idea.authorId === currentDbUser.id : false;
     const isLockedStage = idea.status === "IN_PROGRESS" || idea.status === "COMPLETED";
 
     if (!isAdmin && (!isAuthor || isLockedStage)) {

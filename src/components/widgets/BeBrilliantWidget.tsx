@@ -673,7 +673,7 @@ export function BeBrilliantWidget() {
   const [justSubmitted, setJustSubmitted] = useState(false);
   const [statusFilter, setStatusFilter] = useState<"ACTIVE" | "SELECTED" | "IN_PROGRESS" | "COMPLETED">("ACTIVE");
   const [wallSort, setWallSort] = useState<"votes" | "recent">("votes");
-  const [currentUserSub, setCurrentUserSub] = useState<string | null>(null);
+  const [currentUserDbId, setCurrentUserDbId] = useState<string | null>(null);
   const [deletingIdeaId, setDeletingIdeaId] = useState<string | null>(null);
   const [deleteTargetIdea, setDeleteTargetIdea] = useState<Idea | null>(null);
 
@@ -713,7 +713,7 @@ export function BeBrilliantWidget() {
         if (!res.ok) return;
         const data = await res.json();
         if (mounted) {
-          setCurrentUserSub(typeof data?.sub === "string" ? data.sub : null);
+          setCurrentUserDbId(typeof data?.dbUserId === "string" ? data.dbUserId : null);
         }
       } catch {
         // silent
@@ -1022,7 +1022,7 @@ export function BeBrilliantWidget() {
                                         idea={idea}
                                         onVote={handleVote}
                                         onDeleteIdea={() => void handleDeleteIdea(idea)}
-                                        canDeleteIdea={currentUserSub === idea.authorId && idea.status !== "IN_PROGRESS" && idea.status !== "COMPLETED"}
+                                        canDeleteIdea={currentUserDbId === idea.authorId && idea.status !== "IN_PROGRESS" && idea.status !== "COMPLETED"}
                                         isDeleting={deletingIdeaId === idea.id}
                                         userVote={userVotesByIdea[idea.id]}
                                         isTrending
@@ -1046,7 +1046,7 @@ export function BeBrilliantWidget() {
                                         idea={idea}
                                         onVote={handleVote}
                                         onDeleteIdea={() => void handleDeleteIdea(idea)}
-                                        canDeleteIdea={currentUserSub === idea.authorId && idea.status !== "IN_PROGRESS" && idea.status !== "COMPLETED"}
+                                        canDeleteIdea={currentUserDbId === idea.authorId && idea.status !== "IN_PROGRESS" && idea.status !== "COMPLETED"}
                                         isDeleting={deletingIdeaId === idea.id}
                                         userVote={userVotesByIdea[idea.id]}
                                       />
@@ -1073,7 +1073,7 @@ export function BeBrilliantWidget() {
                               idea={idea}
                               onVote={handleVote}
                               onDeleteIdea={() => void handleDeleteIdea(idea)}
-                              canDeleteIdea={currentUserSub === idea.authorId && idea.status !== "IN_PROGRESS" && idea.status !== "COMPLETED"}
+                              canDeleteIdea={currentUserDbId === idea.authorId && idea.status !== "IN_PROGRESS" && idea.status !== "COMPLETED"}
                               isDeleting={deletingIdeaId === idea.id}
                               userVote={userVotesByIdea[idea.id]}
                               isTrending={idea.votes >= TRENDING_THRESHOLD}

@@ -2,7 +2,7 @@
 // GET: Fetch comments (threaded) | POST: Add comment/reply | DELETE: Remove comment | PATCH: Like/unlike
 
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma, ensureDbUser } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/logto";
 import { createNotification } from "@/lib/notifications";
 
@@ -40,15 +40,22 @@ export async function GET(request: Request) {
 
     const canDeleteAny = isAuthenticated && user?.role === "SUPER_ADMIN";
 
+    // Resolve current user's DB id for ownership checks (authorId stores DB User.id)
+    let currentDbUserId: string | null = null;
+    if (isAuthenticated && user) {
+      const dbUser = await prisma.user.findFirst({ where: { logtoId: user.sub }, select: { id: true } });
+      currentDbUserId = dbUser?.id ?? null;
+    }
+
     // Enrich with userLiked + canDelete
     const enriched = comments.map((c) => ({
       ...c,
       userLiked: userLikedIds.has(c.id),
-      canDelete: canDeleteAny || (isAuthenticated && user?.sub === c.authorId),
+      canDelete: canDeleteAny || (!!currentDbUserId && currentDbUserId === c.authorId),
       replies: c.replies.map((r) => ({
         ...r,
         userLiked: userLikedIds.has(r.id),
-        canDelete: canDeleteAny || (isAuthenticated && user?.sub === r.authorId),
+        canDelete: canDeleteAny || (!!currentDbUserId && currentDbUserId === r.authorId),
         replies: [],
       })),
     }));
@@ -85,10 +92,13 @@ export async function POST(request: Request) {
       }
     }
 
+    // Resolve DB user ID for authorId (instead of storing logtoId)
+    const dbUser = await ensureDbUser(user.sub, user.email, user.name);
+
     const comment = await prisma.ideaComment.create({
       data: {
         ideaId,
-        authorId: user.sub,
+        authorId: dbUser.id,
         authorName: user.name || "Anonymous",
         content: content.trim(),
         parentId: parentId || null,
@@ -101,11 +111,11 @@ export async function POST(request: Request) {
       ? content.trim().slice(0, 120) + "…"
       : content.trim();
 
-    const logCtx = { ideaId, commentId: comment.id, parentId: parentId || null, commenter: user.sub, commenterName };
+    const logCtx = { ideaId, commentId: comment.id, parentId: parentId || null, commenter: dbUser.id, commenterName };
     console.log(`[IdeaComments] Starting email notifications`, JSON.stringify(logCtx));
 
     try {
-      // Look up the idea to get authorId + title
+      // Look up the idea to get authorId (DB User.id) + title
       const idea = await prisma.idea.findUnique({
         where: { id: ideaId },
         select: { authorId: true, authorName: true, title: true },
@@ -121,71 +131,51 @@ export async function POST(request: Request) {
           });
           if (!parentComment) {
             console.warn(`[IdeaComments] Parent comment ${parentId} not found — skipping reply notification`);
-          } else if (parentComment.authorId === user.sub) {
-            console.log(`[IdeaComments] Commenter is parent comment author (${user.sub}) — skipping reply notification`);
+          } else if (parentComment.authorId === dbUser.id) {
+            console.log(`[IdeaComments] Commenter is parent comment author (${dbUser.id}) — skipping reply notification`);
           } else {
-            const recipient = await prisma.user.findFirst({
-              where: { logtoId: parentComment.authorId },
-              select: { id: true },
+            console.log(`[IdeaComments] Sending IDEA_REPLY notification to userId=${parentComment.authorId}`);
+            await createNotification({
+              recipientUserId: parentComment.authorId,
+              type: "IDEA_REPLY",
+              title: "New Reply to Your Comment",
+              message: `${commenterName} replied to your comment on "${idea.title}": "${truncatedContent}"`,
+              metadata: { ideaId, commentId: comment.id },
             });
-            if (!recipient) {
-              console.warn(`[IdeaComments] No DB user found for parent comment author logtoId=${parentComment.authorId} — skipping reply email`);
-            } else {
-              console.log(`[IdeaComments] Sending IDEA_REPLY notification to userId=${recipient.id} (parent comment author logtoId=${parentComment.authorId})`);
-              await createNotification({
-                recipientUserId: recipient.id,
-                type: "IDEA_REPLY",
-                title: "New Reply to Your Comment",
-                message: `${commenterName} replied to your comment on "${idea.title}": "${truncatedContent}"`,
-                metadata: { ideaId, commentId: comment.id },
-              });
-            }
           }
 
           // Also notify idea author if different from both commenter and parent author
-          if (idea.authorId === user.sub) {
-            console.log(`[IdeaComments] Commenter is idea author (${user.sub}) — skipping idea-owner notification`);
+          if (idea.authorId === dbUser.id) {
+            console.log(`[IdeaComments] Commenter is idea author (${dbUser.id}) — skipping idea-owner notification`);
           } else if (idea.authorId === parentComment?.authorId) {
             console.log(`[IdeaComments] Idea author same as parent comment author (${idea.authorId}) — already notified, skipping`);
+          } else if (idea.authorId === "anonymous") {
+            console.log(`[IdeaComments] Idea author is anonymous — skipping idea-owner notification`);
           } else {
-            const ideaOwner = await prisma.user.findFirst({
-              where: { logtoId: idea.authorId },
-              select: { id: true },
+            console.log(`[IdeaComments] Sending IDEA_COMMENT notification to userId=${idea.authorId}`);
+            await createNotification({
+              recipientUserId: idea.authorId,
+              type: "IDEA_COMMENT",
+              title: "New Comment on Your Idea",
+              message: `${commenterName} commented on your idea "${idea.title}": "${truncatedContent}"`,
+              metadata: { ideaId, commentId: comment.id },
             });
-            if (!ideaOwner) {
-              console.warn(`[IdeaComments] No DB user found for idea author logtoId=${idea.authorId} — skipping idea-owner email`);
-            } else {
-              console.log(`[IdeaComments] Sending IDEA_COMMENT notification to userId=${ideaOwner.id} (idea author logtoId=${idea.authorId})`);
-              await createNotification({
-                recipientUserId: ideaOwner.id,
-                type: "IDEA_COMMENT",
-                title: "New Comment on Your Idea",
-                message: `${commenterName} commented on your idea "${idea.title}": "${truncatedContent}"`,
-                metadata: { ideaId, commentId: comment.id },
-              });
-            }
           }
         } else {
           // ── Top-level comment: notify idea author ──
-          if (idea.authorId === user.sub) {
-            console.log(`[IdeaComments] Commenter is idea author (${user.sub}) — skipping self-notification`);
+          if (idea.authorId === dbUser.id) {
+            console.log(`[IdeaComments] Commenter is idea author (${dbUser.id}) — skipping self-notification`);
+          } else if (idea.authorId === "anonymous") {
+            console.log(`[IdeaComments] Idea author is anonymous — skipping notification`);
           } else {
-            const ideaOwner = await prisma.user.findFirst({
-              where: { logtoId: idea.authorId },
-              select: { id: true },
+            console.log(`[IdeaComments] Sending IDEA_COMMENT notification to userId=${idea.authorId}`);
+            await createNotification({
+              recipientUserId: idea.authorId,
+              type: "IDEA_COMMENT",
+              title: "New Comment on Your Idea",
+              message: `${commenterName} commented on your idea "${idea.title}": "${truncatedContent}"`,
+              metadata: { ideaId, commentId: comment.id },
             });
-            if (!ideaOwner) {
-              console.warn(`[IdeaComments] No DB user found for idea author logtoId=${idea.authorId} — skipping email`);
-            } else {
-              console.log(`[IdeaComments] Sending IDEA_COMMENT notification to userId=${ideaOwner.id} (idea author logtoId=${idea.authorId})`);
-              await createNotification({
-                recipientUserId: ideaOwner.id,
-                type: "IDEA_COMMENT",
-                title: "New Comment on Your Idea",
-                message: `${commenterName} commented on your idea "${idea.title}": "${truncatedContent}"`,
-                metadata: { ideaId, commentId: comment.id },
-              });
-            }
           }
         }
     } catch (err) {
@@ -257,8 +247,9 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "Comment not found" }, { status: 404 });
     }
 
-    // Allow author or SUPER_ADMIN to delete
-    const isAuthor = comment.authorId === user.sub;
+    // Allow author or SUPER_ADMIN to delete (authorId stores DB User.id)
+    const currentDbUser = await prisma.user.findFirst({ where: { logtoId: user.sub }, select: { id: true } });
+    const isAuthor = currentDbUser ? comment.authorId === currentDbUser.id : false;
     const isSuperAdmin = user.role === "SUPER_ADMIN";
 
     if (!isAuthor && !isSuperAdmin) {
