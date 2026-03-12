@@ -57,11 +57,9 @@ export function BlueStrip({ userName = "User" }: BlueStripProps) {
         </span>
       </div>
 
-      <div className="relative flex items-center gap-3 sm:gap-5 text-xs sm:text-sm">
-        {today && <span className="opacity-85 hidden sm:inline">{today}</span>}
+      <div className="relative flex items-center gap-3 sm:gap-6 text-xs sm:text-sm">
+        {today && <span className="opacity-80 hidden sm:inline">{today}</span>}
         {today && <div className="w-px h-4 bg-white/30 hidden sm:block" />}
-
-        <div className="w-px h-4 bg-white/30 hidden sm:block" />
         {greeting && (
           <span className="font-medium">
             {greeting}, <span className="text-blue-200">{firstName}</span>

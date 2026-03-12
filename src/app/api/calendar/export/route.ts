@@ -29,16 +29,20 @@ interface HolidayItem {
   color: string;
 }
 
-async function getSmtpSettings(): Promise<SmtpSettings | null> {
-  try {
-    const setting = await prisma.calendarSetting.findUnique({ where: { id: "smtp_settings" } });
-    if (!setting) return null;
-    const parsed = JSON.parse(setting.data) as SmtpSettings;
-    if (!parsed.host || !parsed.user || !parsed.pass) return null;
-    return parsed;
-  } catch {
+function getEnvSmtpSettings(): SmtpSettings | null {
+  const sendgridApiKey = process.env.SENDGRID_API_KEY?.trim() || "";
+  const host = process.env.SMTP_HOST?.trim() || (sendgridApiKey ? "smtp.sendgrid.net" : "");
+  const port = process.env.SMTP_PORT?.trim() || "587";
+  const user = process.env.SMTP_USER?.trim() || (sendgridApiKey ? "apikey" : "");
+  const pass = process.env.SMTP_PASS?.trim() || sendgridApiKey;
+  const from = process.env.SMTP_FROM?.trim() || "";
+  const fromName = process.env.SMTP_FROM_NAME?.trim() || "ProConnect Calendar";
+
+  if (!host || !user || !pass) {
     return null;
   }
+
+  return { host, port, user, pass, from, fromName };
 }
 
 async function getCategoryLabels(): Promise<{ federal: string; fun: string; company: string }> {
@@ -178,20 +182,25 @@ export async function POST(request: Request) {
 
     // ── Test email ───────────────────────────────────────
     if (action === "test") {
-      const { email } = body;
+      const { email, smtpHost, smtpPort, smtpUser, smtpPass, smtpFrom, smtpFromName } = body;
       if (!email) return NextResponse.json({ error: "Email required" }, { status: 400 });
 
-      const smtp = await getSmtpSettings();
-      if (!smtp) return NextResponse.json({ error: "SMTP not configured" }, { status: 400 });
+      // Use body SMTP fields if provided, otherwise fall back to ENV
+      const envSmtp = getEnvSmtpSettings();
+      const smtp: SmtpSettings | null = smtpHost && smtpUser && smtpPass
+        ? { host: smtpHost, port: smtpPort || "587", user: smtpUser, pass: smtpPass, from: smtpFrom || "", fromName: smtpFromName || "ProConnect Calendar" }
+        : envSmtp;
 
-      const transporter = nodemailer.createTransport({
+      if (!smtp) return NextResponse.json({ error: "SMTP not configured — provide credentials or set SENDGRID_API_KEY / SMTP_* env vars" }, { status: 400 });
+
+      const testTransporter = nodemailer.createTransport({
         host: smtp.host,
         port: parseInt(smtp.port || "587", 10),
         secure: smtp.port === "465",
         auth: { user: smtp.user, pass: smtp.pass },
       });
 
-      await transporter.sendMail({
+      await testTransporter.sendMail({
         from: `"${smtp.fromName}" <${smtp.from || smtp.user}>`,
         to: email,
         subject: "ProConnect Calendar - Test Email",
@@ -221,8 +230,8 @@ export async function POST(request: Request) {
 
       if (!recipients?.length) return NextResponse.json({ error: "Recipients required" }, { status: 400 });
 
-      const smtp = await getSmtpSettings();
-      if (!smtp) return NextResponse.json({ error: "SMTP not configured" }, { status: 400 });
+      const smtp = getEnvSmtpSettings();
+      if (!smtp) return NextResponse.json({ error: "SMTP not configured — set SENDGRID_API_KEY or SMTP_* env vars" }, { status: 400 });
 
       const transporter = nodemailer.createTransport({
         host: smtp.host,
