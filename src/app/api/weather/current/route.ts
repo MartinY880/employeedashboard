@@ -32,27 +32,27 @@ export async function GET() {
     return NextResponse.json(weatherCache.data);
   }
 
-  let apiKey = process.env.OPENWEATHER_API_KEY?.trim() || "";
-  let city = process.env.OPENWEATHER_CITY?.trim() || "";
-  let latitude = process.env.OPENWEATHER_LATITUDE?.trim() || "";
-  let longitude = process.env.OPENWEATHER_LONGITUDE?.trim() || "";
+  // API key: ENV only — never stored in DB
+  const apiKey = process.env.OPENWEATHER_API_KEY?.trim() || "";
+  const latitude = process.env.OPENWEATHER_LATITUDE?.trim() || "";
+  const longitude = process.env.OPENWEATHER_LONGITUDE?.trim() || "";
 
-  try {
-    const weatherSetting = await prisma.calendarSetting.findUnique({ where: { id: "weather_settings" } });
-    if (weatherSetting?.data) {
-      const parsed = JSON.parse(weatherSetting.data) as {
-        city?: string;
-        apiKey?: string;
-      };
-      if (typeof parsed.apiKey === "string" && parsed.apiKey.trim()) {
-        apiKey = parsed.apiKey.trim();
+  // City: ENV first, DB fallback (stored as plain string; handle legacy JSON gracefully)
+  let city = process.env.OPENWEATHER_CITY?.trim() || "";
+  if (!city) {
+    try {
+      const weatherSetting = await prisma.calendarSetting.findUnique({ where: { id: "weather_settings" } });
+      if (weatherSetting?.data?.trim()) {
+        try {
+          const parsed = JSON.parse(weatherSetting.data) as { city?: string };
+          if (parsed.city?.trim()) city = parsed.city.trim();
+        } catch {
+          city = weatherSetting.data.trim();
+        }
       }
-      if (typeof parsed.city === "string" && parsed.city.trim()) {
-        city = parsed.city.trim();
-      }
+    } catch {
+      // DB unavailable — city remains empty
     }
-  } catch {
-    // Fall back to env configuration when DB settings are unavailable.
   }
 
   if (!apiKey || (!city && (!latitude || !longitude))) {
@@ -85,7 +85,7 @@ export async function GET() {
 
       if (response.status === 401) {
         return NextResponse.json(
-          { error: "OpenWeather rejected the API key. Please verify Weather Settings in Admin Branding." },
+          { error: "OpenWeather API key is invalid. Set OPENWEATHER_API_KEY in your environment variables." },
           { status: 502 },
         );
       }

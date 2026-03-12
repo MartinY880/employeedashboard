@@ -454,6 +454,18 @@ function IdeaCard({
               🔥
             </span>
           )}
+          {canDeleteIdea && onDeleteIdea && (
+            <button
+              type="button"
+              onClick={() => onDeleteIdea(idea.id)}
+              disabled={isDeleting}
+              className="ml-auto shrink-0 text-red-400 hover:text-red-600 transition-colors disabled:opacity-50"
+              title="Delete idea"
+              aria-label="Delete idea"
+            >
+              {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+            </button>
+          )}
         </div>
         <p className="text-xs text-brand-grey leading-relaxed mb-1.5 whitespace-pre-wrap break-words">
           {idea.description}
@@ -466,18 +478,7 @@ function IdeaCard({
         <CommentThread ideaId={idea.id} commentCount={idea.commentCount ?? 0} />
       </div>
 
-      {canDeleteIdea && onDeleteIdea && (
-        <button
-          type="button"
-          onClick={() => onDeleteIdea(idea.id)}
-          disabled={isDeleting}
-          className="absolute bottom-2.5 right-2.5 text-red-400 hover:text-red-600 transition-colors disabled:opacity-50"
-          title="Delete idea"
-          aria-label="Delete idea"
-        >
-          {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-        </button>
-      )}
+
     </motion.div>
   );
 }
@@ -737,6 +738,13 @@ export function BeBrilliantWidget() {
   const visibleIdeas = ideas.filter((i) => i.status !== "ARCHIVED");
   const activeIdeas = visibleIdeas.filter((i) => i.status === "ACTIVE");
 
+  // If the current filter tab has no ideas (e.g. all were archived), fall back to Active
+  useEffect(() => {
+    if (statusFilter !== "ACTIVE" && visibleIdeas.filter((i) => i.status === statusFilter).length === 0) {
+      setStatusFilter("ACTIVE");
+    }
+  }, [visibleIdeas, statusFilter]);
+
   // Memoized sort order — only re-sorts when sortKey bumps (1.5s after last vote)
   const sortedOrderRef = useRef<string[]>([]);
   const ideasFingerprint = activeIdeas.map((i) => i.id).join(",");
@@ -908,6 +916,7 @@ export function BeBrilliantWidget() {
             <div className="flex flex-wrap gap-1.5">
               {(["ACTIVE", "SELECTED", "IN_PROGRESS", "COMPLETED"] as const).map((f) => {
                 const count = visibleIdeas.filter((i) => i.status === f).length;
+                if (count === 0 && f !== "ACTIVE") return null;
                 const labels: Record<string, string> = { ACTIVE: "Active", SELECTED: "Selected", IN_PROGRESS: "In Progress", COMPLETED: "Completed" };
                 const icons: Record<string, React.ReactNode> = {
                   ACTIVE: <Lightbulb className="w-3 h-3" />,

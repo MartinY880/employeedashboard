@@ -48,6 +48,12 @@ next-env.d.ts
 # Local development files
 mockup.html
 Project Guideline.md
+
+# Database backups (may contain sensitive data)
+proconnect_backup.sql
+init-db/*.sql
+init-db/*.sql.bak
+prisma/seed-data.sql
 todo.md
 sword psql*
 start

@@ -35,7 +35,6 @@ interface DashboardVisibilitySettings {
 
 interface WeatherSettings {
   city: string;
-  apiKey: string;
 }
 
 const DEFAULT_SMTP: SmtpSettings = {
@@ -65,7 +64,6 @@ const DEFAULT_DASHBOARD_VISIBILITY: DashboardVisibilitySettings = {
 
 const DEFAULT_WEATHER_SETTINGS: WeatherSettings = {
   city: "",
-  apiKey: "",
 };
 
 // In-memory branding for demo mode
@@ -80,22 +78,15 @@ const demoBranding = {
 
 export async function GET() {
   try {
-    const [branding, smtpSetting, topNavSetting, dashboardVisibilitySetting, weatherSetting] = await Promise.all([
+    const [branding, topNavSetting, dashboardVisibilitySetting, weatherSetting] = await Promise.all([
       prisma.siteBranding.findUnique({ where: { id: "singleton" } }),
-      prisma.calendarSetting.findUnique({ where: { id: "smtp_settings" } }),
       prisma.calendarSetting.findUnique({ where: { id: "topnav_menu" } }),
       prisma.calendarSetting.findUnique({ where: { id: "dashboard_visibility" } }),
       prisma.calendarSetting.findUnique({ where: { id: "weather_settings" } }),
     ]);
 
-    let smtpSettings = DEFAULT_SMTP;
-    if (smtpSetting?.data) {
-      try {
-        smtpSettings = { ...DEFAULT_SMTP, ...(JSON.parse(smtpSetting.data) as Partial<SmtpSettings>) };
-      } catch {
-        smtpSettings = DEFAULT_SMTP;
-      }
-    }
+    // SMTP credentials are stored in environment variables only, never in DB
+    const smtpSettings = DEFAULT_SMTP;
 
     let topNavMenu = DEFAULT_TOPNAV_MENU;
     if (topNavSetting?.data) {
@@ -148,14 +139,17 @@ export async function GET() {
 
     let weatherSettings = DEFAULT_WEATHER_SETTINGS;
     if (weatherSetting?.data) {
-      try {
-        const parsed = JSON.parse(weatherSetting.data) as Partial<WeatherSettings>;
-        weatherSettings = {
-          city: String(parsed.city || "").trim(),
-          apiKey: String(parsed.apiKey || "").trim(),
-        };
-      } catch {
-        weatherSettings = DEFAULT_WEATHER_SETTINGS;
+      // Handle plain string (preferred) or legacy JSON {"city":"...","apiKey":"..."}
+      const raw = weatherSetting.data.trim();
+      if (raw.startsWith("{")) {
+        try {
+          const parsed = JSON.parse(raw) as { city?: string };
+          weatherSettings = { city: String(parsed.city || "").trim() };
+        } catch {
+          weatherSettings = DEFAULT_WEATHER_SETTINGS;
+        }
+      } else {
+        weatherSettings = { city: raw };
       }
     }
 
@@ -189,18 +183,8 @@ export async function POST(request: Request) {
     const removeLogo = formData.get("removeLogo") === "true";
     const removeFavicon = formData.get("removeFavicon") === "true";
     const removeDarkLogo = formData.get("removeDarkLogo") === "true";
-    const smtpSettings: SmtpSettings = {
-      host: ((formData.get("smtpHost") as string | null) || "").trim(),
-      port: ((formData.get("smtpPort") as string | null) || "587").trim(),
-      user: ((formData.get("smtpUser") as string | null) || "").trim(),
-      pass: ((formData.get("smtpPass") as string | null) || "").trim(),
-      from: ((formData.get("smtpFrom") as string | null) || "").trim(),
-      fromName: ((formData.get("smtpFromName") as string | null) || "ProConnect").trim(),
-    };
-    const weatherSettings: WeatherSettings = {
-      city: ((formData.get("weatherCity") as string | null) || "").trim(),
-      apiKey: ((formData.get("weatherApiKey") as string | null) || "").trim(),
-    };
+    const weatherCity = ((formData.get("weatherCity") as string | null) || "").trim();
+    const weatherSettings: WeatherSettings = { city: weatherCity };
     const topNavRaw = (formData.get("topNavMenu") as string | null) || "";
     const dashboardVisibilityRaw = (formData.get("dashboardVisibility") as string | null) || "";
 
@@ -299,11 +283,6 @@ export async function POST(request: Request) {
           },
         }),
         prisma.calendarSetting.upsert({
-          where: { id: "smtp_settings" },
-          update: { data: JSON.stringify(smtpSettings) },
-          create: { id: "smtp_settings", data: JSON.stringify(smtpSettings) },
-        }),
-        prisma.calendarSetting.upsert({
           where: { id: "topnav_menu" },
           update: { data: JSON.stringify(topNavMenu) },
           create: { id: "topnav_menu", data: JSON.stringify(topNavMenu) },
@@ -315,13 +294,13 @@ export async function POST(request: Request) {
         }),
         prisma.calendarSetting.upsert({
           where: { id: "weather_settings" },
-          update: { data: JSON.stringify(weatherSettings) },
-          create: { id: "weather_settings", data: JSON.stringify(weatherSettings) },
+          update: { data: weatherCity },
+          create: { id: "weather_settings", data: weatherCity },
         }),
         // NOTE: dashboard_slider is NOT written here — it's managed by /api/dashboard-settings
       ]);
 
-      return NextResponse.json({ ...branding, smtpSettings, topNavMenu, dashboardVisibility, weatherSettings });
+      return NextResponse.json({ ...branding, smtpSettings: DEFAULT_SMTP, topNavMenu, dashboardVisibility, weatherSettings });
     } catch {
       // DB unavailable — update demo branding
       if (companyName) demoBranding.companyName = companyName;
@@ -330,7 +309,7 @@ export async function POST(request: Request) {
       if (faviconData !== undefined) demoBranding.faviconData = faviconData;
       demoBranding.updatedAt = new Date().toISOString();
 
-      return NextResponse.json({ ...demoBranding, smtpSettings, topNavMenu, dashboardVisibility, weatherSettings });
+      return NextResponse.json({ ...demoBranding, smtpSettings: DEFAULT_SMTP, topNavMenu, dashboardVisibility, weatherSettings });
     }
   } catch (err) {
     console.error("Branding POST error:", err);

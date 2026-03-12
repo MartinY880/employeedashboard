@@ -94,7 +94,6 @@ interface SmtpSettings {
 
 interface WeatherSettings {
   city: string;
-  apiKey: string;
 }
 
 const DEFAULT_SMTP: SmtpSettings = {
@@ -115,7 +114,6 @@ const DEFAULT_DASHBOARD_VISIBILITY: DashboardVisibilitySettings = {
 
 const DEFAULT_WEATHER_SETTINGS: WeatherSettings = {
   city: "",
-  apiKey: "",
 };
 
 const ICON_INITIAL_RESULTS = 80;
@@ -143,7 +141,6 @@ export default function AdminBrandingPage() {
   const [topNavMenu, setTopNavMenu] = useState<TopNavMenuItem[]>([]);
   const [initialTopNavMenu, setInitialTopNavMenu] = useState<TopNavMenuItem[]>([]);
   const [smtpSettings, setSmtpSettings] = useState<SmtpSettings>(DEFAULT_SMTP);
-  const [initialSmtpSettings, setInitialSmtpSettings] = useState<SmtpSettings>(DEFAULT_SMTP);
   const [dashboardVisibility, setDashboardVisibility] = useState<DashboardVisibilitySettings>(DEFAULT_DASHBOARD_VISIBILITY);
   const [initialDashboardVisibility, setInitialDashboardVisibility] = useState<DashboardVisibilitySettings>(DEFAULT_DASHBOARD_VISIBILITY);
   const [weatherSettings, setWeatherSettings] = useState<WeatherSettings>(DEFAULT_WEATHER_SETTINGS);
@@ -181,9 +178,8 @@ export default function AdminBrandingPage() {
         const menu = Array.isArray(data.topNavMenu) ? data.topNavMenu : [];
         setTopNavMenu(menu);
         setInitialTopNavMenu(menu);
-        const smtp = { ...DEFAULT_SMTP, ...(data.smtpSettings || {}) };
-        setSmtpSettings(smtp);
-        setInitialSmtpSettings(smtp);
+        // SMTP fields are not loaded from API (credentials live in ENV only)
+        setSmtpSettings(DEFAULT_SMTP);
         const visibility = { ...DEFAULT_DASHBOARD_VISIBILITY, ...(data.dashboardVisibility || {}) };
         setDashboardVisibility(visibility);
         setInitialDashboardVisibility(visibility);
@@ -290,14 +286,7 @@ export default function AdminBrandingPage() {
       if (removeLogo) formData.append("removeLogo", "true");
       if (removeDarkLogo) formData.append("removeDarkLogo", "true");
       if (removeFavicon) formData.append("removeFavicon", "true");
-      formData.append("smtpHost", smtpSettings.host);
-      formData.append("smtpPort", smtpSettings.port);
-      formData.append("smtpUser", smtpSettings.user);
-      formData.append("smtpPass", smtpSettings.pass);
-      formData.append("smtpFrom", smtpSettings.from);
-      formData.append("smtpFromName", smtpSettings.fromName);
       formData.append("weatherCity", weatherSettings.city);
-      formData.append("weatherApiKey", weatherSettings.apiKey);
       formData.append("topNavMenu", JSON.stringify(topNavMenu.map((item, index) => ({
         ...item,
         href: item.href.startsWith("/") ? item.href : `/${item.href}`,
@@ -325,10 +314,8 @@ export default function AdminBrandingPage() {
       setRemoveLogo(false);
       setRemoveDarkLogo(false);
       setRemoveFavicon(false);
-      setSmtpSettings({ ...DEFAULT_SMTP, ...(updated.smtpSettings || {}) });
-      setInitialSmtpSettings({ ...DEFAULT_SMTP, ...(updated.smtpSettings || {}) });
-      setWeatherSettings({ ...DEFAULT_WEATHER_SETTINGS, ...(updated.weatherSettings || {}) });
-      setInitialWeatherSettings({ ...DEFAULT_WEATHER_SETTINGS, ...(updated.weatherSettings || {}) });
+      setWeatherSettings({ city: updated.weatherSettings?.city || "" });
+      setInitialWeatherSettings({ city: updated.weatherSettings?.city || "" });
       const updatedVisibility = { ...DEFAULT_DASHBOARD_VISIBILITY, ...(updated.dashboardVisibility || {}) };
       setDashboardVisibility(updatedVisibility);
       setInitialDashboardVisibility(updatedVisibility);
@@ -374,7 +361,6 @@ export default function AdminBrandingPage() {
     removeLogo ||
     removeDarkLogo ||
     removeFavicon ||
-    JSON.stringify(smtpSettings) !== JSON.stringify(initialSmtpSettings) ||
     weatherChanged ||
     menuChanged ||
     visibilityChanged;
@@ -481,7 +467,16 @@ export default function AdminBrandingPage() {
       const res = await fetch("/api/calendar/export", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "test", email: testEmail }),
+        body: JSON.stringify({
+          action: "test",
+          email: testEmail,
+          smtpHost: smtpSettings.host,
+          smtpPort: smtpSettings.port,
+          smtpUser: smtpSettings.user,
+          smtpPass: smtpSettings.pass,
+          smtpFrom: smtpSettings.from,
+          smtpFromName: smtpSettings.fromName,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to send test email");
@@ -788,6 +783,9 @@ export default function AdminBrandingPage() {
         <p className="text-sm text-brand-grey mb-4">
           Shared email configuration used by calendar exports and future platform email features.
         </p>
+        <div className="mb-4 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-sm text-amber-800 dark:text-amber-300">
+          Credentials entered here are for testing only and are never saved. Configure production credentials via <code className="font-mono text-xs">SENDGRID_API_KEY</code> / <code className="font-mono text-xs">SMTP_*</code> environment variables.
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
@@ -860,7 +858,7 @@ export default function AdminBrandingPage() {
             variant="outline"
             size="sm"
             onClick={handleSendTestEmail}
-            disabled={isSendingTest || !testEmail || !smtpSettings.host}
+            disabled={isSendingTest || !testEmail}
             className="gap-1.5"
           >
             {isSendingTest ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <TestTube className="w-3.5 h-3.5" />}
@@ -934,15 +932,8 @@ export default function AdminBrandingPage() {
             />
             <p className="text-[11px] text-gray-400 mt-1">Use OpenWeather city format like `Troy,US`.</p>
           </div>
-          <div>
-            <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">OpenWeather API Key</label>
-            <Input
-              type="password"
-              placeholder="Enter API key"
-              value={weatherSettings.apiKey}
-              onChange={(e) => setWeatherSettings({ ...weatherSettings, apiKey: e.target.value })}
-              className="text-sm"
-            />
+          <div className="flex items-start px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-sm text-blue-800 dark:text-blue-300">
+            <span>API key is set via <code className="font-mono text-xs">OPENWEATHER_API_KEY</code> environment variable.</span>
           </div>
         </div>
       </div>

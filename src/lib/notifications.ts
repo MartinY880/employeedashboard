@@ -24,23 +24,20 @@ interface CreateNotificationInput {
   metadata?: Record<string, string>;
 }
 
-async function getSmtpSettings(): Promise<SmtpSettings | null> {
-  try {
-    const setting = await prisma.calendarSetting.findUnique({ where: { id: "smtp_settings" } });
-    if (!setting) {
-      console.warn("[Notification] smtp_settings row not found in calendar_settings");
-      return null;
-    }
-    const parsed = JSON.parse(setting.data) as SmtpSettings;
-    if (!parsed.host || !parsed.user || !parsed.pass) {
-      console.warn("[Notification] SMTP settings incomplete — host/user/pass missing");
-      return null;
-    }
-    return parsed;
-  } catch (err) {
-    console.error("[Notification] Failed to read SMTP settings:", err instanceof Error ? err.message : err);
+function getEnvSmtpSettings(): SmtpSettings | null {
+  const sendgridApiKey = process.env.SENDGRID_API_KEY?.trim() || "";
+  const host = process.env.SMTP_HOST?.trim() || (sendgridApiKey ? "smtp.sendgrid.net" : "");
+  const port = process.env.SMTP_PORT?.trim() || "587";
+  const user = process.env.SMTP_USER?.trim() || (sendgridApiKey ? "apikey" : "");
+  const pass = process.env.SMTP_PASS?.trim() || sendgridApiKey;
+  const from = process.env.SMTP_FROM?.trim() || "";
+  const fromName = process.env.SMTP_FROM_NAME?.trim() || "ProConnect";
+
+  if (!host || !user || !pass) {
     return null;
   }
+
+  return { host, port, user, pass, from, fromName };
 }
 
 async function getCompanyName(): Promise<string> {
@@ -102,9 +99,9 @@ export async function createNotification(input: CreateNotificationInput) {
 
   // 2. Try to send email notification
   try {
-    const smtp = await getSmtpSettings();
+    const smtp = getEnvSmtpSettings();
     if (!smtp) {
-      console.warn("[Notification] No SMTP settings configured, skipping email");
+      console.warn("[Notification] No SMTP env vars configured (SENDGRID_API_KEY or SMTP_HOST/USER/PASS), skipping email");
       return notification;
     }
 
@@ -119,6 +116,13 @@ export async function createNotification(input: CreateNotificationInput) {
     }
 
     const companyName = await getCompanyName();
+    const mailOptions = {
+      from: `"${smtp.fromName || companyName}" <${smtp.from || smtp.user}>`,
+      to: recipient.email,
+      subject: title,
+      html: buildEmailHtml(title, message, companyName),
+    };
+
     const transporter = nodemailer.createTransport({
       host: smtp.host,
       port: parseInt(smtp.port || "587", 10),
@@ -126,12 +130,7 @@ export async function createNotification(input: CreateNotificationInput) {
       auth: { user: smtp.user, pass: smtp.pass },
     });
 
-    const info = await transporter.sendMail({
-      from: `"${smtp.fromName || companyName}" <${smtp.from || smtp.user}>`,
-      to: recipient.email,
-      subject: title,
-      html: buildEmailHtml(title, message, companyName),
-    });
+    const info = await transporter.sendMail(mailOptions);
     console.log(`[Notification] Email sent to ${recipient.email}: ${info.response}`);
   } catch (err) {
     // Email failure should not block the notification creation
