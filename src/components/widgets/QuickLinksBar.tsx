@@ -22,6 +22,8 @@ import {
   Mail,
   Phone,
   Settings,
+  Trophy,
+  Megaphone,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { IconType } from "react-icons";
@@ -36,6 +38,8 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import * as FaBrandIcons from "@fortawesome/free-brands-svg-icons";
 import * as FaSolidIcons from "@fortawesome/free-solid-svg-icons";
+import { AccountabilityIcon } from "@/components/shared/icons/AccountabilityIcon";
+import { FastTimeIcon } from "@/components/shared/icons/FastTimeIcon";
 import { NMLSIcon } from "@/components/shared/icons/NMLSIcon";
 import { Icon as IconifyIcon } from "@iconify/react";
 
@@ -63,6 +67,11 @@ const LUCIDE_ICON_MAP: Record<string, LucideIcon> = {
   phone: Phone,
   settings: Settings,
   external: ExternalLink,
+  support: Headset,
+  success: Trophy,
+  speaking: Megaphone,
+  "fast-time": FastTimeIcon as unknown as LucideIcon,
+  accountability: AccountabilityIcon as unknown as LucideIcon,
   nmls: NMLSIcon as unknown as LucideIcon,
 };
 
@@ -135,11 +144,20 @@ const toTitleCase = (value: string) =>
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ");
 
+const LUCIDE_SPECIAL_ICON_META: Record<string, { label: string; keywords: string[] }> = {
+  nmls: { label: "NMLS", keywords: ["mortgage", "licensing"] },
+  support: { label: "Support", keywords: ["help", "customer", "service"] },
+  success: { label: "Success", keywords: ["win", "achievement", "goal"] },
+  speaking: { label: "Speaking", keywords: ["talk", "communication", "voice"] },
+  "fast-time": { label: "Fast Time", keywords: ["speed", "clock", "time"] },
+  accountability: { label: "Accountability", keywords: ["team", "people", "trust"] },
+};
+
 const LUCIDE_OPTIONS: IconOption[] = Object.keys(LUCIDE_ICON_MAP).map((name) => ({
   id: `lucide:${name}`,
-  label: name === "nmls" ? "NMLS" : toTitleCase(name),
+  label: LUCIDE_SPECIAL_ICON_META[name]?.label ?? toTitleCase(name),
   library: "lucide",
-  keywords: [name, "lucide", ...(name === "nmls" ? ["mortgage", "licensing"] : [])],
+  keywords: [name, "lucide", ...(LUCIDE_SPECIAL_ICON_META[name]?.keywords ?? [])],
 }));
 
 const REACT_ICON_OPTIONS: IconOption[] = REACT_ICON_SET_DEFS.flatMap((setDef) => {

@@ -199,3 +199,22 @@ html {
   nav, .no-print { display: none !important; }
   body { background: white; }
 }
+
+/* ─── Pillar rich-text rendered content ────────────── */
+.pillar-rich-text p { margin: 0; }
+.pillar-rich-text ul { list-style-type: disc; padding-left: 1.25em; margin: 0.25em 0; }
+.pillar-rich-text ol { list-style-type: decimal; padding-left: 1.25em; margin: 0.25em 0; }
+.pillar-rich-text li { margin: 0.1em 0; color: inherit; }
+.pillar-rich-text ul, .pillar-rich-text ol { color: inherit; }
+.pillar-rich-text li::marker { color: inherit !important; }
+.pillar-rich-text u { text-decoration: underline; }
+.pillar-rich-text s { text-decoration: line-through; }
+.pillar-rich-text mark { border-radius: 2px; padding: 0 2px; }
+
+/* Tiptap editor content area */
+.tiptap p { margin: 0.25em 0; }
+.tiptap ul { list-style-type: disc; padding-left: 1.25em; }
+.tiptap ol { list-style-type: decimal; padding-left: 1.25em; }
+.tiptap li { margin: 0.1em 0; color: inherit; }
+.tiptap ul, .tiptap ol { color: inherit; }
+.tiptap li::marker { color: inherit !important; }
