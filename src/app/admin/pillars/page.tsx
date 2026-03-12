@@ -23,6 +23,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { RichTextEditor } from "@/components/shared/RichTextEditor";
 import {
   Dialog,
   DialogContent,
@@ -203,6 +204,15 @@ export default function AdminPillarsPage() {
       const titles = [...prev.columnTitles] as [string, string, string];
       titles[colIdx] = value;
       return { ...prev, columnTitles: titles };
+    });
+    setHasChanges(true);
+  };
+
+  const updateV2ColumnWidth = (colIdx: number, value: number) => {
+    setV2Data((prev) => {
+      const widths = [...(prev.columnWidths ?? [33, 34, 33])] as [number, number, number];
+      widths[colIdx] = value;
+      return { ...prev, columnWidths: widths };
     });
     setHasChanges(true);
   };
@@ -858,6 +868,30 @@ export default function AdminPillarsPage() {
                 </div>
               ))}
             </div>
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider pt-2">Column Widths (%)</h3>
+            <div className="grid grid-cols-3 gap-3">
+              {([0, 1, 2] as const).map((colIdx) => {
+                const widths = v2Data.columnWidths ?? [33, 34, 33];
+                return (
+                  <div key={colIdx}>
+                    <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1 block">
+                      Column {colIdx + 1} Width
+                    </label>
+                    <Input
+                      type="number"
+                      min={10}
+                      max={80}
+                      value={widths[colIdx]}
+                      onChange={(e) => updateV2ColumnWidth(colIdx, Number(e.target.value))}
+                      className="h-9"
+                    />
+                  </div>
+                );
+              })}
+            </div>
+            <p className="text-xs text-gray-400 dark:text-gray-500">
+              Values are proportional — e.g. 25 / 50 / 25 means column 2 is twice as wide.
+            </p>
           </div>
 
           {/* V2 Rows */}
@@ -1079,25 +1113,112 @@ export default function AdminPillarsPage() {
                         <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1 block">
                           {v2Data.columnTitles[1] || "Column 2"}
                         </label>
-                        <Textarea
+                        <RichTextEditor
                           value={row.col2Text}
-                          onChange={(e) => updateV2Row(row.id, "col2Text", e.target.value)}
+                          onChange={(html) => updateV2Row(row.id, "col2Text", html)}
                           placeholder="Column 2 text…"
-                          rows={2}
-                          className="resize-none text-sm"
                         />
                       </div>
                       <div>
                         <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1 block">
                           {v2Data.columnTitles[2] || "Column 3"}
                         </label>
-                        <Textarea
+                        <RichTextEditor
                           value={row.col3Text}
-                          onChange={(e) => updateV2Row(row.id, "col3Text", e.target.value)}
+                          onChange={(html) => updateV2Row(row.id, "col3Text", html)}
                           placeholder="Column 3 text…"
-                          rows={2}
-                          className="resize-none text-sm"
                         />
+                      </div>
+                    </div>
+
+                    {/* Per-cell color pickers */}
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1 block">
+                          Col 1 Color
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={row.col1Color || "#06427F"}
+                            onChange={(e) => updateV2Row(row.id, "col1Color", e.target.value)}
+                            className="w-8 h-8 rounded cursor-pointer border border-gray-300"
+                          />
+                          <Input
+                            value={row.col1Color || ""}
+                            onChange={(e) => updateV2Row(row.id, "col1Color", e.target.value)}
+                            placeholder="#06427F"
+                            className="h-8 text-xs font-mono flex-1"
+                          />
+                          {row.col1Color && (
+                            <button
+                              type="button"
+                              onClick={() => updateV2Row(row.id, "col1Color", "")}
+                              className="text-xs text-gray-400 hover:text-red-500"
+                              title="Reset to default blue"
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1 block">
+                          Col 2 Color
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={row.col2Color || "#ffffff"}
+                            onChange={(e) => updateV2Row(row.id, "col2Color", e.target.value)}
+                            className="w-8 h-8 rounded cursor-pointer border border-gray-300"
+                          />
+                          <Input
+                            value={row.col2Color || ""}
+                            onChange={(e) => updateV2Row(row.id, "col2Color", e.target.value)}
+                            placeholder="#ffffff"
+                            className="h-8 text-xs font-mono flex-1"
+                          />
+                          {row.col2Color && (
+                            <button
+                              type="button"
+                              onClick={() => updateV2Row(row.id, "col2Color", "")}
+                              className="text-xs text-gray-400 hover:text-red-500"
+                              title="Reset to default white"
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1 block">
+                          Col 3 Color
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={row.col3Color || "#ffffff"}
+                            onChange={(e) => updateV2Row(row.id, "col3Color", e.target.value)}
+                            className="w-8 h-8 rounded cursor-pointer border border-gray-300"
+                          />
+                          <Input
+                            value={row.col3Color || ""}
+                            onChange={(e) => updateV2Row(row.id, "col3Color", e.target.value)}
+                            placeholder="#ffffff"
+                            className="h-8 text-xs font-mono flex-1"
+                          />
+                          {row.col3Color && (
+                            <button
+                              type="button"
+                              onClick={() => updateV2Row(row.id, "col3Color", "")}
+                              className="text-xs text-gray-400 hover:text-red-500"
+                              title="Reset to default white"
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>

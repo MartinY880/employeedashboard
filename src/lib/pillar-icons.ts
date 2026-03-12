@@ -86,10 +86,14 @@ export interface PillarV2Row {
   col1Title: string;  // title text for column 1
   col2Text: string;   // text for column 2
   col3Text: string;   // text for column 3
+  col1Color?: string; // hex bg color for column 1 cell
+  col2Color?: string; // hex bg color for column 2 cell
+  col3Color?: string; // hex bg color for column 3 cell
 }
 
 export interface PillarV2Data {
   columnTitles: [string, string, string]; // editable column headers
+  columnWidths?: [number, number, number]; // percentage widths for each column (must sum to 100)
   rows: PillarV2Row[];                     // up to 5 rows
 }
 
