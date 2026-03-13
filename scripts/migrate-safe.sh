@@ -496,6 +496,21 @@ CREATE TABLE IF NOT EXISTS important_dates (
   "updatedAt"  TIMESTAMPTZ NOT NULL DEFAULT now()
 );'
 
+# --- closers_table_awards ---
+create_table_if_missing "closers_table_awards" '
+CREATE TABLE IF NOT EXISTS closers_table_awards (
+  id              TEXT PRIMARY KEY,
+  "employeeId"    TEXT NOT NULL,
+  "employeeName"  TEXT NOT NULL,
+  award           TEXT NOT NULL,
+  color           TEXT NOT NULL DEFAULT '"'"'#f59e0b'"'"',
+  award_font_size INT NOT NULL DEFAULT 10,
+  "sortOrder"     INT NOT NULL DEFAULT 0,
+  active          BOOLEAN NOT NULL DEFAULT true,
+  "createdAt"     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  "updatedAt"     TIMESTAMPTZ NOT NULL DEFAULT now()
+);'
+
 # --- props_comments ---
 create_table_if_missing "props_comments" '
 CREATE TABLE IF NOT EXISTS "props_comments" (
@@ -650,6 +665,10 @@ fi
 
 # video_spotlights — playCount (added later)
 add_column_if_missing "video_spotlights" "playCount" "INT NOT NULL DEFAULT 0"
+
+# closers_table_awards — columns added after initial schema
+add_column_if_missing "closers_table_awards" "color"           "TEXT NOT NULL DEFAULT '#f59e0b'"
+add_column_if_missing "closers_table_awards" "award_font_size" "INT NOT NULL DEFAULT 10"
 
 # important_dates — subtitle (added later)
 add_column_if_missing "important_dates" "subtitle" "TEXT"
@@ -838,6 +857,9 @@ ensure_index "important_dates_sortOrder_idx"    "important_dates" '"sortOrder"'
 # props_comments
 ensure_index "props_comments_propsId_createdAt_idx" "props_comments" '"propsId", "createdAt"'
 ensure_index "props_comments_parentId_idx"          "props_comments" '"parentId"'
+
+# closers_table_awards
+ensure_index "closers_table_awards_active_sortOrder_idx" "closers_table_awards" 'active, "sortOrder"'
 
 # props_comment_likes
 ensure_index "props_comment_likes_voterLogtoId_idx" "props_comment_likes" '"voterLogtoId"'
