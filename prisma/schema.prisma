@@ -613,3 +613,21 @@ model ImportantDate {
   @@index([sortOrder])
   @@map("important_dates")
 }
+
+// ─── Closers Table Awards ─────────────────────────────────
+
+model ClosersTableAward {
+  id           String   @id @default(cuid())
+  employeeId   String?  @map("employee_id")   // Microsoft Graph user ID
+  employeeName String   @map("employee_name")
+  award        String                          // e.g. "Top Closer Q1 2026"
+  color        String   @default("#f59e0b")    // hex color for the card accent
+  awardFontSize Int     @default(10) @map("award_font_size") // px size for award text
+  sortOrder    Int      @default(0) @map("sort_order")
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@index([active, sortOrder])
+  @@map("closers_table_awards")
+}

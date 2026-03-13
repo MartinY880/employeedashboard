@@ -19,6 +19,7 @@ export const PERMISSIONS = {
   MANAGE_VENDORS: "manage:vendors",
   MANAGE_IMPORTANT_DATES: "manage:important_dates",
   MANAGE_LENDER_ACCOUNT_EXECUTIVES: "manage:lender_account_executives",
+  MANAGE_CLOSERS_TABLE: "manage:closers_table",
 } as const;
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -43,6 +44,7 @@ export const ROUTE_PERMISSION: Record<string, Permission> = {
   "/admin/preferred-vendors": PERMISSIONS.MANAGE_VENDORS,
   "/admin/important-dates": PERMISSIONS.MANAGE_IMPORTANT_DATES,
   "/admin/lender-account-executives": PERMISSIONS.MANAGE_LENDER_ACCOUNT_EXECUTIVES,
+  "/admin/closers-table": PERMISSIONS.MANAGE_CLOSERS_TABLE,
 };
 
 // ─── Fallback: derive permissions from role when Logto API Resource isn't configured ───

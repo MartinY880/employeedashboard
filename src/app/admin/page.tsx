@@ -26,6 +26,7 @@ import {
   Video,
   Briefcase,
   CalendarClock,
+  Award,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PERMISSIONS, ROUTE_PERMISSION } from "@/lib/rbac";
@@ -240,6 +241,16 @@ const adminPages = [
     color: "text-cyan-600",
     bgColor: "bg-cyan-50",
     permission: PERMISSIONS.MANAGE_LENDER_ACCOUNT_EXECUTIVES,
+  },
+  {
+    title: "Closers Table",
+    description: "Recognize top closers with awards — search employees from the directory and display them on the dashboard.",
+    icon: Award,
+    href: "/admin/closers-table",
+    badge: "CRUD",
+    color: "text-amber-500",
+    bgColor: "bg-amber-50",
+    permission: PERMISSIONS.MANAGE_CLOSERS_TABLE,
   },
 ];
 
