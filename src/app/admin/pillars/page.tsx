@@ -17,6 +17,7 @@ import {
   ChevronDown,
   Eye,
   EyeOff,
+  Upload,
 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -24,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { RichTextEditor } from "@/components/shared/RichTextEditor";
+import { BannerTitleEditor } from "@/components/shared/BannerTitleEditor";
 import {
   Dialog,
   DialogContent,
@@ -51,6 +53,9 @@ const ICON_MAX_RESULTS = 250;
 const ICON_MIN_QUERY_LENGTH = 2;
 
 function renderPillarIconPreview(icon: string, className = "w-4 h-4") {
+  if (icon.startsWith("/api/pillar-icons/")) {
+    return <img src={icon} alt="" className={`${className} object-contain`} />;
+  }
   const legacyIcon = ICON_MAP[icon as PillarIconName];
   if (legacyIcon) {
     const LegacyIcon = legacyIcon;
@@ -83,6 +88,11 @@ export default function AdminPillarsPage() {
   const deferredV2IconSearch = useDeferredValue(v2IconSearch);
   const [v2VisibleDefaultIcons, setV2VisibleDefaultIcons] = useState(ICON_INITIAL_RESULTS);
 
+  // Collage background state
+  const [collageImages, setCollageImages] = useState<{ url: string; filename: string }[]>([]);
+  const [collageUploading, setCollageUploading] = useState(false);
+  const [collageOpacity, setCollageOpacity] = useState(80);
+
   useEffect(() => {
     async function fetchVisibility() {
       try {
@@ -94,6 +104,15 @@ export default function AdminPillarsPage() {
       } catch { /* keep null */ }
     }
     fetchVisibility();
+
+    // Fetch collage background images + settings
+    fetch("/api/collage-bg")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.images) setCollageImages(data.images);
+        if (data?.opacity != null) setCollageOpacity(data.opacity);
+      })
+      .catch(() => {});
   }, []);
 
   async function toggleVisibility() {
@@ -437,31 +456,29 @@ export default function AdminPillarsPage() {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1 block">
-              Title
+            <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1 block">
+              Title (Rich Text)
             </label>
-            <Input
+            <BannerTitleEditor
               value={header.title}
-              onChange={(e) => {
-                setHeader((prev) => ({ ...prev, title: e.target.value }));
+              onChange={(html) => {
+                setHeader((prev) => ({ ...prev, title: html }));
                 setHasChanges(true);
               }}
-              placeholder="Header title"
-              className="h-9"
+              placeholder="Banner title…"
             />
           </div>
           <div>
-            <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1 block">
-              Subtitle
+            <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1 block">
+              Subtitle (Rich Text)
             </label>
-            <Input
+            <BannerTitleEditor
               value={header.subtitle}
-              onChange={(e) => {
-                setHeader((prev) => ({ ...prev, subtitle: e.target.value }));
+              onChange={(html) => {
+                setHeader((prev) => ({ ...prev, subtitle: html }));
                 setHasChanges(true);
               }}
-              placeholder="Header subtitle"
-              className="h-9"
+              placeholder="Banner subtitle…"
             />
           </div>
         </div>
@@ -584,8 +601,393 @@ export default function AdminPillarsPage() {
                 <span className="text-xs text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 w-6 text-right">20</span>
               </div>
             </div>
+
+            {/* Icon Size */}
+            <div>
+              <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1 block">
+                Icon Size — {header.iconSize ?? 28}px
+              </label>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 w-6">12</span>
+                <input
+                  type="range"
+                  min={12}
+                  max={64}
+                  step={1}
+                  value={header.iconSize ?? 28}
+                  onChange={(e) => {
+                    setHeader((prev) => ({ ...prev, iconSize: Number(e.target.value) }));
+                    setHasChanges(true);
+                  }}
+                  className="flex-1 h-2 accent-brand-blue cursor-pointer"
+                />
+                <span className="text-xs text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 w-6 text-right">64</span>
+              </div>
+            </div>
           </div>
         </div>
+
+        {/* Color Controls */}
+        <div className="border-t border-gray-100 dark:border-gray-800 pt-3 mt-1">
+          <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Colors</h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Banner Title Gradient Color */}
+            <div>
+              <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1 block">
+                Banner Title Gradient
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={header.bannerGradientColor || "#06427f"}
+                  onChange={(e) => {
+                    setHeader((prev) => ({ ...prev, bannerGradientColor: e.target.value }));
+                    setHasChanges(true);
+                  }}
+                  className="w-9 h-9 rounded-md border border-gray-200 dark:border-gray-700 cursor-pointer p-0.5"
+                />
+                <Input
+                  value={header.bannerGradientColor || ""}
+                  onChange={(e) => {
+                    setHeader((prev) => ({ ...prev, bannerGradientColor: e.target.value }));
+                    setHasChanges(true);
+                  }}
+                  placeholder="Default (brand-blue)"
+                  className="h-9 flex-1 font-mono text-xs"
+                />
+                {header.bannerGradientColor && (
+                  <button
+                    type="button"
+                    onClick={() => { setHeader((prev) => ({ ...prev, bannerGradientColor: undefined })); setHasChanges(true); }}
+                    className="text-xs text-gray-400 hover:text-red-500 shrink-0"
+                  >
+                    Reset
+                  </button>
+                )}
+              </div>
+              <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">Reflected gradient: transparent → color → transparent</p>
+            </div>
+
+            {/* Subtitle Gradient Color */}
+            <div>
+              <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1 block">
+                Subtitle Gradient
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={header.subtitleGradientColor || "#06427f"}
+                  onChange={(e) => {
+                    setHeader((prev) => ({ ...prev, subtitleGradientColor: e.target.value }));
+                    setHasChanges(true);
+                  }}
+                  className="w-9 h-9 rounded-md border border-gray-200 dark:border-gray-700 cursor-pointer p-0.5"
+                />
+                <Input
+                  value={header.subtitleGradientColor || ""}
+                  onChange={(e) => {
+                    setHeader((prev) => ({ ...prev, subtitleGradientColor: e.target.value }));
+                    setHasChanges(true);
+                  }}
+                  placeholder="Default (brand-blue)"
+                  className="h-9 flex-1 font-mono text-xs"
+                />
+                {header.subtitleGradientColor && (
+                  <button
+                    type="button"
+                    onClick={() => { setHeader((prev) => ({ ...prev, subtitleGradientColor: undefined })); setHasChanges(true); }}
+                    className="text-xs text-gray-400 hover:text-red-500 shrink-0"
+                  >
+                    Reset
+                  </button>
+                )}
+              </div>
+              <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">Reflected gradient: transparent → color → transparent</p>
+            </div>
+
+            {/* Column 1 Title Color */}
+            <div>
+              <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1 block">
+                Column 1 Title Color
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={header.col1TitleColor || "#ffffff"}
+                  onChange={(e) => {
+                    setHeader((prev) => ({ ...prev, col1TitleColor: e.target.value }));
+                    setHasChanges(true);
+                  }}
+                  className="w-9 h-9 rounded-md border border-gray-200 dark:border-gray-700 cursor-pointer p-0.5"
+                />
+                <Input
+                  value={header.col1TitleColor || ""}
+                  onChange={(e) => {
+                    setHeader((prev) => ({ ...prev, col1TitleColor: e.target.value }));
+                    setHasChanges(true);
+                  }}
+                  placeholder="Default (auto)"
+                  className="h-9 flex-1 font-mono text-xs"
+                />
+                {header.col1TitleColor && (
+                  <button
+                    type="button"
+                    onClick={() => { setHeader((prev) => ({ ...prev, col1TitleColor: undefined })); setHasChanges(true); }}
+                    className="text-xs text-gray-400 hover:text-red-500 shrink-0"
+                  >
+                    Reset
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Column 2 Title Color */}
+            <div>
+              <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1 block">
+                Column 2 Title Color
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={header.col2TitleColor || "#ffffff"}
+                  onChange={(e) => {
+                    setHeader((prev) => ({ ...prev, col2TitleColor: e.target.value }));
+                    setHasChanges(true);
+                  }}
+                  className="w-9 h-9 rounded-md border border-gray-200 dark:border-gray-700 cursor-pointer p-0.5"
+                />
+                <Input
+                  value={header.col2TitleColor || ""}
+                  onChange={(e) => {
+                    setHeader((prev) => ({ ...prev, col2TitleColor: e.target.value }));
+                    setHasChanges(true);
+                  }}
+                  placeholder="Default (auto)"
+                  className="h-9 flex-1 font-mono text-xs"
+                />
+                {header.col2TitleColor && (
+                  <button
+                    type="button"
+                    onClick={() => { setHeader((prev) => ({ ...prev, col2TitleColor: undefined })); setHasChanges(true); }}
+                    className="text-xs text-gray-400 hover:text-red-500 shrink-0"
+                  >
+                    Reset
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Column 3 Title Color */}
+            <div>
+              <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1 block">
+                Column 3 Title Color
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={header.col3TitleColor || "#ffffff"}
+                  onChange={(e) => {
+                    setHeader((prev) => ({ ...prev, col3TitleColor: e.target.value }));
+                    setHasChanges(true);
+                  }}
+                  className="w-9 h-9 rounded-md border border-gray-200 dark:border-gray-700 cursor-pointer p-0.5"
+                />
+                <Input
+                  value={header.col3TitleColor || ""}
+                  onChange={(e) => {
+                    setHeader((prev) => ({ ...prev, col3TitleColor: e.target.value }));
+                    setHasChanges(true);
+                  }}
+                  placeholder="Default (auto)"
+                  className="h-9 flex-1 font-mono text-xs"
+                />
+                {header.col3TitleColor && (
+                  <button
+                    type="button"
+                    onClick={() => { setHeader((prev) => ({ ...prev, col3TitleColor: undefined })); setHasChanges(true); }}
+                    className="text-xs text-gray-400 hover:text-red-500 shrink-0"
+                  >
+                    Reset
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Cell Title Color */}
+            <div>
+              <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1 block">
+                Pillar Cell Title Color
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={header.cellTitleColor || "#ffffff"}
+                  onChange={(e) => {
+                    setHeader((prev) => ({ ...prev, cellTitleColor: e.target.value }));
+                    setHasChanges(true);
+                  }}
+                  className="w-9 h-9 rounded-md border border-gray-200 dark:border-gray-700 cursor-pointer p-0.5"
+                />
+                <Input
+                  value={header.cellTitleColor || ""}
+                  onChange={(e) => {
+                    setHeader((prev) => ({ ...prev, cellTitleColor: e.target.value }));
+                    setHasChanges(true);
+                  }}
+                  placeholder="Default (auto)"
+                  className="h-9 flex-1 font-mono text-xs"
+                />
+                {header.cellTitleColor && (
+                  <button
+                    type="button"
+                    onClick={() => { setHeader((prev) => ({ ...prev, cellTitleColor: undefined })); setHasChanges(true); }}
+                    className="text-xs text-gray-400 hover:text-red-500 shrink-0"
+                  >
+                    Reset
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Card Background Opacity */}
+        <div className="border-t border-gray-100 dark:border-gray-800 pt-3 mt-1">
+          <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Card Background Opacity</h4>
+          <div className="flex items-center gap-3">
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={1}
+              value={header.cardBgOpacity ?? 100}
+              onChange={(e) => {
+                setHeader((prev) => ({ ...prev, cardBgOpacity: Number(e.target.value) }));
+                setHasChanges(true);
+              }}
+              className="flex-1 h-2 accent-brand-blue cursor-pointer"
+            />
+            <span className="text-sm font-mono text-gray-600 dark:text-gray-400 w-12 text-right">{header.cardBgOpacity ?? 100}%</span>
+          </div>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+            Adjusts the background transparency of all pillar cards/cells (does not affect text or icons). The header banner is not affected.
+          </p>
+        </div>
+      </div>
+
+      {/* Collage Background Images */}
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Collage Background</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Upload photos for the Our Standards page background collage. Images are auto-downscaled for fast loading.</p>
+          </div>
+          <label className="cursor-pointer">
+            <input
+              type="file"
+              multiple
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              className="hidden"
+              onChange={async (e) => {
+                const files = e.target.files;
+                if (!files?.length) return;
+                setCollageUploading(true);
+                try {
+                  const form = new FormData();
+                  for (let i = 0; i < files.length; i++) form.append("files", files[i]);
+                  const res = await fetch("/api/collage-bg", { method: "POST", body: form });
+                  if (res.ok) {
+                    const data = await res.json();
+                    setCollageImages((prev) => [...prev, ...(data.images || [])]);
+                    toast.success(`Uploaded ${data.images?.length ?? 0} image(s)`);
+                  } else {
+                    toast.error("Upload failed");
+                  }
+                } catch {
+                  toast.error("Upload failed");
+                } finally {
+                  setCollageUploading(false);
+                  e.target.value = "";
+                }
+              }}
+            />
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-brand-blue text-white hover:bg-brand-blue/90 transition-colors">
+              {collageUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+              Upload Photos
+            </span>
+          </label>
+        </div>
+
+        {/* Overlay Opacity Slider */}
+        <div>
+          <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1 block">
+            Overlay Opacity — {collageOpacity}%
+          </label>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-gray-400 dark:text-gray-500 w-6">0</span>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={1}
+              value={collageOpacity}
+              onChange={(e) => setCollageOpacity(Number(e.target.value))}
+              onMouseUp={() => {
+                fetch("/api/collage-bg", {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ opacity: collageOpacity }),
+                }).catch(() => {});
+              }}
+              onTouchEnd={() => {
+                fetch("/api/collage-bg", {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ opacity: collageOpacity }),
+                }).catch(() => {});
+              }}
+              className="flex-1 h-2 accent-brand-blue cursor-pointer"
+            />
+            <span className="text-xs text-gray-400 dark:text-gray-500 w-8 text-right">100</span>
+          </div>
+          <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">Higher = more opaque overlay, less visible photos. Lower = more visible photos.</p>
+        </div>
+
+        {collageImages.length > 0 ? (
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+            {collageImages.map((img) => (
+              <div key={img.filename} className="relative group aspect-square rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+                <img src={img.url} alt="" className="w-full h-full object-cover" />
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const res = await fetch("/api/collage-bg", {
+                        method: "DELETE",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ filename: img.filename }),
+                      });
+                      if (res.ok) {
+                        setCollageImages((prev) => prev.filter((i) => i.filename !== img.filename));
+                        toast.success("Image removed");
+                      }
+                    } catch {
+                      toast.error("Failed to remove image");
+                    }
+                  }}
+                  className="absolute top-1 right-1 p-1 rounded-md bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-400 dark:text-gray-500">
+            <Upload className="w-8 h-8 mx-auto mb-2 opacity-40" />
+            <p className="text-sm">No collage images yet. Upload photos to create a background.</p>
+          </div>
+        )}
       </div>
 
       {/* Info banner */}
@@ -616,7 +1018,7 @@ export default function AdminPillarsPage() {
               AVAILABLE_ICON_OPTIONS.find((option) => option.id === normalizedIcon) ?? null;
             const selectedLabel = selectedIconOption
               ? selectedIconOption.label
-              : (pillar.icon ? `Legacy: ${pillar.icon}` : "Select an icon");
+              : (pillar.icon?.startsWith("/api/pillar-icons/") ? "Uploaded image" : (pillar.icon ? `Legacy: ${pillar.icon}` : "Select an icon"));
 
             return (
               <Reorder.Item
@@ -808,6 +1210,28 @@ export default function AdminPillarsPage() {
                             </div>
                           )}
                         </div>
+                        {/* Upload PNG icon */}
+                        <label className="mt-1 inline-flex items-center gap-1.5 text-xs text-brand-blue hover:underline cursor-pointer">
+                          <Upload className="w-3.5 h-3.5" />
+                          Upload image
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp,image/svg+xml,image/gif"
+                            className="hidden"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              const fd = new FormData();
+                              fd.append("file", file);
+                              const res = await fetch("/api/pillar-icons", { method: "POST", body: fd });
+                              if (res.ok) {
+                                const { url } = await res.json();
+                                updatePillar(pillar.id, "icon", url);
+                              }
+                              e.target.value = "";
+                            }}
+                          />
+                        </label>
                       </div>
 
                       {/* Title */}
@@ -953,7 +1377,7 @@ export default function AdminPillarsPage() {
               AVAILABLE_ICON_OPTIONS.find((option) => option.id === normalizedIcon) ?? null;
             const selectedLabel = selectedIconOption
               ? selectedIconOption.label
-              : (row.col1Icon ? `Legacy: ${row.col1Icon}` : "Select an icon");
+              : (row.col1Icon?.startsWith("/api/pillar-icons/") ? "Uploaded image" : (row.col1Icon ? `Legacy: ${row.col1Icon}` : "Select an icon"));
 
             return (
               <motion.div
@@ -1143,6 +1567,28 @@ export default function AdminPillarsPage() {
                             </div>
                           )}
                         </div>
+                        {/* Upload PNG icon */}
+                        <label className="mt-1 inline-flex items-center gap-1.5 text-xs text-brand-blue hover:underline cursor-pointer">
+                          <Upload className="w-3.5 h-3.5" />
+                          Upload image
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp,image/svg+xml,image/gif"
+                            className="hidden"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              const fd = new FormData();
+                              fd.append("file", file);
+                              const res = await fetch("/api/pillar-icons", { method: "POST", body: fd });
+                              if (res.ok) {
+                                const { url } = await res.json();
+                                updateV2Row(row.id, "col1Icon", url);
+                              }
+                              e.target.value = "";
+                            }}
+                          />
+                        </label>
                       </div>
 
                       {/* Col 1 Title */}

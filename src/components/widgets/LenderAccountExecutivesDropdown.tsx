@@ -1,72 +1,79 @@
 // ProConnect — LenderAccountExecutivesDropdown Widget
-// Thin lender contacts bar; dropdown overlays content below
+// Button that opens a searchable lightbox of AE contacts
 
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { Building2, ChevronDown, Users } from "lucide-react";
+import { useState } from "react";
+import { Building2, Search, Users, X } from "lucide-react";
 import { LenderAccountExecutivesFeed } from "./LenderAccountExecutivesFeed";
 import { useSounds } from "@/components/shared/SoundProvider";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export function LenderAccountExecutivesDropdown() {
   const { playClick } = useSounds();
   const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [search, setSearch] = useState("");
 
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
-    }
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  function handleToggle() {
+  function handleOpen() {
     playClick();
-    setIsOpen((prev) => !prev);
+    setIsOpen(true);
+    setSearch("");
   }
 
   return (
-    <div ref={containerRef} className="relative">
+    <>
       <button
-        onClick={handleToggle}
-        className={`w-full bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex items-center px-3 py-2 gap-2 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800 ${
-          isOpen ? "ring-2 ring-brand-blue/30" : ""
-        }`}
+        onClick={handleOpen}
+        className="w-full bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex items-center px-3 py-2 gap-2 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800"
       >
         <Building2 className="w-4 h-4 text-brand-grey/60 shrink-0" />
         <span className="text-sm text-gray-700 dark:text-gray-300 font-medium flex-1 text-left">AE Contacts</span>
         <Users className="w-3.5 h-3.5 text-brand-grey/50" />
-
-        <motion.div animate={{ rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
-          <ChevronDown className="w-4 h-4 text-brand-grey/50" />
-        </motion.div>
       </button>
 
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -6, scaleY: 0.95 }}
-            animate={{ opacity: 1, y: 0, scaleY: 1 }}
-            exit={{ opacity: 0, y: -6, scaleY: 0.95 }}
-            transition={{ duration: 0.2 }}
-            style={{ transformOrigin: "top center" }}
-            className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-xl z-50 overflow-hidden"
-          >
-            <div className="px-3.5 py-2.5 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2">
-              <Users className="w-3.5 h-3.5 text-brand-blue" />
-              <span className="text-xs font-bold text-brand-blue uppercase tracking-wider">Account Executive Contacts</span>
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-0 gap-0">
+          <DialogHeader className="px-5 pt-5 pb-3 shrink-0">
+            <DialogTitle className="flex items-center gap-2 text-brand-blue">
+              <Users className="w-5 h-5" />
+              Account Executive Contacts
+            </DialogTitle>
+          </DialogHeader>
+
+          {/* Search bar */}
+          <div className="px-5 pb-3 shrink-0">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by name, lender, email, or phone..."
+                className="w-full pl-9 pr-8 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-blue/30 focus:border-brand-blue/50"
+                autoFocus
+              />
+              {search && (
+                <button
+                  onClick={() => setSearch("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
-            <div className="max-h-[400px] overflow-y-auto p-3 scrollbar-thin">
-              <LenderAccountExecutivesFeed />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+          </div>
+
+          {/* Scrollable feed */}
+          <div className="flex-1 overflow-y-auto px-5 pb-5 scrollbar-thin">
+            <LenderAccountExecutivesFeed search={search} />
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

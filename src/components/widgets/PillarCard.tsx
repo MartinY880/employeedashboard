@@ -16,11 +16,15 @@ interface PillarCardProps {
   index?: number;
   titleSize?: number;
   messageSize?: number;
+  iconSize?: number;
+  titleColor?: string;
+  cardBgOpacity?: number;
 }
 
-export function PillarCard({ iconName, title, message, index = 0, titleSize = 14, messageSize = 11 }: PillarCardProps) {
+export function PillarCard({ iconName, title, message, index = 0, titleSize = 14, messageSize = 11, iconSize, titleColor, cardBgOpacity = 100 }: PillarCardProps) {
   const { playPop } = useSounds();
-  const LegacyIcon = ICON_MAP[iconName as PillarIconName];
+  const isPng = iconName.startsWith("/api/pillar-icons/");
+  const LegacyIcon = !isPng ? ICON_MAP[iconName as PillarIconName] : undefined;
 
   return (
     <motion.div
@@ -37,17 +41,34 @@ export function PillarCard({ iconName, title, message, index = 0, titleSize = 14
         transition: { duration: 0.2 },
       }}
       onHoverStart={playPop}
-      className="relative bg-gradient-to-br from-brand-blue to-[#084f96] text-white px-3 py-5 min-h-[170px] h-full rounded-xl shadow-lg flex flex-col justify-start items-center text-center cursor-default overflow-hidden group"
+      className="relative text-white px-3 py-5 min-h-[170px] h-full rounded-xl shadow-lg flex flex-col justify-start items-center text-center cursor-default overflow-hidden group"
     >
+      {/* Background layer with opacity control */}
+      <div className="absolute inset-0 bg-gradient-to-br from-brand-blue to-[#084f96] rounded-xl" style={{ opacity: cardBgOpacity / 100 }} />
       {/* Decorative circles */}
       <div className="absolute -top-6 -right-6 w-24 h-24 bg-white/[0.06] rounded-full transition-transform duration-500 group-hover:scale-125" />
       <div className="absolute -bottom-4 -left-4 w-16 h-16 bg-white/[0.04] rounded-full" />
 
       {/* Icon */}
-      {LegacyIcon ? (
-        <LegacyIcon className="w-5 h-5 opacity-60 mb-2 relative z-10 shrink-0" />
+      {isPng ? (
+        <img
+          src={iconName}
+          alt=""
+          width={iconSize ?? 20}
+          height={iconSize ?? 20}
+          style={{ width: iconSize ?? 20, height: iconSize ?? 20, objectFit: 'contain' }}
+          className="opacity-60 mb-2 relative z-10 shrink-0"
+        />
+      ) : LegacyIcon ? (
+        <LegacyIcon
+          className={iconSize ? "opacity-60 mb-2 relative z-10 shrink-0" : "w-5 h-5 opacity-60 mb-2 relative z-10 shrink-0"}
+          style={iconSize ? { width: iconSize, height: iconSize } : undefined}
+        />
       ) : (
-        <span className="opacity-60 mb-2 relative z-10 shrink-0">
+        <span
+          className="opacity-60 mb-2 relative z-10 shrink-0"
+          style={iconSize ? { width: iconSize, height: iconSize, display: 'inline-flex' } : undefined}
+        >
           {renderQuickLinkIconPreview(iconName, "w-5 h-5")}
         </span>
       )}
@@ -55,7 +76,7 @@ export function PillarCard({ iconName, title, message, index = 0, titleSize = 14
       {/* Title */}
       <div
         className="font-bold uppercase tracking-[0.10em] relative z-10 leading-tight shrink-0 whitespace-pre-line"
-        style={{ fontSize: `${titleSize}px` }}
+        style={{ fontSize: `${titleSize}px`, color: titleColor || undefined }}
       >
         {title}
       </div>

@@ -53,10 +53,23 @@ export async function ensureDbUser(
     const byEmail = await prisma.user.findUnique({ where: { email } });
     if (byEmail && byEmail.logtoId.startsWith("directory-")) {
       // Upgrade the stub with the real Logto identity
-      return prisma.user.update({
+      const upgraded = await prisma.user.update({
         where: { id: byEmail.id },
         data: { logtoId, displayName, role },
       });
+
+      // Fix any ideas/comments that stored the SSO sub as authorId
+      // (mirrors Props pattern: resolve by email at point of interaction)
+      await prisma.idea.updateMany({
+        where: { authorId: logtoId },
+        data: { authorId: upgraded.id },
+      });
+      await prisma.ideaComment.updateMany({
+        where: { authorId: logtoId },
+        data: { authorId: upgraded.id },
+      });
+
+      return upgraded;
     }
   }
 

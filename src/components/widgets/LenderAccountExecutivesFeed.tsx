@@ -1,5 +1,5 @@
 // ProConnect — LenderAccountExecutivesFeed Widget
-// Read-only grouped list of lender account executives
+// Read-only grouped list of lender account executives with optional search filtering
 
 "use client";
 
@@ -17,7 +17,11 @@ interface LenderAccountExecutive {
   lender: { id: string; name: string; logoUrl: string | null; active: boolean };
 }
 
-export function LenderAccountExecutivesFeed() {
+interface Props {
+  search?: string;
+}
+
+export function LenderAccountExecutivesFeed({ search = "" }: Props) {
   const [records, setRecords] = useState<LenderAccountExecutive[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -43,8 +47,19 @@ export function LenderAccountExecutivesFeed() {
   }, []);
 
   const grouped = useMemo(() => {
+    const q = search.toLowerCase().trim();
+
+    // Filter records by search query
+    const filtered = q
+      ? records.filter((r) =>
+          [r.accountExecutiveName, r.lender?.name, r.email, r.workPhoneNumber, r.mobilePhoneNumber, r.phoneExtension]
+            .filter(Boolean)
+            .some((field) => field!.toLowerCase().includes(q))
+        )
+      : records;
+
     const map = new Map<string, { lenderName: string; logoUrl: string | null; aes: LenderAccountExecutive[] }>();
-    for (const record of records) {
+    for (const record of filtered) {
       const key = record.lenderId;
       const current = map.get(key);
       if (current) {
@@ -59,7 +74,7 @@ export function LenderAccountExecutivesFeed() {
     }
 
     return Array.from(map.values()).sort((a, b) => a.lenderName.localeCompare(b.lenderName));
-  }, [records]);
+  }, [records, search]);
 
   if (isLoading) {
     return (
@@ -75,7 +90,9 @@ export function LenderAccountExecutivesFeed() {
     return (
       <div className="rounded-xl border border-dashed border-gray-200 dark:border-gray-700 px-4 py-8 text-center">
         <Users className="w-8 h-8 mx-auto mb-2 text-brand-blue/30" />
-        <p className="text-sm text-brand-grey">No account executive contacts available yet.</p>
+        <p className="text-sm text-brand-grey">
+          {search.trim() ? "No contacts match your search." : "No account executive contacts available yet."}
+        </p>
       </div>
     );
   }

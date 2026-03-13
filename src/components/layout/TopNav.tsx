@@ -44,6 +44,7 @@ const DEFAULT_NAV_LINKS = [
   { id: "tournament", href: "/tournament", label: "Tournament", active: true, sortOrder: 3, iframeUrl: "", icon: "tournament", logoUrl: "" },
   { id: "resources", href: "/resources", label: "Resources", active: true, sortOrder: 4, iframeUrl: "", icon: "resources", logoUrl: "" },
   { id: "preferred-vendors", href: "/preferred-vendors", label: "Preferred Vendors", active: true, sortOrder: 5, iframeUrl: "", icon: "vendors", logoUrl: "" },
+  { id: "our-standards", href: "/our-standards", label: "Our Standards", active: true, sortOrder: 6, iframeUrl: "", icon: "star", logoUrl: "" },
 ];
 
 const NAV_ICON_MAP: Record<string, LucideIcon> = {

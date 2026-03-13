@@ -13,12 +13,24 @@ interface PillarGridV2Props {
   data: PillarV2Data;
   cardTitleSize?: number;
   cardMessageSize?: number;
+  iconSize?: number;
+  col1TitleColor?: string;
+  col2TitleColor?: string;
+  col3TitleColor?: string;
+  cellTitleColor?: string;
+  cardBgOpacity?: number;
 }
 
-function renderIcon(iconName: string, className = "w-5 h-5") {
+function renderIcon(iconName: string, className = "w-5 h-5", sizePx?: number) {
+  if (iconName.startsWith("/api/pillar-icons/")) {
+    const sz = sizePx ?? 28;
+    return <img src={iconName} alt="" width={sz} height={sz} style={{ width: sz, height: sz, objectFit: 'contain' }} />;
+  }
+  const sizeStyle = sizePx ? { width: sizePx, height: sizePx } : undefined;
+  const cls = sizePx ? undefined : className;
   const LegacyIcon = ICON_MAP[iconName as PillarIconName];
-  if (LegacyIcon) return <LegacyIcon className={className} />;
-  return renderQuickLinkIconPreview(iconName, className);
+  if (LegacyIcon) return <LegacyIcon className={cls} style={sizeStyle} />;
+  return <span style={sizeStyle}>{renderQuickLinkIconPreview(iconName, cls ?? className)}</span>;
 }
 
 /**
@@ -50,7 +62,7 @@ function isLightColor(hex: string | undefined): boolean {
   return (r * 299 + g * 587 + b * 114) / 1000 > 150;
 }
 
-export function PillarGridV2({ data, cardTitleSize = 14, cardMessageSize = 12 }: PillarGridV2Props) {
+export function PillarGridV2({ data, cardTitleSize = 14, cardMessageSize = 12, iconSize, col1TitleColor, col2TitleColor, col3TitleColor, cellTitleColor, cardBgOpacity = 100 }: PillarGridV2Props) {
   const { playPop } = useSounds();
   const [w1, w2, w3] = data.columnWidths ?? [33, 34, 33];
   const gridCols = `${w1}fr ${w2}fr ${w3}fr`;
@@ -69,11 +81,12 @@ export function PillarGridV2({ data, cardTitleSize = 14, cardMessageSize = 12 }:
               initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: colIdx * 0.08 }}
-              className="bg-gradient-to-br from-brand-blue to-[#084f96] text-white rounded-xl px-4 py-2.5 text-center shadow-md"
+              className="text-white rounded-xl px-4 py-2.5 text-center shadow-md relative overflow-hidden"
             >
+              <div className="absolute inset-0 bg-gradient-to-br from-brand-blue to-[#084f96] rounded-xl" style={{ opacity: cardBgOpacity / 100 }} />
               <span
-                className="font-bold uppercase tracking-[0.12em]"
-                style={{ fontSize: `${cardTitleSize}px` }}
+                className="font-bold uppercase tracking-[0.12em] relative z-10"
+                style={{ fontSize: `${cardTitleSize}px`, color: [col1TitleColor, col2TitleColor, col3TitleColor][colIdx] || undefined }}
               >
                 {title}
               </span>
@@ -95,17 +108,21 @@ export function PillarGridV2({ data, cardTitleSize = 14, cardMessageSize = 12 }:
                 transition: { duration: 0.2 },
               }}
               onHoverStart={playPop}
-              className={`relative px-4 py-4 rounded-xl shadow-lg flex flex-col items-center justify-center gap-1.5 cursor-default overflow-hidden group ${!row.col1Color ? "bg-gradient-to-br from-brand-blue to-[#084f96]" : ""}`}
-              style={row.col1Color ? { backgroundColor: row.col1Color } : undefined}
+              className={`relative px-4 py-4 rounded-xl shadow-lg flex flex-col items-center justify-center gap-1.5 cursor-default overflow-hidden group`}
+              style={row.col1Color ? { backgroundColor: 'transparent' } : undefined}
             >
+              <div
+                className={`absolute inset-0 rounded-xl ${!row.col1Color ? "bg-gradient-to-br from-brand-blue to-[#084f96]" : ""}`}
+                style={{ opacity: cardBgOpacity / 100, ...(row.col1Color ? { backgroundColor: row.col1Color } : {}) }}
+              />
               <div className="absolute -top-5 -right-5 w-20 h-20 bg-white/[0.05] rounded-full transition-transform duration-500 group-hover:scale-125" />
               <div className="absolute -bottom-3 -left-3 w-14 h-14 bg-white/[0.03] rounded-full" />
               <span className="relative z-10 shrink-0" style={{ opacity: 0.7, color: row.col1Color && isLightColor(row.col1Color) ? "#333333" : "#ffffff" }}>
-                {renderIcon(row.col1Icon, "w-7 h-7")}
+                {renderIcon(row.col1Icon, "w-7 h-7", iconSize)}
               </span>
               <span
                 className="font-bold uppercase tracking-[0.08em] relative z-10 leading-tight whitespace-pre-line text-center"
-                style={{ fontSize: `${cardTitleSize}px`, color: row.col1Color && isLightColor(row.col1Color) ? "#333333" : "#ffffff" }}
+                style={{ fontSize: `${cardTitleSize}px`, color: cellTitleColor || (row.col1Color && isLightColor(row.col1Color) ? "#333333" : "#ffffff") }}
               >
                 {row.col1Title}
               </span>
@@ -122,11 +139,12 @@ export function PillarGridV2({ data, cardTitleSize = 14, cardMessageSize = 12 }:
                 transition: { duration: 0.2 },
               }}
               onHoverStart={playPop}
-              className={`relative px-4 py-4 rounded-xl shadow-lg flex items-center cursor-default overflow-hidden group ${
-                !row.col2Color ? "bg-white dark:bg-gray-800" : ""
-              }`}
-              style={row.col2Color ? { backgroundColor: row.col2Color } : undefined}
+              className={`relative px-4 py-4 rounded-xl shadow-lg flex items-center cursor-default overflow-hidden group`}
             >
+              <div
+                className={`absolute inset-0 rounded-xl ${!row.col2Color ? "bg-white dark:bg-gray-800" : ""}`}
+                style={{ opacity: cardBgOpacity / 100, ...(row.col2Color ? { backgroundColor: row.col2Color } : {}) }}
+              />
               <div
                 className={`font-medium leading-relaxed relative z-10 pillar-rich-text ${
                   !row.col2Color ? "text-gray-800 dark:text-gray-100" : ""
@@ -154,11 +172,12 @@ export function PillarGridV2({ data, cardTitleSize = 14, cardMessageSize = 12 }:
                 transition: { duration: 0.2 },
               }}
               onHoverStart={playPop}
-              className={`relative px-4 py-4 rounded-xl shadow-lg flex items-center cursor-default overflow-hidden group ${
-                !row.col3Color ? "bg-white dark:bg-gray-800" : ""
-              }`}
-              style={row.col3Color ? { backgroundColor: row.col3Color } : undefined}
+              className={`relative px-4 py-4 rounded-xl shadow-lg flex items-center cursor-default overflow-hidden group`}
             >
+              <div
+                className={`absolute inset-0 rounded-xl ${!row.col3Color ? "bg-white dark:bg-gray-800" : ""}`}
+                style={{ opacity: cardBgOpacity / 100, ...(row.col3Color ? { backgroundColor: row.col3Color } : {}) }}
+              />
               <div
                 className={`font-medium leading-relaxed relative z-10 pillar-rich-text ${
                   !row.col3Color ? "text-gray-800 dark:text-gray-100" : ""
@@ -190,15 +209,18 @@ export function PillarGridV2({ data, cardTitleSize = 14, cardMessageSize = 12 }:
           >
             {/* Card header — icon + title (full width) */}
             <div
-              className={`flex items-center gap-3 px-4 py-3 ${!row.col1Color ? "bg-gradient-to-br from-brand-blue to-[#084f96]" : ""}`}
-              style={row.col1Color ? { backgroundColor: row.col1Color } : undefined}
+              className="relative flex items-center gap-3 px-4 py-3 overflow-hidden"
             >
-              <span className="shrink-0" style={{ opacity: 0.7, color: row.col1Color && isLightColor(row.col1Color) ? "#333333" : "#ffffff" }}>
-                {renderIcon(row.col1Icon, "w-6 h-6")}
+              <div
+                className={`absolute inset-0 ${!row.col1Color ? "bg-gradient-to-br from-brand-blue to-[#084f96]" : ""}`}
+                style={{ opacity: cardBgOpacity / 100, ...(row.col1Color ? { backgroundColor: row.col1Color } : {}) }}
+              />
+              <span className="relative z-10 shrink-0" style={{ opacity: 0.7, color: row.col1Color && isLightColor(row.col1Color) ? "#333333" : "#ffffff" }}>
+                {renderIcon(row.col1Icon, "w-6 h-6", iconSize)}
               </span>
               <span
-                className="font-bold uppercase tracking-[0.08em] leading-tight"
-                style={{ fontSize: `${cardTitleSize}px`, color: row.col1Color && isLightColor(row.col1Color) ? "#333333" : "#ffffff" }}
+                className="relative z-10 font-bold uppercase tracking-[0.08em] leading-tight"
+                style={{ fontSize: `${cardTitleSize}px`, color: cellTitleColor || (row.col1Color && isLightColor(row.col1Color) ? "#333333" : "#ffffff") }}
               >
                 {row.col1Title}
               </span>
@@ -206,21 +228,24 @@ export function PillarGridV2({ data, cardTitleSize = 14, cardMessageSize = 12 }:
 
             {/* Col 2 section */}
             <div
-              className={`px-4 py-3 border-t border-black/5 ${!row.col2Color ? "bg-white dark:bg-gray-800" : ""}`}
-              style={row.col2Color ? { backgroundColor: row.col2Color } : undefined}
+              className="relative px-4 py-3 border-t border-black/5 overflow-hidden"
             >
+              <div
+                className={`absolute inset-0 ${!row.col2Color ? "bg-white dark:bg-gray-800" : ""}`}
+                style={{ opacity: cardBgOpacity / 100, ...(row.col2Color ? { backgroundColor: row.col2Color } : {}) }}
+              />
               <p
-                className="font-semibold uppercase tracking-wider mb-1 opacity-50"
+                className={`relative z-10 font-semibold uppercase tracking-wider mb-1 ${col2TitleColor ? "" : "opacity-50"}`}
                 style={{
                   fontSize: `${colTitleSize}px`,
                   textAlign: titleAlign,
-                  color: row.col2Color ? (isLightColor(row.col2Color) ? "#333333" : "#ffffff") : undefined,
+                  color: col2TitleColor || (row.col2Color ? (isLightColor(row.col2Color) ? "#333333" : "#ffffff") : undefined),
                 }}
               >
                 {data.columnTitles[1]}
               </p>
               <div
-                className={`font-medium leading-relaxed pillar-rich-text ${
+                className={`relative z-10 font-medium leading-relaxed pillar-rich-text ${
                   !row.col2Color ? "text-gray-800 dark:text-gray-100" : ""
                 }`}
                 style={{
@@ -237,21 +262,24 @@ export function PillarGridV2({ data, cardTitleSize = 14, cardMessageSize = 12 }:
 
             {/* Col 3 section */}
             <div
-              className={`px-4 py-3 border-t border-black/5 ${!row.col3Color ? "bg-white dark:bg-gray-800" : ""}`}
-              style={row.col3Color ? { backgroundColor: row.col3Color } : undefined}
+              className="relative px-4 py-3 border-t border-black/5 overflow-hidden"
             >
+              <div
+                className={`absolute inset-0 ${!row.col3Color ? "bg-white dark:bg-gray-800" : ""}`}
+                style={{ opacity: cardBgOpacity / 100, ...(row.col3Color ? { backgroundColor: row.col3Color } : {}) }}
+              />
               <p
-                className="font-semibold uppercase tracking-wider mb-1 opacity-50"
+                className={`relative z-10 font-semibold uppercase tracking-wider mb-1 ${col3TitleColor ? "" : "opacity-50"}`}
                 style={{
                   fontSize: `${colTitleSize}px`,
                   textAlign: titleAlign,
-                  color: row.col3Color ? (isLightColor(row.col3Color) ? "#333333" : "#ffffff") : undefined,
+                  color: col3TitleColor || (row.col3Color ? (isLightColor(row.col3Color) ? "#333333" : "#ffffff") : undefined),
                 }}
               >
                 {data.columnTitles[2]}
               </p>
               <div
-                className={`font-medium leading-relaxed pillar-rich-text ${
+                className={`relative z-10 font-medium leading-relaxed pillar-rich-text ${
                   !row.col3Color ? "text-gray-800 dark:text-gray-100" : ""
                 }`}
                 style={{
