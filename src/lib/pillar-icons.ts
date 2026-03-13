@@ -75,7 +75,15 @@ export interface PillarHeader {
   bannerSubtitleSize?: number; // px — header banner subtitle font size (default 11)
   cardTitleSize?: number;      // px — all pillar card titles font size (default 14)
   cardMessageSize?: number;    // px — all pillar card messages font size (default 11)
+  iconSize?: number;           // px — pillar icon/image size (default 28)
   template?: "v1" | "v2" | "v3";     // layout template — v1 = card grid (default), v2 = 5×3 table grid, v3 = stacked cards
+  col1TitleColor?: string;      // hex — color for column 1 header title
+  col2TitleColor?: string;      // hex — color for column 2 header title
+  col3TitleColor?: string;      // hex — color for column 3 header title
+  cellTitleColor?: string;      // hex — color for pillar card titles (all templates)
+  cardBgOpacity?: number;        // 0–100 — background opacity for pillar cards/cells (default 100)
+  bannerGradientColor?: string;  // hex — center color for reflected banner title gradient
+  subtitleGradientColor?: string; // hex — center color for reflected subtitle gradient
 }
 
 /* ── V2 Grid Template Types ───────────────────────────── */

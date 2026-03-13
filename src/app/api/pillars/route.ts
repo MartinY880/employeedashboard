@@ -140,7 +140,15 @@ export async function PATCH(request: Request) {
       bannerSubtitleSize: body.bannerSubtitleSize ?? 11,
       cardTitleSize: body.cardTitleSize ?? 14,
       cardMessageSize: body.cardMessageSize ?? 11,
+      iconSize: body.iconSize ?? 28,
       template: body.template ?? "v1",
+      col1TitleColor: body.col1TitleColor || undefined,
+      col2TitleColor: body.col2TitleColor || undefined,
+      col3TitleColor: body.col3TitleColor || undefined,
+      cellTitleColor: body.cellTitleColor || undefined,
+      cardBgOpacity: body.cardBgOpacity != null ? Number(body.cardBgOpacity) : undefined,
+      bannerGradientColor: body.bannerGradientColor || undefined,
+      subtitleGradientColor: body.subtitleGradientColor || undefined,
     };
     await saveHeader(header);
 

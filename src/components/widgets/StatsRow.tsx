@@ -13,6 +13,33 @@ import { motion } from "framer-motion";
 import type { PillarData, PillarHeader, PillarV2Data } from "@/lib/pillar-icons";
 import { DEFAULT_PILLAR_V2 } from "@/lib/pillar-icons";
 
+// Google Fonts that may be used in the banner rich text
+const GOOGLE_FONT_MAP: Record<string, string> = {
+  Montserrat: "Montserrat:wght@400;700;900",
+  "Playfair Display": "Playfair+Display:wght@400;700;900",
+  Oswald: "Oswald:wght@400;500;700",
+  Raleway: "Raleway:wght@400;700;900",
+  Poppins: "Poppins:wght@400;600;700;900",
+  Roboto: "Roboto:wght@400;500;700;900",
+  Lato: "Lato:wght@400;700;900",
+  "Open Sans": "Open+Sans:wght@400;600;700",
+  "Bebas Neue": "Bebas+Neue",
+  Anton: "Anton",
+};
+const loadedFonts = new Set<string>();
+function ensureGoogleFonts(html: string) {
+  if (typeof document === "undefined") return;
+  for (const [name, spec] of Object.entries(GOOGLE_FONT_MAP)) {
+    if (html.includes(name) && !loadedFonts.has(spec)) {
+      loadedFonts.add(spec);
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = `https://fonts.googleapis.com/css2?family=${spec}&display=swap`;
+      document.head.appendChild(link);
+    }
+  }
+}
+
 const DEFAULT_PILLARS: PillarData[] = [
   { id: "p1", icon: "Shield", title: "Integrity", message: "We act with honesty and transparency in everything we do." },
   { id: "p2", icon: "Target", title: "Accountability", message: "We own our results and deliver on our commitments." },
@@ -52,6 +79,11 @@ export function StatsRow() {
       .finally(() => setLoading(false));
   }, []);
 
+  // Load any Google Fonts referenced in the rich-text title/subtitle
+  useEffect(() => {
+    ensureGoogleFonts(header.title + header.subtitle);
+  }, [header.title, header.subtitle]);
+
   const template = header.template ?? "v1";
 
   if (loading) {
@@ -87,24 +119,68 @@ export function StatsRow() {
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35 }}
-        className="bg-gradient-to-br from-brand-blue to-[#084f96] text-white rounded-xl px-6 py-3.5 text-center shadow-lg relative overflow-hidden"
+        className="rounded-xl shadow-lg relative overflow-hidden"
       >
+        {/* Banner background — default gradient, overridden when custom color set */}
+        {!header.bannerGradientColor && !header.subtitleGradientColor && (
+          <div className="absolute inset-0 bg-gradient-to-br from-brand-blue to-[#084f96]" />
+        )}
+
         {/* Decorative circles */}
         <div className="absolute -top-8 -left-8 w-28 h-28 bg-white/[0.05] rounded-full" />
         <div className="absolute -bottom-6 -right-6 w-20 h-20 bg-white/[0.04] rounded-full" />
 
-        <h2
-          className="font-bold uppercase tracking-[0.14em] relative z-10"
-          style={{ fontSize: `${header.bannerTitleSize ?? 14}px` }}
-        >
-          {header.title}
-        </h2>
-        <p
-          className="font-medium opacity-70 mt-0.5 relative z-10"
-          style={{ fontSize: `${header.bannerSubtitleSize ?? 11}px` }}
-        >
-          {header.subtitle}
-        </p>
+        {/* Title row */}
+        <div className="relative px-6 pt-3.5 pb-1 text-center">
+          {header.bannerGradientColor && (
+            <div
+              className="absolute inset-0"
+              style={{ background: `linear-gradient(to right, transparent, ${header.bannerGradientColor}, transparent)` }}
+            />
+          )}
+          {!header.bannerGradientColor && header.subtitleGradientColor && (
+            <div className="absolute inset-0 bg-gradient-to-br from-brand-blue to-[#084f96]" />
+          )}
+          {header.title.includes("<") ? (
+            <div
+              className="banner-rich-text relative z-10 text-white"
+              dangerouslySetInnerHTML={{ __html: header.title }}
+            />
+          ) : (
+            <h2
+              className="font-bold uppercase tracking-[0.14em] relative z-10 text-white"
+              style={{ fontSize: `${header.bannerTitleSize ?? 14}px` }}
+            >
+              {header.title}
+            </h2>
+          )}
+        </div>
+
+        {/* Subtitle row */}
+        <div className="relative px-6 py-2.5 text-center flex items-center justify-center">
+          {header.subtitleGradientColor && (
+            <div
+              className="absolute inset-0"
+              style={{ background: `linear-gradient(to right, transparent, ${header.subtitleGradientColor}, transparent)` }}
+            />
+          )}
+          {!header.subtitleGradientColor && header.bannerGradientColor && (
+            <div className="absolute inset-0 bg-gradient-to-br from-brand-blue to-[#084f96]" />
+          )}
+          {header.subtitle.includes("<") ? (
+            <div
+              className="banner-rich-text relative z-10 text-white"
+              dangerouslySetInnerHTML={{ __html: header.subtitle }}
+            />
+          ) : (
+            <p
+              className="font-medium relative z-10 whitespace-pre-line text-white"
+              style={{ fontSize: `${header.bannerSubtitleSize ?? 11}px` }}
+            >
+              {header.subtitle}
+            </p>
+          )}
+        </div>
       </motion.div>
 
       {/* Template switch: v1 = card grid, v2 = 5×3 table grid, v3 = stacked cards */}
@@ -113,12 +189,24 @@ export function StatsRow() {
           data={v2Data}
           cardTitleSize={header.cardTitleSize}
           cardMessageSize={header.cardMessageSize}
+          iconSize={header.iconSize}
+          col1TitleColor={header.col1TitleColor}
+          col2TitleColor={header.col2TitleColor}
+          col3TitleColor={header.col3TitleColor}
+          cellTitleColor={header.cellTitleColor}
+          cardBgOpacity={header.cardBgOpacity}
         />
       ) : template === "v2" ? (
         <PillarGridV2
           data={v2Data}
           cardTitleSize={header.cardTitleSize}
           cardMessageSize={header.cardMessageSize}
+          iconSize={header.iconSize}
+          col1TitleColor={header.col1TitleColor}
+          col2TitleColor={header.col2TitleColor}
+          col3TitleColor={header.col3TitleColor}
+          cellTitleColor={header.cellTitleColor}
+          cardBgOpacity={header.cardBgOpacity}
         />
       ) : (
         <>
@@ -146,6 +234,9 @@ export function StatsRow() {
                     index={i}
                     titleSize={header.cardTitleSize}
                     messageSize={header.cardMessageSize}
+                    iconSize={header.iconSize}
+                    titleColor={header.cellTitleColor}
+                    cardBgOpacity={header.cardBgOpacity}
                   />
                 </div>
               );

@@ -5,7 +5,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { StatsRow } from "@/components/widgets/StatsRow";
 import { QuickLinksBar } from "@/components/widgets/QuickLinksBar";
 import { ImportantDatesWidget } from "@/components/widgets/ImportantDatesWidget";
 import { WeatherForecastWidget } from "@/components/widgets/WeatherForecastWidget";
@@ -24,7 +23,6 @@ import Link from "next/link";
 import { Trophy, ArrowRight } from "lucide-react";
 
 interface DashboardVisibilitySettings {
-  showCompanyPillars: boolean;
   showTournamentBracketLive: boolean;
   showImportantDates: boolean;
   showLenderAccountExecutives: boolean;
@@ -95,15 +93,6 @@ export default function DashboardClient({ visibility, sliderConfig, showVideoSpo
                 }}
               />
             )}
-          </ErrorBoundary>
-        </section>
-      ) : null}
-
-      {/* Stats Row / Company Pillars */}
-      {visibility.showCompanyPillars ? (
-        <section className="mb-6">
-          <ErrorBoundary label="Stats" compact>
-            <StatsRow />
           </ErrorBoundary>
         </section>
       ) : null}

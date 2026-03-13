@@ -24,7 +24,6 @@ interface SliderConfig {
 }
 
 const DEFAULT_VIS = {
-  showCompanyPillars: true,
   showTournamentBracketLive: true,
   showImportantDates: true,
   showLenderAccountExecutives: true,
@@ -56,7 +55,6 @@ export default async function DashboardPage() {
       try {
         const parsed = JSON.parse(visSetting.data) as Record<string, unknown>;
         visibility = {
-          showCompanyPillars: parsed.showCompanyPillars !== false,
           showTournamentBracketLive: parsed.showTournamentBracketLive !== false,
           showImportantDates: parsed.showImportantDates !== false,
           showLenderAccountExecutives: parsed.showLenderAccountExecutives !== false,
