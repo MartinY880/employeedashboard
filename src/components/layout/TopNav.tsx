@@ -6,7 +6,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { LayoutDashboard, Users, CalendarDays, BookOpen, LogOut, Bell, ShieldCheck, Volume2, VolumeX, Trophy, Award, Star, Lightbulb, CheckCheck, Trash2, Link2, PanelTop, Settings, Moon, Sun, Briefcase } from "lucide-react";
+import { LayoutDashboard, Users, CalendarDays, BookOpen, LogOut, Bell, ShieldCheck, Volume2, VolumeX, Trophy, Award, Star, Lightbulb, CheckCheck, Trash2, Link2, PanelTop, Settings, Moon, Sun, Briefcase, Menu, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -28,6 +28,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { AnimatePresence, motion } from "framer-motion";
 import { useSounds } from "@/components/shared/SoundProvider";
 import { useTheme } from "@/components/shared/ThemeProvider";
 import { useBranding } from "@/hooks/useBranding";
@@ -121,6 +122,7 @@ export function TopNav({ user }: TopNavProps) {
   const { branding } = useBranding();
   const { notifications, unreadCount, markAsRead, markAllAsRead, clearAll } = useNotifications();
   const [notifOpen, setNotifOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const shouldUseProxyAvatar = !user.avatar || user.avatar.includes("graph.microsoft.com");
   const avatarSrc = shouldUseProxyAvatar
     ? `/api/directory/photo?userId=${encodeURIComponent(user.sub)}&email=${encodeURIComponent(user.email)}&name=${encodeURIComponent(user.name)}&size=48x48`
@@ -133,11 +135,8 @@ export function TopNav({ user }: TopNavProps) {
     <header
       className="sticky top-0 z-50 flex flex-wrap items-center border-b border-gray-200 dark:border-gray-700 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm px-3 sm:px-6 shadow-sm"
     >
-      {/* Mobile spacer — balances the avatar so the logo stays centred */}
-      <div className="flex-1 md:hidden" />
-
       {/* Logo */}
-      <Link href="/dashboard" className="md:mr-10 flex items-center group shrink-0">
+      <Link href="/dashboard" className="md:mr-10 flex items-center group shrink-0 flex-1 md:flex-none">
         {branding.logoData ? (
           <>
             {/* Light-mode logo (or only logo if no dark variant) */}
@@ -164,8 +163,17 @@ export function TopNav({ user }: TopNavProps) {
         )}
       </Link>
 
-      {/* Nav Links */}
-      <nav className="flex items-center gap-1 order-last w-full justify-center py-1 md:order-none md:w-auto md:justify-start md:flex-grow md:py-0">
+      {/* Mobile hamburger button */}
+      <button
+        onClick={() => setMobileMenuOpen((p) => !p)}
+        className="md:hidden flex h-9 w-9 items-center justify-center rounded-lg text-brand-grey hover:text-brand-blue hover:bg-gray-100 dark:hover:bg-gray-800 transition-all"
+        aria-label="Toggle menu"
+      >
+        {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+      </button>
+
+      {/* Nav Links — desktop only inline */}
+      <nav className="hidden md:flex items-center gap-1 md:flex-grow">
         {navLinks.map(({ id, href, label, iframeUrl, icon, logoUrl }) => {
           const Icon = getNavIcon(href, iframeUrl, icon);
           const isActive = pathname === href || pathname.startsWith(href + "/");
@@ -198,7 +206,7 @@ export function TopNav({ user }: TopNavProps) {
       </nav>
 
       {/* Right Controls */}
-      <div className="flex-1 flex items-center justify-end gap-2 md:flex-none">
+      <div className="flex items-center justify-end gap-2 md:flex-none">
         <Tooltip>
           <TooltipTrigger asChild>
             <button
@@ -286,6 +294,52 @@ export function TopNav({ user }: TopNavProps) {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      {/* Mobile slide-out menu */}
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="md:hidden w-full order-last overflow-hidden border-t border-gray-100 dark:border-gray-700"
+          >
+            <nav className="flex flex-col py-2 gap-0.5 px-2">
+              {navLinks.map(({ id, href, label, iframeUrl, icon, logoUrl }) => {
+                const Icon = getNavIcon(href, iframeUrl, icon);
+                const isActive = pathname === href || pathname.startsWith(href + "/");
+                const logoValue = String(logoUrl || "").trim();
+                const useIconLibraryLogo = logoValue.length > 0 && isQuickLinkIconId(logoValue);
+                return (
+                  <Link
+                    key={id}
+                    href={href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${
+                      isActive
+                        ? "text-brand-blue bg-blue-50 dark:bg-blue-950"
+                        : "text-brand-grey hover:text-brand-blue hover:bg-gray-50 dark:hover:bg-gray-800"
+                    }`}
+                  >
+                    {useIconLibraryLogo ? (
+                      renderQuickLinkIconPreview(logoValue, "w-4 h-4")
+                    ) : logoValue ? (
+                      <img src={logoValue} alt={`${label} logo`} className="w-4 h-4 object-contain" />
+                    ) : (
+                      <Icon className="w-4 h-4" />
+                    )}
+                    <span>{label}</span>
+                    {isActive && (
+                      <div className="ml-auto h-2 w-2 rounded-full bg-brand-blue" />
+                    )}
+                  </Link>
+                );
+              })}
+            </nav>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Notifications Lightbox */}
       <Dialog open={notifOpen} onOpenChange={setNotifOpen}>
