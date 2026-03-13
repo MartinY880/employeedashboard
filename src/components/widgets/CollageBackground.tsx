@@ -58,15 +58,29 @@ export function CollageBackground() {
   // The container clips overflow, so extra images are invisible.
   const repeatedImages = useMemo(() => {
     if (!images.length) return [];
-    // Each column needs enough images to fill viewport height.
-    // Over-estimate: repeat 3× guarantees coverage for any mix of portrait/landscape.
-    const needed = images.length * 3;
+    const needed = Math.max(images.length * 5 * cols, images.length * 15);
     const result: CollageImage[] = [];
     for (let i = 0; i < needed; i++) {
       result.push(images[i % images.length]);
     }
+    // Shuffle so the same image doesn't land at the same position in every column
+    for (let i = result.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [result[i], result[j]] = [result[j], result[i]];
+    }
     return result;
-  }, [images]);
+  }, [images, cols]);
+
+  // How many images to load eagerly (viewport + 1 extra row).
+  // Each column needs roughly (viewportHeight / columnWidth) images to fill,
+  // plus 1 extra per column for the buffer row.
+  const eagerCount = useMemo(() => {
+    const w = typeof window !== "undefined" ? window.innerWidth : 1200;
+    const h = typeof window !== "undefined" ? window.innerHeight : 800;
+    const colWidth = w / cols;
+    const imagesPerCol = Math.ceil(h / colWidth) + 1; // +1 = extra row
+    return cols * imagesPerCol;
+  }, [cols]);
 
   if (!images.length) return null;
 
@@ -89,28 +103,25 @@ export function CollageBackground() {
       `}</style>
 
       <div
-        className="w-full h-full"
+        className="w-full"
         style={{
           columnCount: cols,
           columnGap: 0,
         }}
       >
         {repeatedImages.map((img, i) => (
-          <motion.div
+          <div
             key={`${img.filename}-${i}`}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: Math.min(i * 0.02, 0.5), duration: 0.3 }}
             style={{ breakInside: "avoid" }}
           >
             <img
               src={img.url}
               alt=""
-              loading="lazy"
               decoding="async"
+              loading={i < eagerCount ? "eager" : "lazy"}
               className="w-full block"
             />
-          </motion.div>
+          </div>
         ))}
       </div>
     </div>
