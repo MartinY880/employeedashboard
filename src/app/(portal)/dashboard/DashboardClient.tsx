@@ -19,6 +19,7 @@ import { EmployeeHighlight } from "@/components/widgets/EmployeeHighlight";
 import { VideoSpotlightWidget } from "@/components/widgets/VideoSpotlightWidget";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { DashboardSlider, type DashboardSliderStyle, type DashboardSliderMedia, type DashboardSliderObjectFit } from "@/components/widgets/DashboardSlider";
+import { ClosersTableBanner } from "@/components/widgets/ClosersTableBanner";
 import Link from "next/link";
 import { Trophy, ArrowRight } from "lucide-react";
 
@@ -158,6 +159,11 @@ export default function DashboardClient({ visibility, sliderConfig, showVideoSpo
           <AlertsDropdown />
         </ErrorBoundary>
       </section>
+
+      {/* Closers Table Awards Banner */}
+      <ErrorBoundary label="Closers Table" compact>
+        <ClosersTableBanner />
+      </ErrorBoundary>
 
       {/* 3-Column Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr_380px] gap-5 items-start">
