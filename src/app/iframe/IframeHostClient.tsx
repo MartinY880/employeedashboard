@@ -22,7 +22,11 @@ export function IframeHostClient() {
   })();
 
   const sendTheme = useCallback((win: Window) => {
-    win.postMessage({ type: "dj-app:theme", theme }, djOrigin);
+    try {
+      win.postMessage({ type: "dj-app:theme", theme }, djOrigin);
+    } catch {
+      // iframe navigated away from djOrigin — ignore
+    }
   }, [theme, djOrigin]);
 
   const sendToken = useCallback(async () => {
@@ -34,10 +38,19 @@ export function IframeHostClient() {
       if (!res.ok) return;
       const { token, userId, displayName } = await res.json();
       if (!token) return;
-      win.postMessage(
-        { type: "dj-app:token", token, userId, displayName, theme },
-        djOrigin
-      );
+      try {
+        win.postMessage(
+          { type: "dj-app:token", token, userId, displayName, theme },
+          djOrigin
+        );
+      } catch {
+        // iframe navigated away from djOrigin (e.g. auth loop redirected it to
+        // this portal) — clear the refresh timer so we stop trying.
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+      }
     } catch (err) {
       console.error("Failed to send DJ token:", err);
     }
