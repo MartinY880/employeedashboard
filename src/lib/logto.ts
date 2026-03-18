@@ -112,7 +112,7 @@ export const logtoConfig: LogtoNextConfig = {
   cookieSecret: process.env.LOGTO_COOKIE_SECRET || "dev-cookie-secret-at-least-32-characters-long!!",
   cookieSecure: (process.env.LOGTO_BASE_URL || "").startsWith("https://"),
   baseUrl: process.env.LOGTO_BASE_URL || "http://localhost:3001",
-  scopes: ["openid", "profile", "email", "roles", ...LOGTO_PERMISSION_SCOPES],
+  scopes: ["openid", "profile", "email", "offline_access", "roles", ...LOGTO_PERMISSION_SCOPES],
   // Register API resources so the SDK can request access tokens for them
   resources: [
     ...(LOGTO_API_RESOURCE ? [LOGTO_API_RESOURCE] : []),
@@ -242,11 +242,19 @@ export async function getAuthUser(): Promise<{
   try {
     context = await getLogtoContext(logtoConfig, { fetchUserInfo: true });
   } catch (err) {
-    // Refresh token expired or revoked (oidc.invalid_grant) — treat as signed
-    // out so the portal layout redirects to sign-in cleanly instead of crashing.
+    // Treat any session error as signed-out rather than crashing the server.
+    // Covers: expired/revoked refresh tokens (invalid_grant), cookie decryption
+    // failures (wrong LOGTO_COOKIE_SECRET), and other Logto SDK errors.
     const msg = err instanceof Error ? err.message : String(err);
-    if (msg.includes("invalid_grant") || msg.includes("Grant request is invalid")) {
-      console.warn("[Auth] Refresh token expired — treating session as signed out");
+    const isSessionError =
+      msg.includes("invalid_grant") ||
+      msg.includes("Grant request is invalid") ||
+      msg.includes("decryption") ||
+      msg.includes("decrypt") ||
+      msg.includes("cookie") ||
+      msg.includes("integrity");
+    if (isSessionError) {
+      console.warn("[Auth] Session invalid — treating as signed out:", msg);
       return { isAuthenticated: false, user: null };
     }
     throw err;
