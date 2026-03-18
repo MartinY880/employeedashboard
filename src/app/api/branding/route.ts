@@ -31,6 +31,7 @@ interface DashboardVisibilitySettings {
   showTournamentBracketLive: boolean;
   showImportantDates: boolean;
   showLenderAccountExecutives: boolean;
+  showCelebrations: boolean;
 }
 
 interface WeatherSettings {
@@ -60,6 +61,7 @@ const DEFAULT_DASHBOARD_VISIBILITY: DashboardVisibilitySettings = {
   showTournamentBracketLive: true,
   showImportantDates: true,
   showLenderAccountExecutives: true,
+  showCelebrations: true,
 };
 
 const DEFAULT_WEATHER_SETTINGS: WeatherSettings = {
@@ -131,6 +133,7 @@ export async function GET() {
           showTournamentBracketLive: parsed.showTournamentBracketLive !== false,
           showImportantDates: parsed.showImportantDates !== false,
           showLenderAccountExecutives: parsed.showLenderAccountExecutives !== false,
+          showCelebrations: parsed.showCelebrations !== false,
         };
       } catch {
         dashboardVisibility = DEFAULT_DASHBOARD_VISIBILITY;
@@ -224,6 +227,7 @@ export async function POST(request: Request) {
           showTournamentBracketLive: parsed.showTournamentBracketLive !== false,
           showImportantDates: parsed.showImportantDates !== false,
           showLenderAccountExecutives: parsed.showLenderAccountExecutives !== false,
+          showCelebrations: parsed.showCelebrations !== false,
         };
       } catch {
         dashboardVisibility = DEFAULT_DASHBOARD_VISIBILITY;

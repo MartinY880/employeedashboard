@@ -67,7 +67,8 @@ function daysUntil(dateStr: string): number {
 }
 
 export function CalendarWidget() {
-  const { holidays, isLoading, isEmpty, refetch } = useCalendar(6);
+  const { holidays: allHolidays, isLoading, isEmpty, refetch } = useCalendar(6);
+  const holidays = allHolidays.slice(0, 6);
   const [selectedHoliday, setSelectedHoliday] = useState<CalendarHoliday | null>(null);
   const [categoryColors, setCategoryColors] = useState<Record<string, string>>(DEFAULT_CATEGORY_COLORS);
   const [categoryLabels, setCategoryLabels] = useState<Record<string, string>>(DEFAULT_CATEGORY_LABELS);
@@ -96,16 +97,14 @@ export function CalendarWidget() {
 
   if (isLoading) {
     return (
-      <div className="p-4 space-y-3">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="flex items-center gap-3">
-            <Skeleton className="w-1.5 h-8 rounded-full" />
-            <Skeleton className="w-4 h-4 rounded" />
-            <div className="flex-1 space-y-1.5">
-              <Skeleton className="h-3.5 w-3/4" />
-              <Skeleton className="h-3 w-1/2" />
+      <div className="p-3 grid grid-cols-2 gap-2">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-2 rounded-lg bg-gray-50 dark:bg-gray-800 p-2">
+            <Skeleton className="w-8 h-8 rounded-md shrink-0" />
+            <div className="flex-1 space-y-1">
+              <Skeleton className="h-3 w-3/4" />
+              <Skeleton className="h-2.5 w-1/2" />
             </div>
-            <Skeleton className="h-5 w-14 rounded-full" />
           </div>
         ))}
       </div>
@@ -113,74 +112,53 @@ export function CalendarWidget() {
   }
 
   return (
-    <div className="space-y-1">
-      <AnimatePresence mode="popLayout">
-        {holidays.length === 0 ? (
-          <motion.div
-            key="empty"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="px-4 py-8 text-center"
-          >
-            <Calendar className="w-8 h-8 text-brand-grey/40 mx-auto mb-2" />
-            <p className="text-sm text-brand-grey">No upcoming holidays</p>
-          </motion.div>
-        ) : (
-          holidays.map((holiday, i) => {
+    <div>
+      {holidays.length === 0 ? (
+        <div className="px-4 py-6 text-center">
+          <Calendar className="w-6 h-6 text-brand-grey/40 mx-auto mb-1.5" />
+          <p className="text-xs text-brand-grey">No upcoming holidays</p>
+        </div>
+      ) : (
+        <div className="p-2.5 grid grid-cols-2 gap-2">
+          {holidays.map((holiday, i) => {
             const days = daysUntil(holiday.date);
             const isToday = days === 0;
             const isSoon = days > 0 && days <= 7;
+            const catColor = getCategoryColor(holiday.category);
 
             return (
               <motion.button
                 key={holiday.id}
                 type="button"
                 onClick={() => setSelectedHoliday(holiday)}
-                initial={{ opacity: 0, x: -12 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.3, delay: i * 0.06 }}
-                className={`w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors group ${
-                  isToday ? "bg-brand-blue/5" : ""
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2, delay: i * 0.04 }}
+                className={`text-left flex items-center gap-2 px-2.5 py-2 rounded-lg border border-gray-100 dark:border-gray-700/60 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
+                  isToday ? "bg-brand-blue/5 border-brand-blue/20" : "bg-white dark:bg-gray-900"
                 }`}
               >
                 <div
-                  className="w-1.5 h-8 rounded-full shrink-0"
-                  style={{ backgroundColor: getCategoryColor(holiday.category) }}
+                  className="w-1 h-7 rounded-full shrink-0"
+                  style={{ backgroundColor: catColor }}
                 />
-                <Calendar className="w-4 h-4 text-brand-grey shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
+                  <div className="text-[11px] font-semibold text-gray-800 dark:text-gray-200 truncate leading-tight">
                     {holiday.title}
                   </div>
-                  <div className="text-xs text-brand-grey">
+                  <div className="text-[10px] text-brand-grey leading-tight mt-0.5">
                     {formatDate(holiday.date)}
-                    {isToday && (
-                      <span className="ml-1.5 text-brand-blue font-semibold">
-                        Today!
-                      </span>
-                    )}
-                    {isSoon && !isToday && (
-                      <span className="ml-1.5 text-amber-600 font-medium">
-                        in {days} day{days !== 1 ? "s" : ""}
-                      </span>
-                    )}
+                    {isToday && <span className="ml-1 text-brand-blue font-semibold">Today!</span>}
+                    {isSoon && !isToday && <span className="ml-1 text-amber-600 font-medium">{days}d</span>}
                   </div>
                 </div>
-                <Badge
-                  variant="secondary"
-                  className="text-[10px] px-2 py-0.5 font-medium"
-                  style={getBadgeStyle(getCategoryColor(holiday.category))}
-                >
-                  {getCategoryLabel(holiday.category)}
-                </Badge>
               </motion.button>
             );
-          })
-        )}
-      </AnimatePresence>
+          })}
+        </div>
+      )}
 
-      <div className="px-4 pt-2 pb-3 flex items-center justify-between">
+      <div className="px-2.5 pt-1 pb-2 flex items-center justify-between">
         <Link
           href="/calendar"
           className="inline-flex items-center gap-1.5 text-xs text-brand-blue hover:underline font-medium"

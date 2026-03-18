@@ -18,7 +18,6 @@ model User {
   email       String   @unique
   displayName String
   role        Role     @default(EMPLOYEE)
-  avatarUrl   String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -27,6 +26,11 @@ model User {
   propsReactions PropsReaction[]
   alertsCreated  Alert[]
   notifications  Notification[]
+
+  mySharePosts        MySharePost[]        @relation("MyShareAuthor")
+  myShareLikes        MyShareLike[]         @relation("MyShareLikes")
+  myShareComments     MyShareComment[]      @relation("MyShareCommentAuthor")
+  myShareCommentLikes MyShareCommentLike[]  @relation("MyShareCommentLikes")
 
   @@map("users")
 }
@@ -326,6 +330,8 @@ enum NotificationType {
   IDEA_COMPLETED
   IDEA_COMMENT
   IDEA_REPLY
+  MYSHARE_COMMENT
+  MYSHARE_REPLY
 }
 
 enum PropsReactionType {
@@ -630,4 +636,114 @@ model ClosersTableAward {
 
   @@index([active, sortOrder])
   @@map("closers_table_awards")
+}
+
+// Salesforce Comapny Directory Table 
+model SalesforceDirectory {
+  id                  String    @id
+  email               String    @unique
+  birthday            DateTime? @db.Date
+  employmentStartDate DateTime? @db.Date @map("employment_start_date")
+  syncedAt            DateTime  @default(now()) @map("synced_at")
+  updatedAt           DateTime  @updatedAt
+
+  examPassRecord ExamPassRecord?
+
+  @@index([email])
+  @@index([birthday])
+  @@index([employmentStartDate])
+  @@map("salesforce_directory")
+}
+
+// Salesforce Exam Passed 
+
+model ExamPassRecord {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  employeeName String   @map("employee_name")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  employee     SalesforceDirectory @relation(fields: [email], references: [email])
+
+  @@index([createdAt])
+  @@map("exam_pass_records")
+}
+
+// ─── MyShare Posts (Social Feed) ──────────────────────────
+
+model MySharePost {
+  id        String    @id @default(cuid())
+  authorId  String
+  author    User      @relation("MyShareAuthor", fields: [authorId], references: [id])
+  caption   String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime? @map("deleted_at")
+
+  media     MyShareMedia[]
+  likes     MyShareLike[]
+  comments  MyShareComment[]
+
+  @@index([authorId])
+  @@index([createdAt])
+  @@index([deletedAt])
+  @@map("myshare_posts")
+}
+
+model MyShareMedia {
+  id        String      @id @default(cuid())
+  postId    String
+  post      MySharePost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  fileUrl   String
+  mimeType  String      @default("image/jpeg")
+  fileSize  Int         @default(0)
+  sortOrder Int         @default(0)
+  createdAt DateTime    @default(now())
+
+  @@index([postId, sortOrder])
+  @@map("myshare_media")
+}
+
+model MyShareLike {
+  id        String      @id @default(cuid())
+  postId    String
+  userId    String
+  createdAt DateTime    @default(now())
+  post      MySharePost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User        @relation("MyShareLikes", fields: [userId], references: [id])
+
+  @@unique([postId, userId])
+  @@map("myshare_likes")
+}
+
+model MyShareComment {
+  id        String               @id @default(cuid())
+  postId    String
+  authorId  String
+  content   String
+  parentId  String?
+  createdAt DateTime             @default(now())
+  deletedAt DateTime?            @map("deleted_at")
+  post      MySharePost          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author    User                 @relation("MyShareCommentAuthor", fields: [authorId], references: [id])
+  parent    MyShareComment?      @relation("MyShareCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   MyShareComment[]     @relation("MyShareCommentReplies")
+  likedBy   MyShareCommentLike[]
+
+  @@index([postId, createdAt])
+  @@index([parentId])
+  @@index([deletedAt])
+  @@map("myshare_comments")
+}
+
+model MyShareCommentLike {
+  id        String         @id @default(cuid())
+  commentId String
+  userId    String
+  createdAt DateTime       @default(now())
+  comment   MyShareComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user      User           @relation("MyShareCommentLikes", fields: [userId], references: [id])
+
+  @@unique([commentId, userId])
+  @@map("myshare_comment_likes")
 }

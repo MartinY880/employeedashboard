@@ -4,9 +4,8 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { QuickLinksBar } from "@/components/widgets/QuickLinksBar";
-import { ImportantDatesWidget } from "@/components/widgets/ImportantDatesWidget";
 import { WeatherForecastWidget } from "@/components/widgets/WeatherForecastWidget";
 import { DirectorySearchBar } from "@/components/widgets/DirectorySearchBar";
 import { LenderAccountExecutivesDropdown } from "@/components/widgets/LenderAccountExecutivesDropdown";
@@ -17,16 +16,20 @@ import { OooWidget } from "@/components/widgets/OooWidget";
 import { FeedPanel } from "@/components/widgets/FeedPanel";
 import { EmployeeHighlight } from "@/components/widgets/EmployeeHighlight";
 import { VideoSpotlightWidget } from "@/components/widgets/VideoSpotlightWidget";
+import { MyShareFeedWidget } from "@/components/widgets/MyShareFeedWidget";
+import { ImportantDatesWidget } from "@/components/widgets/ImportantDatesWidget";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { DashboardSlider, type DashboardSliderStyle, type DashboardSliderMedia, type DashboardSliderObjectFit } from "@/components/widgets/DashboardSlider";
 import { ClosersTableBanner } from "@/components/widgets/ClosersTableBanner";
+import { CelebrationsBanner } from "@/components/widgets/CelebrationsBanner";
 import Link from "next/link";
-import { Trophy, ArrowRight } from "lucide-react";
+import { Trophy, ArrowRight, Plane, X } from "lucide-react";
 
 interface DashboardVisibilitySettings {
   showTournamentBracketLive: boolean;
   showImportantDates: boolean;
   showLenderAccountExecutives: boolean;
+  showCelebrations: boolean;
 }
 
 interface SliderConfig {
@@ -47,7 +50,11 @@ interface DashboardClientProps {
 export default function DashboardClient({ visibility, sliderConfig, showVideoSpotlight }: DashboardClientProps) {
   // Only fetch slider media when the server tells us the slider is enabled + has media
   const [sliderMedia, setSliderMedia] = useState<DashboardSliderMedia[] | null>(null);
+  const [showOoo, setShowOoo] = useState(false);
   const sliderActive = sliderConfig.enabled && sliderConfig.hasMedia;
+
+  // Ref for Be Brilliant column
+  const brilliantRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!sliderActive) return;
@@ -98,23 +105,6 @@ export default function DashboardClient({ visibility, sliderConfig, showVideoSpo
         </section>
       ) : null}
 
-      {/* Quick Links + Important Dates + Weather */}
-      <section className="mb-4">
-        <div className={`grid grid-cols-1 gap-4 ${visibility.showImportantDates !== false ? "xl:grid-cols-3" : "xl:grid-cols-2"}`}>
-          <ErrorBoundary label="Quick Links" compact>
-            <QuickLinksBar />
-          </ErrorBoundary>
-          {visibility.showImportantDates !== false && (
-            <ErrorBoundary label="Important Dates" compact>
-              <ImportantDatesWidget />
-            </ErrorBoundary>
-          )}
-          <ErrorBoundary label="Weather Forecast" compact>
-            <WeatherForecastWidget />
-          </ErrorBoundary>
-        </div>
-      </section>
-
       {/* Tournament Banner */}
       {visibility.showTournamentBracketLive ? (
         <section className="mb-5">
@@ -145,29 +135,109 @@ export default function DashboardClient({ visibility, sliderConfig, showVideoSpo
         </section>
       ) : null}
 
+      {/* Important Dates — full-width row */}
+      {visibility.showImportantDates && (
+        <section className="mb-5">
+          <ErrorBoundary label="Important Dates" compact>
+            <ImportantDatesWidget />
+          </ErrorBoundary>
+        </section>
+      )}
+
       {/* Directory Search + Alerts Bar */}
-      <section className={`mb-5 grid grid-cols-1 ${visibility.showLenderAccountExecutives ? "lg:grid-cols-3" : "lg:grid-cols-2"} gap-4`}>
+      <section className={`mb-5 grid grid-cols-1 ${visibility.showLenderAccountExecutives ? "lg:grid-cols-4" : "lg:grid-cols-3"} gap-4`}>
         <ErrorBoundary label="Directory Search" compact>
           <DirectorySearchBar />
         </ErrorBoundary>
         {visibility.showLenderAccountExecutives ? (
           <ErrorBoundary label="Account Executive Contacts" compact>
-            <LenderAccountExecutivesDropdown />
+            <div className="h-full [&>button]:h-full">
+              <LenderAccountExecutivesDropdown />
+            </div>
           </ErrorBoundary>
         ) : null}
         <ErrorBoundary label="Alerts" compact>
           <AlertsDropdown />
         </ErrorBoundary>
+        <ErrorBoundary label="Out of Office" compact>
+          <button
+            type="button"
+            onClick={() => setShowOoo(true)}
+            className="w-full bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex items-center px-3 py-2 gap-2 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800"
+          >
+            <Plane className="w-4 h-4 text-brand-grey/60 shrink-0" />
+            <span className="text-sm text-gray-700 dark:text-gray-300 font-medium flex-1 text-left">Out of Office</span>
+          </button>
+        </ErrorBoundary>
       </section>
+
+      {/* OOO Lightbox */}
+      {showOoo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowOoo(false)}>
+          <div
+            className="relative w-full max-w-lg mx-4 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 py-3 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 border-t-[3px] border-t-brand-blue flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Plane className="h-4 w-4 text-brand-blue" />
+                <h3 className="text-sm font-bold text-brand-blue tracking-wide uppercase">Out of Office</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowOoo(false)}
+                className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="max-h-[70vh] overflow-y-auto">
+              <ErrorBoundary label="Out of Office" compact>
+                <OooWidget />
+              </ErrorBoundary>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Closers Table Awards Banner */}
       <ErrorBoundary label="Closers Table" compact>
         <ClosersTableBanner />
       </ErrorBoundary>
 
+      {/* Celebrations Carousel */}
+      {visibility.showCelebrations !== false && (
+        <ErrorBoundary label="Celebrations" compact>
+          <CelebrationsBanner />
+        </ErrorBoundary>
+      )}
+
+      {/* Quick Links + Weather + Upcoming Important Dates */}
+      <section className="mb-4">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+          <ErrorBoundary label="Quick Links" compact>
+            <QuickLinksBar />
+          </ErrorBoundary>
+          <ErrorBoundary label="Weather Forecast" compact>
+            <WeatherForecastWidget />
+          </ErrorBoundary>
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden h-full">
+            <div className="px-3.5 py-2 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 border-t-[3px] border-t-brand-blue flex items-center justify-between">
+              <h3 className="text-sm font-bold text-brand-blue tracking-wide uppercase">
+                Upcoming Dates
+              </h3>
+              <p className="text-[10px] text-brand-grey">Company calendar</p>
+            </div>
+            <ErrorBoundary label="Calendar" compact>
+              <CalendarWidget />
+            </ErrorBoundary>
+          </div>
+        </div>
+      </section>
+
       {/* 3-Column Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr_380px] gap-5 items-start">
-        {/* Left: ProConnect Message + OOO + Upcoming Holidays */}
+      <div className="grid grid-cols-1 lg:grid-cols-[320px_1.3fr_0.7fr] gap-5 items-start">
+        {/* Left: ProConnect Message + Employee Highlight + Props + Upcoming Dates */}
         <div className="space-y-5">
           {showVideoSpotlight && (
             <ErrorBoundary label="ProConnect Message" compact>
@@ -175,35 +245,17 @@ export default function DashboardClient({ visibility, sliderConfig, showVideoSpo
             </ErrorBoundary>
           )}
 
-          {/* OOO Widget */}
-          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
-            <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 border-t-[3px] border-t-brand-blue">
-              <h3 className="text-sm font-bold text-brand-blue tracking-wide uppercase">
-                Out of Office
-              </h3>
-              <p className="text-[11px] text-brand-grey mt-0.5">Auto-reply & scheduling</p>
-            </div>
-            <ErrorBoundary label="Out of Office" compact>
-              <OooWidget />
-            </ErrorBoundary>
-          </div>
+          <ErrorBoundary label="Employee Highlight" compact>
+            <EmployeeHighlight />
+          </ErrorBoundary>
 
-          {/* Upcoming Important Dates */}
-          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
-            <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 border-t-[3px] border-t-brand-blue">
-              <h3 className="text-sm font-bold text-brand-blue tracking-wide uppercase">
-                Upcoming Important Dates
-              </h3>
-              <p className="text-[11px] text-brand-grey mt-0.5">Company calendar</p>
-            </div>
-            <ErrorBoundary label="Calendar" compact>
-              <CalendarWidget />
-            </ErrorBoundary>
-          </div>
+          <ErrorBoundary label="Feed">
+            <FeedPanel />
+          </ErrorBoundary>
         </div>
 
         {/* Center: Be Brilliant */}
-        <div className="space-y-5">
+        <div ref={brilliantRef} className="space-y-5">
           <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
             <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 border-t-[3px] border-t-brand-blue">
               <h3 className="text-sm font-bold text-brand-blue tracking-wide uppercase flex items-center gap-1.5">
@@ -217,14 +269,22 @@ export default function DashboardClient({ visibility, sliderConfig, showVideoSpo
           </div>
         </div>
 
-        {/* Right: Employee Highlight + Props & Trophies */}
-        <div className="space-y-4">
-          <ErrorBoundary label="Employee Highlight" compact>
-            <EmployeeHighlight />
-          </ErrorBoundary>
-          <ErrorBoundary label="Feed">
-            <FeedPanel />
-          </ErrorBoundary>
+        {/* Right: MyShare Feed */}
+        <div className="space-y-5">
+          <div
+            data-myshare-container
+            className="relative bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden"
+          >
+            <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 border-t-[3px] border-t-brand-blue">
+              <h3 className="text-sm font-bold text-brand-blue tracking-wide uppercase flex items-center gap-1.5">
+                MyShare
+              </h3>
+              <p className="text-[11px] text-brand-grey mt-0.5">Share moments &amp; celebrate wins</p>
+            </div>
+            <ErrorBoundary label="MyShare" compact>
+              <MyShareFeedWidget />
+            </ErrorBoundary>
+          </div>
         </div>
       </div>
     </div>

@@ -101,7 +101,7 @@ const REACTIONS = [
 
 type ReactionKey = (typeof REACTIONS)[number]["key"];
 
-const CHIP_BASE_CLASS = "inline-flex h-8 shrink-0 items-center gap-1 rounded-full border px-2.5 py-0 text-[11px] font-medium shadow-sm transition-all";
+const CHIP_BASE_CLASS = "inline-flex h-7 shrink-0 items-center gap-0.5 rounded-full border px-2 py-0 text-[11px] font-medium shadow-sm transition-all";
 const CHIP_IDLE_CLASS = "border-gray-200/80 dark:border-gray-700/80 bg-white/90 dark:bg-gray-800/90 text-gray-600 dark:text-gray-300 hover:border-brand-blue/30 hover:bg-white dark:hover:bg-gray-800";
 
 function CommentBubble({
@@ -329,9 +329,11 @@ function PropsCommentThread({
       <span className={`tabular-nums text-[10px] font-bold leading-none ${expanded ? "text-brand-blue" : "text-gray-700 dark:text-gray-200"}`}>
         {localCount}
       </span>
-      <span className="whitespace-nowrap leading-none">
-        {localCount === 1 ? "Comment" : "Comments"}
-      </span>
+      {!inline && (
+        <span className="whitespace-nowrap leading-none">
+          {localCount === 1 ? "Comment" : "Comments"}
+        </span>
+      )}
       <ChevronDown className={`w-3 h-3 transition-transform ${expanded ? "rotate-180" : ""}`} />
     </motion.button>
   );
@@ -544,9 +546,9 @@ export function PropsCard({
           &ldquo;{message}&rdquo;
         </p>
 
-        <div className="mt-1 border-t border-white/60 pt-3 pl-8 sm:pl-9 dark:border-gray-700/70">
+        <div className="mt-1 border-t border-white/60 pt-3 dark:border-gray-700/70">
           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-2">
-            <div className="flex min-w-0 items-center gap-1">
+            <div className="flex min-w-0 items-center gap-1 flex-wrap">
             {REACTIONS.map((r) => {
               const isActive = myReactions.has(r.key);
               const count = reactions[r.key];

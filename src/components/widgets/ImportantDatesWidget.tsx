@@ -131,16 +131,16 @@ export function ImportantDatesWidget() {
   if (!loaded) {
     return (
       <div className="h-full flex flex-col bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
-        <div className="px-3.5 py-2 bg-gradient-to-r from-slate-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 border-t-[3px] border-t-brand-blue flex items-center justify-between gap-2">
-          <h3 className="text-sm font-bold text-brand-blue tracking-wide uppercase">Important Dates</h3>
+        <div className="px-3.5 py-2 bg-gradient-to-r from-slate-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 border-t-[3px] border-t-brand-blue flex items-center justify-center gap-2">
           <CalendarClock className="w-4 h-4 text-brand-blue" />
+          <h3 className="text-sm font-bold text-brand-blue tracking-wide uppercase">Important Dates</h3>
         </div>
         <div className="flex-1 p-3.5 animate-pulse">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            <div className="h-[74px] rounded-xl bg-gray-100 dark:bg-gray-800" />
-            <div className="h-[74px] rounded-xl bg-gray-100 dark:bg-gray-800" />
-            <div className="h-[74px] rounded-xl bg-gray-100 dark:bg-gray-800" />
-            <div className="h-[74px] rounded-xl bg-gray-100 dark:bg-gray-800" />
+          <div className="flex flex-wrap justify-center gap-2.5">
+            <div className="h-[74px] w-[280px] rounded-xl bg-gray-100 dark:bg-gray-800" />
+            <div className="h-[74px] w-[280px] rounded-xl bg-gray-100 dark:bg-gray-800" />
+            <div className="h-[74px] w-[280px] rounded-xl bg-gray-100 dark:bg-gray-800" />
+            <div className="h-[74px] w-[280px] rounded-xl bg-gray-100 dark:bg-gray-800" />
           </div>
         </div>
       </div>
@@ -150,9 +150,9 @@ export function ImportantDatesWidget() {
   return (
     <div className="h-full flex flex-col bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
       {/* Card Header */}
-      <div className="px-3.5 py-2 bg-gradient-to-r from-slate-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 border-t-[3px] border-t-brand-blue flex items-center justify-between gap-2">
-        <h3 className="text-sm font-bold text-brand-blue tracking-wide uppercase">Important Dates</h3>
+      <div className="px-3.5 py-2 bg-gradient-to-r from-slate-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 border-t-[3px] border-t-brand-blue flex items-center justify-center gap-2">
         <CalendarClock className="w-4 h-4 text-brand-blue" />
+        <h3 className="text-sm font-bold text-brand-blue tracking-wide uppercase">Important Dates</h3>
       </div>
 
       {/* Body */}
@@ -162,7 +162,7 @@ export function ImportantDatesWidget() {
             No upcoming dates this cycle.
           </div>
         ) : (
-          <div className="h-full grid grid-cols-1 sm:grid-cols-2 gap-2.5 content-center">
+          <div className="h-full flex flex-wrap justify-center gap-2.5 content-center">
             {sorted.map((entry, i) => {
               const resolved = entry.resolved;
               const days = daysUntil(resolved);
@@ -175,7 +175,7 @@ export function ImportantDatesWidget() {
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.04 }}
-                  className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 min-h-[74px] ${color.bg} ${color.border} ${isToday ? "ring-2 ring-brand-blue/30 dark:ring-brand-blue/40" : ""}`}
+                  className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 min-h-[74px] w-[280px] ${color.bg} ${color.border} ${isToday ? "ring-2 ring-brand-blue/30 dark:ring-brand-blue/40" : ""}`}
                 >
                   <div className="flex flex-col items-center justify-center w-10 shrink-0">
                     <span className={`text-[10px] font-bold uppercase tracking-wider leading-none ${color.month}`}>

@@ -319,15 +319,30 @@ export async function getAuthUser(): Promise<{
     permissions = [...ROLE_DEFAULT_PERMISSIONS[role]];
   }
 
-  return {
-    isAuthenticated: true,
-    user: {
-      sub: (info.sub as string) ?? "",
-      name: (info.name as string) ?? (info.username as string) ?? "User",
-      email: (info.email as string) ?? "",
-      avatar: (info.picture as string) ?? undefined,
-      role,
-      permissions,
-    },
+  const resolvedUser: AuthUser = {
+    sub: (info.sub as string) ?? "",
+    name: (info.name as string) ?? (info.username as string) ?? "User",
+    email: (info.email as string) ?? "",
+    avatar: (info.picture as string) ?? undefined,
+    role,
+    permissions,
   };
+
+  // Lightweight profile sync — keep the DB user in sync with Logto
+  if (resolvedUser.sub && resolvedUser.email) {
+    try {
+      const { ensureDbUser } = await import("@/lib/prisma");
+      const dbRole = role === "SUPER_ADMIN" ? "ADMIN" : role;
+      await ensureDbUser(
+        resolvedUser.sub,
+        resolvedUser.email,
+        resolvedUser.name,
+        dbRole,
+      );
+    } catch {
+      // Non-fatal — profile sync failure should not break page loads
+    }
+  }
+
+  return { isAuthenticated: true, user: resolvedUser };
 }

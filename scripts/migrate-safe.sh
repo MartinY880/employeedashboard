@@ -500,15 +500,15 @@ CREATE TABLE IF NOT EXISTS important_dates (
 create_table_if_missing "closers_table_awards" '
 CREATE TABLE IF NOT EXISTS closers_table_awards (
   id              TEXT PRIMARY KEY,
-  "employeeId"    TEXT NOT NULL,
-  "employeeName"  TEXT NOT NULL,
+  employee_id     TEXT,
+  employee_name   TEXT NOT NULL,
   award           TEXT NOT NULL,
   color           TEXT NOT NULL DEFAULT '"'"'#f59e0b'"'"',
   award_font_size INT NOT NULL DEFAULT 10,
-  "sortOrder"     INT NOT NULL DEFAULT 0,
+  sort_order      INT NOT NULL DEFAULT 0,
   active          BOOLEAN NOT NULL DEFAULT true,
-  "createdAt"     TIMESTAMPTZ NOT NULL DEFAULT now(),
-  "updatedAt"     TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at      TIMESTAMP(3) NOT NULL DEFAULT now(),
+  updated_at      TIMESTAMP(3) NOT NULL DEFAULT now()
 );'
 
 # --- props_comments ---
@@ -534,11 +534,104 @@ CREATE TABLE IF NOT EXISTS "props_comment_likes" (
   UNIQUE("commentId", "voterLogtoId")
 );'
 
+# --- salesforce_directory ---
+create_table_if_missing "salesforce_directory" '
+CREATE TABLE IF NOT EXISTS salesforce_directory (
+  id                    TEXT PRIMARY KEY,
+  email                 TEXT NOT NULL UNIQUE,
+  birthday              DATE,
+  employment_start_date DATE,
+  synced_at             TIMESTAMP(3) NOT NULL DEFAULT now(),
+  "updatedAt"           TIMESTAMP(3) NOT NULL DEFAULT now()
+);'
+
+# --- exam_pass_records ---
+create_table_if_missing "exam_pass_records" '
+CREATE TABLE IF NOT EXISTS exam_pass_records (
+  id            TEXT PRIMARY KEY,
+  email         TEXT NOT NULL UNIQUE,
+  employee_name TEXT NOT NULL,
+  created_at    TIMESTAMP(3) NOT NULL DEFAULT now(),
+  CONSTRAINT exam_pass_records_email_fkey FOREIGN KEY (email) REFERENCES salesforce_directory(email) ON DELETE RESTRICT ON UPDATE CASCADE
+);'
+
+# --- myshare_posts ---
+create_table_if_missing "myshare_posts" '
+CREATE TABLE IF NOT EXISTS myshare_posts (
+  id          TEXT PRIMARY KEY,
+  "authorId"  TEXT NOT NULL REFERENCES users(id),
+  caption     TEXT,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT now(),
+  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT now(),
+  deleted_at  TIMESTAMP(3)
+);'
+
+# --- myshare_media ---
+create_table_if_missing "myshare_media" '
+CREATE TABLE IF NOT EXISTS myshare_media (
+  id          TEXT PRIMARY KEY,
+  "postId"    TEXT NOT NULL REFERENCES myshare_posts(id) ON DELETE CASCADE,
+  "fileUrl"   TEXT NOT NULL,
+  "mimeType"  TEXT NOT NULL DEFAULT '"'"'image/jpeg'"'"',
+  "fileSize"  INT NOT NULL DEFAULT 0,
+  "sortOrder" INT NOT NULL DEFAULT 0,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT now()
+);'
+
+# --- myshare_likes ---
+create_table_if_missing "myshare_likes" '
+CREATE TABLE IF NOT EXISTS myshare_likes (
+  id          TEXT PRIMARY KEY,
+  "postId"    TEXT NOT NULL REFERENCES myshare_posts(id) ON DELETE CASCADE,
+  "userId"    TEXT NOT NULL REFERENCES users(id),
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT now(),
+  UNIQUE("postId", "userId")
+);'
+
+# --- myshare_comments ---
+create_table_if_missing "myshare_comments" '
+CREATE TABLE IF NOT EXISTS myshare_comments (
+  id          TEXT PRIMARY KEY,
+  "postId"    TEXT NOT NULL REFERENCES myshare_posts(id) ON DELETE CASCADE,
+  "authorId"  TEXT NOT NULL REFERENCES users(id),
+  content     TEXT NOT NULL,
+  "parentId"  TEXT REFERENCES myshare_comments(id) ON DELETE CASCADE,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT now(),
+  deleted_at  TIMESTAMP(3)
+);'
+
+# --- myshare_comment_likes ---
+create_table_if_missing "myshare_comment_likes" '
+CREATE TABLE IF NOT EXISTS myshare_comment_likes (
+  id          TEXT PRIMARY KEY,
+  "commentId" TEXT NOT NULL REFERENCES myshare_comments(id) ON DELETE CASCADE,
+  "userId"    TEXT NOT NULL REFERENCES users(id),
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT now(),
+  UNIQUE("commentId", "userId")
+);'
+
 # ══════════════════════════════════════════════════════════════
 # 3. COLUMNS — add missing columns to existing tables
 # ══════════════════════════════════════════════════════════════
 echo ""
 echo "── Missing columns ──────────────────────────────────"
+
+rename_column_if_exists() {
+  local tbl="$1" old_col="$2" new_col="$3"
+  local has=$(run_sql "SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = '${tbl}' AND column_name = '${old_col}';")
+  if [ "$has" = "1" ]; then
+    run_sql "ALTER TABLE \"${tbl}\" RENAME COLUMN \"${old_col}\" TO \"${new_col}\";" > /dev/null
+    echo "  ✅ Renamed ${tbl}.${old_col} → ${new_col}"
+    COLS_ADDED=$((COLS_ADDED + 1))
+  fi
+}
+
+# closers_table_awards — fix camelCase columns created by old migrate-safe.sh
+rename_column_if_exists "closers_table_awards" "employeeId"   "employee_id"
+rename_column_if_exists "closers_table_awards" "employeeName" "employee_name"
+rename_column_if_exists "closers_table_awards" "sortOrder"    "sort_order"
+rename_column_if_exists "closers_table_awards" "createdAt"    "created_at"
+rename_column_if_exists "closers_table_awards" "updatedAt"    "updated_at"
 
 add_column_if_missing() {
   local tbl="$1" col="$2" typedef="$3"
@@ -859,10 +952,31 @@ ensure_index "props_comments_propsId_createdAt_idx" "props_comments" '"propsId",
 ensure_index "props_comments_parentId_idx"          "props_comments" '"parentId"'
 
 # closers_table_awards
-ensure_index "closers_table_awards_active_sortOrder_idx" "closers_table_awards" 'active, "sortOrder"'
+ensure_index "closers_table_awards_active_sort_order_idx" "closers_table_awards" 'active, sort_order'
 
 # props_comment_likes
 ensure_index "props_comment_likes_voterLogtoId_idx" "props_comment_likes" '"voterLogtoId"'
+
+# salesforce_directory
+ensure_index "salesforce_directory_email_idx"                 "salesforce_directory" 'email'
+ensure_index "salesforce_directory_birthday_idx"              "salesforce_directory" 'birthday'
+ensure_index "salesforce_directory_employment_start_date_idx" "salesforce_directory" 'employment_start_date'
+
+# exam_pass_records
+ensure_index "exam_pass_records_created_at_idx" "exam_pass_records" 'created_at'
+
+# myshare_posts
+ensure_index "myshare_posts_authorId_idx"   "myshare_posts" '"authorId"'
+ensure_index "myshare_posts_createdAt_idx"  "myshare_posts" '"createdAt"'
+ensure_index "myshare_posts_deleted_at_idx" "myshare_posts" 'deleted_at'
+
+# myshare_media
+ensure_index "myshare_media_postId_sortOrder_idx" "myshare_media" '"postId", "sortOrder"'
+
+# myshare_comments
+ensure_index "myshare_comments_postId_createdAt_idx" "myshare_comments" '"postId", "createdAt"'
+ensure_index "myshare_comments_parentId_idx"          "myshare_comments" '"parentId"'
+ensure_index "myshare_comments_deleted_at_idx"        "myshare_comments" 'deleted_at'
 
 # ══════════════════════════════════════════════════════════════
 # Summary

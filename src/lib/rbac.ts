@@ -14,12 +14,14 @@ export const PERMISSIONS = {
   MANAGE_QUICKLINKS: "manage:quicklinks",
   MANAGE_RESOURCES: "manage:resources",
   MANAGE_HIGHLIGHTS: "manage:highlights",
+  MANAGE_MYSHARE_FEED: "manage:highlight_feed",
   MANAGE_CALENDAR: "manage:calendar",
   MANAGE_VIDEO_SPOTLIGHT: "manage:video_spotlight",
   MANAGE_VENDORS: "manage:vendors",
   MANAGE_IMPORTANT_DATES: "manage:important_dates",
   MANAGE_LENDER_ACCOUNT_EXECUTIVES: "manage:lender_account_executives",
   MANAGE_CLOSERS_TABLE: "manage:closers_table",
+  MANAGE_CELEBRATIONS: "manage:celebrations",
 } as const;
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -39,12 +41,14 @@ export const ROUTE_PERMISSION: Record<string, Permission> = {
   "/admin/quicklinks": PERMISSIONS.MANAGE_QUICKLINKS,
   "/admin/resources": PERMISSIONS.MANAGE_RESOURCES,
   "/admin/highlights": PERMISSIONS.MANAGE_HIGHLIGHTS,
+  "/admin/myshare-feed": PERMISSIONS.MANAGE_MYSHARE_FEED,
   "/admin/calendar": PERMISSIONS.MANAGE_CALENDAR,
   "/admin/video-spotlight": PERMISSIONS.MANAGE_VIDEO_SPOTLIGHT,
   "/admin/preferred-vendors": PERMISSIONS.MANAGE_VENDORS,
   "/admin/important-dates": PERMISSIONS.MANAGE_IMPORTANT_DATES,
   "/admin/lender-account-executives": PERMISSIONS.MANAGE_LENDER_ACCOUNT_EXECUTIVES,
   "/admin/closers-table": PERMISSIONS.MANAGE_CLOSERS_TABLE,
+  "/admin/celebrations": PERMISSIONS.MANAGE_CELEBRATIONS,
 };
 
 // ─── Fallback: derive permissions from role when Logto API Resource isn't configured ───

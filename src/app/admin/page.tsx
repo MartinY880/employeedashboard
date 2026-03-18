@@ -27,6 +27,7 @@ import {
   Briefcase,
   CalendarClock,
   Award,
+  PartyPopper,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PERMISSIONS, ROUTE_PERMISSION } from "@/lib/rbac";
@@ -163,6 +164,16 @@ const adminPages = [
     permission: PERMISSIONS.MANAGE_HIGHLIGHTS,
   },
   {
+    title: "MyShare Feed",
+    description: "Moderate the MyShare social feed — view all posts and comments, delete inappropriate content.",
+    icon: MessageCircle,
+    href: "/admin/myshare-feed",
+    badge: "Moderate",
+    color: "text-pink-500",
+    bgColor: "bg-pink-50",
+    permission: PERMISSIONS.MANAGE_MYSHARE_FEED,
+  },
+  {
     title: "Site Branding",
     description: "Upload a custom logo, favicon, and set the company name displayed across the portal.",
     icon: Paintbrush,
@@ -251,6 +262,16 @@ const adminPages = [
     color: "text-amber-500",
     bgColor: "bg-amber-50",
     permission: PERMISSIONS.MANAGE_CLOSERS_TABLE,
+  },
+  {
+    title: "Celebrations",
+    description: "Manage Salesforce directory entries (birthdays & anniversaries) and exam pass records for the celebrations carousel.",
+    icon: PartyPopper,
+    href: "/admin/celebrations",
+    badge: "CRUD",
+    color: "text-pink-500",
+    bgColor: "bg-pink-50",
+    permission: PERMISSIONS.MANAGE_CELEBRATIONS,
   },
 ];
 

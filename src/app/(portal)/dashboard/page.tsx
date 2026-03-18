@@ -27,6 +27,7 @@ const DEFAULT_VIS = {
   showTournamentBracketLive: true,
   showImportantDates: true,
   showLenderAccountExecutives: true,
+  showCelebrations: true,
 };
 const DEFAULT_SLIDER_CONFIG: SliderConfig = {
   enabled: false,
@@ -58,6 +59,7 @@ export default async function DashboardPage() {
           showTournamentBracketLive: parsed.showTournamentBracketLive !== false,
           showImportantDates: parsed.showImportantDates !== false,
           showLenderAccountExecutives: parsed.showLenderAccountExecutives !== false,
+          showCelebrations: parsed.showCelebrations !== false,
         };
       } catch {
         /* keep defaults */
