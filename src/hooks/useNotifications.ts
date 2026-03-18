@@ -8,7 +8,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 export interface Notification {
   id: string;
   userId: string;
-  type: "PROPS" | "HIGHLIGHT" | "IDEA_SELECTED";
+  type: "PROPS" | "HIGHLIGHT" | "IDEA_SELECTED" | "MYSHARE_COMMENT" | "MYSHARE_REPLY";
   title: string;
   message: string;
   read: boolean;

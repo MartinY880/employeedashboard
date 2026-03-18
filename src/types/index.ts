@@ -181,6 +181,46 @@ export interface ImportantDate {
   updatedAt: string;
 }
 
+// ─── MyShare (Social Feed) ─────────────────────────────
+
+export interface MyShareMedia {
+  id: string;
+  fileUrl: string;
+  mimeType: string;
+  sortOrder: number;
+}
+
+export interface MySharePost {
+  id: string;
+  authorId: string;
+  authorEmail?: string;
+  authorName: string;
+  authorPhotoUrl?: string;
+  caption: string | null;
+  media: MyShareMedia[];
+  likeCount: number;
+  commentCount: number;
+  userLiked: boolean;
+  previewComments?: { id: string; authorName: string; authorEmail?: string; content: string }[];
+  createdAt: string;
+}
+
+export interface MyShareComment {
+  id: string;
+  postId: string;
+  authorId: string;
+  authorEmail?: string;
+  authorName: string;
+  authorPhotoUrl?: string;
+  content: string;
+  parentId: string | null;
+  likes: number;
+  userLiked: boolean;
+  canDelete: boolean;
+  createdAt: string;
+  replies?: MyShareComment[];
+}
+
 // ─── Stats ────────────────────────────────────────────────
 
 export interface DashboardStats {

@@ -42,10 +42,10 @@ export async function GET(request: Request) {
     const props = await prisma.propsMessage.findMany({
       include: {
         author: {
-          select: { id: true, displayName: true, avatarUrl: true },
+          select: { id: true, displayName: true },
         },
         recipient: {
-          select: { id: true, displayName: true, avatarUrl: true },
+          select: { id: true, displayName: true },
         },
       },
       orderBy: { createdAt: "desc" },
@@ -281,10 +281,10 @@ export async function POST(request: Request) {
       },
       include: {
         author: {
-          select: { id: true, displayName: true, avatarUrl: true },
+          select: { id: true, displayName: true },
         },
         recipient: {
-          select: { id: true, displayName: true, avatarUrl: true },
+          select: { id: true, displayName: true },
         },
       },
     });

@@ -142,9 +142,10 @@ function normalizeGraphUser(user: GraphUserWithRawPhones): GraphUser {
 }
 
 /**
- * Fetch all users from Graph (uncached)
+ * Fetch ALL active+licensed users from Graph (uncached, no department filter).
+ * Used by snapshot sync so every licensed user gets stored.
  */
-async function fetchAllUsersFromGraph(): Promise<GraphUser[]> {
+export async function fetchAllUsersFromGraphUnfiltered(): Promise<GraphUser[]> {
   const client = await getGraphClient();
 
   const result = await client
@@ -158,15 +159,26 @@ async function fetchAllUsersFromGraph(): Promise<GraphUser[]> {
     normalizeGraphUser
   );
 
-  // Directory should only include active + licensed employees
+  // Storage: only require active + licensed (no department/employeeType filter)
   return users.filter((user) => {
     const isActive = user.accountEnabled !== false;
     const hasLicense = (user.assignedLicenses?.length ?? 0) > 0;
+    return isActive && hasLicense;
+  });
+}
+
+/**
+ * Fetch users from Graph with display filters (uncached).
+ * Used for directory UI — requires department or employeeType.
+ */
+async function fetchAllUsersFromGraph(): Promise<GraphUser[]> {
+  const all = await fetchAllUsersFromGraphUnfiltered();
+  return all.filter((user) => {
     const hasDepartment =
       typeof user.department === "string" && user.department.trim().length > 0;
     const hasEmployeeType =
       typeof user.employeeType === "string" && user.employeeType.trim().length > 0;
-    return isActive && hasLicense && (hasDepartment || hasEmployeeType);
+    return hasDepartment || hasEmployeeType;
   });
 }
 
@@ -409,6 +421,54 @@ export async function getOrgHierarchy(): Promise<GraphUser[]> {
 
   const hierarchy = await orgHierarchyCache.inFlight;
   return cloneDirectoryData(hierarchy);
+}
+
+/**
+ * Resolve manager IDs for a list of users via Graph batch API.
+ * Returns a Map of userId → managerId (or null).
+ */
+export async function resolveManagerIds(
+  users: GraphUser[],
+): Promise<Map<string, string | null>> {
+  const client = await getGraphClient();
+  const results = new Map<string, string | null>();
+  const batchSize = 20;
+
+  for (let i = 0; i < users.length; i += batchSize) {
+    const chunk = users.slice(i, i + batchSize);
+    const requests = chunk.map((user) => ({
+      id: user.id,
+      method: "GET",
+      url: `/users/${user.id}/manager?$select=id`,
+    }));
+
+    try {
+      const batchResponse = await client.api("/$batch").post({ requests });
+      const responses = (batchResponse?.responses || []) as Array<{
+        id: string;
+        status: number;
+        body?: { id?: string };
+      }>;
+
+      const byId = new Map(responses.map((r) => [r.id, r]));
+
+      for (const user of chunk) {
+        const response = byId.get(user.id);
+        results.set(
+          user.id,
+          response && response.status === 200
+            ? response.body?.id ?? null
+            : null,
+        );
+      }
+    } catch {
+      for (const user of chunk) {
+        results.set(user.id, null);
+      }
+    }
+  }
+
+  return results;
 }
 
 /**

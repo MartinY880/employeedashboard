@@ -57,6 +57,7 @@ interface DashboardVisibilitySettings {
   showTournamentBracketLive: boolean;
   showImportantDates: boolean;
   showLenderAccountExecutives: boolean;
+  showCelebrations: boolean;
 }
 
 interface TopNavMenuItem {
@@ -110,6 +111,7 @@ const DEFAULT_DASHBOARD_VISIBILITY: DashboardVisibilitySettings = {
   showTournamentBracketLive: true,
   showImportantDates: true,
   showLenderAccountExecutives: true,
+  showCelebrations: true,
 };
 
 const DEFAULT_WEATHER_SETTINGS: WeatherSettings = {
@@ -882,6 +884,7 @@ export default function AdminBrandingPage() {
             { key: "showImportantDates" as const, label: "Important Dates", desc: "Horizontal date cards below the slider" },
             { key: "showTournamentBracketLive" as const, label: "Tournament Bracket Banner", desc: "Tournament bracket CTA banner" },
             { key: "showLenderAccountExecutives" as const, label: "Account Executive Contacts", desc: "Dropdown between search and alerts" },
+            { key: "showCelebrations" as const, label: "Celebrations Carousel", desc: "Birthdays, anniversaries, and exam pass carousel" },
           ] as const).map((item) => (
             <label
               key={item.key}

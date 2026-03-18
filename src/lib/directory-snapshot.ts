@@ -1,7 +1,7 @@
 import "server-only";
 
 import { prisma } from "@/lib/prisma";
-import { getOrgHierarchy, type GraphUser } from "@/lib/graph";
+import { fetchAllUsersFromGraphUnfiltered, resolveManagerIds, type GraphUser } from "@/lib/graph";
 
 const SNAPSHOT_SYNC_TTL_MS = Number(process.env.DIRECTORY_SNAPSHOT_SYNC_TTL_MS || 15 * 60 * 1000);
 
@@ -52,6 +52,29 @@ function flattenTreeWithManagers(nodes: GraphUser[], managerId: string | null = 
   }
 
   return flat;
+}
+
+/**
+ * Build a flat list of SnapshotRows with manager IDs resolved via Graph batch API.
+ * Used for the unfiltered storage sync — every active+licensed user gets a row.
+ */
+async function buildFlatWithManagers(users: GraphUser[]): Promise<SnapshotRow[]> {
+  const managerMap = await resolveManagerIds(users);
+
+  return users.map((user) => ({
+    id: user.id,
+    displayName: user.displayName,
+    mail: user.mail,
+    userPrincipalName: user.userPrincipalName,
+    jobTitle: user.jobTitle,
+    employeeType: user.employeeType ?? null,
+    department: user.department,
+    officeLocation: user.officeLocation,
+    businessPhone: user.businessPhone ?? null,
+    mobilePhone: user.mobilePhone ?? null,
+    faxNumber: user.faxNumber ?? null,
+    managerId: managerMap.get(user.id) ?? null,
+  }));
 }
 
 function mapRowsToTree(rows: SnapshotRow[]): GraphUser[] {
@@ -176,8 +199,11 @@ export async function syncDirectorySnapshotFromGraph(): Promise<void> {
 
   if (!syncInFlight) {
     syncInFlight = (async () => {
-      const roots = await getOrgHierarchy();
-      const flat = flattenTreeWithManagers(roots);
+      // Fetch ALL active+licensed users (unfiltered) so every employee
+      // gets a directory_snapshots row for name lookups (celebrations, exams, etc.).
+      // Display filters are applied at query time, not at storage time.
+      const allUsers = await fetchAllUsersFromGraphUnfiltered();
+      const flat = await buildFlatWithManagers(allUsers);
       const ids = flat.map((user) => user.id);
 
       await prisma.$transaction(async (tx) => {
@@ -258,6 +284,8 @@ export async function getSnapshotUserCount(): Promise<number> {
   const rows = await prisma.$queryRaw<Array<{ count: bigint }>>`
     SELECT COUNT(*)::bigint AS count
     FROM directory_snapshots
+    WHERE department IS NOT NULL AND TRIM(department) <> ''
+      AND job_title IS NOT NULL AND TRIM(job_title) <> ''
   `;
   return Number(rows[0]?.count ?? BigInt(0));
 }
@@ -279,6 +307,8 @@ export async function getSnapshotFlatUsers(): Promise<GraphUser[]> {
       fax_number AS "faxNumber",
       manager_id AS "managerId"
     FROM directory_snapshots
+    WHERE department IS NOT NULL AND TRIM(department) <> ''
+      AND job_title IS NOT NULL AND TRIM(job_title) <> ''
     ORDER BY display_name ASC
   `;
 
@@ -316,9 +346,13 @@ export async function searchSnapshotUsers(search: string, limit = 10): Promise<G
       manager_id AS "managerId"
     FROM directory_snapshots
     WHERE
-      display_name ILIKE ${query}
-      OR COALESCE(mail, '') ILIKE ${query}
-      OR user_principal_name ILIKE ${query}
+      (department IS NOT NULL AND TRIM(department) <> '')
+      AND (job_title IS NOT NULL AND TRIM(job_title) <> '')
+      AND (
+        display_name ILIKE ${query}
+        OR COALESCE(mail, '') ILIKE ${query}
+        OR user_principal_name ILIKE ${query}
+      )
     ORDER BY display_name ASC
     LIMIT ${limit}
   `;
@@ -340,6 +374,7 @@ export async function searchSnapshotUsers(search: string, limit = 10): Promise<G
 
 export async function getSnapshotTreeUsers(): Promise<GraphUser[]> {
   await ensureSnapshotTables();
+  // Org chart display: require department + jobTitle + managerId
   const rows = await prisma.$queryRaw<SnapshotRow[]>`
     SELECT
       id,
@@ -355,6 +390,8 @@ export async function getSnapshotTreeUsers(): Promise<GraphUser[]> {
       fax_number AS "faxNumber",
       manager_id AS "managerId"
     FROM directory_snapshots
+    WHERE department IS NOT NULL AND TRIM(department) <> ''
+      AND job_title IS NOT NULL AND TRIM(job_title) <> ''
     ORDER BY display_name ASC
   `;
 

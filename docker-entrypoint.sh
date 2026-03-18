@@ -64,6 +64,17 @@ if [ "$RETRIES" -lt "$MAX_RETRIES" ]; then
   done
   echo "✅ Database init complete."
 
+  # Clean up any failed Prisma migrations so they can be re-attempted
+  echo "🧹 Cleaning up failed migrations..."
+  node -e "
+    const { Client } = require('pg');
+    const c = new Client({ connectionString: '$DATABASE_URL' });
+    c.connect()
+      .then(() => c.query(\"DELETE FROM _prisma_migrations WHERE rolled_back_at IS NOT NULL OR (finished_at IS NULL AND started_at < NOW() - INTERVAL '5 minutes')\"))
+      .then(r => { if (r.rowCount > 0) console.log('  Removed ' + r.rowCount + ' failed migration(s)'); c.end(); })
+      .catch(() => c.end());
+  " 2>/dev/null
+
   # Apply Prisma migrations first, then heal any missing objects with additive SQL.
   echo "🔄 Running Prisma migrations..."
   if prisma migrate deploy --schema=prisma/schema.prisma; then

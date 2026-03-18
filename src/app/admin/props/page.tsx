@@ -41,8 +41,8 @@ interface PropsItem {
   content: string;
   authorId: string;
   recipientId: string;
-  author?: { id: string; displayName: string; avatarUrl?: string | null; photoUrl?: string };
-  recipient?: { id: string; displayName: string; avatarUrl?: string | null; photoUrl?: string };
+  author?: { id: string; displayName: string; photoUrl?: string };
+  recipient?: { id: string; displayName: string; photoUrl?: string };
   likes: number;
   createdAt: string;
 }

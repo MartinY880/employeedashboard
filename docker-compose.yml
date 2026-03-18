@@ -22,7 +22,7 @@ services:
 
   # ─── ProConnect (Next.js Portal) ────────────────────────
   portal:
-    image: crystal02202/proconnect:1.2.1
+    image: crystal02202/proconnect:1.2.15
     container_name: proconnect
     restart: unless-stopped
     labels:
@@ -57,6 +57,7 @@ services:
       SMTP_FROM_NAME: ${SMTP_FROM_NAME}
       OPENWEATHER_API_KEY: ${OPENWEATHER_API_KEY}
       OPENWEATHER_CITY: ${OPENWEATHER_CITY}
+      SALESFORCE_SECRET: ${SALESFORCE_SECRET}
     networks:
       - proconnect
       - traefik

@@ -33,7 +33,7 @@ export async function GET(request: Request) {
       where: activeOnly ? activeWhere : undefined,
       include: {
         author: {
-          select: { id: true, displayName: true, avatarUrl: true },
+          select: { id: true, displayName: true },
         },
       },
       orderBy: [

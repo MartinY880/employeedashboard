@@ -38,11 +38,15 @@ export async function ensureDbUser(
   // 1. Fast path: user already exists by logtoId
   const byLogto = await prisma.user.findUnique({ where: { logtoId } });
   if (byLogto) {
-    // Keep displayName in sync
-    if (byLogto.displayName !== displayName) {
+    // Keep profile fields in sync with Logto
+    const updates: Record<string, string> = {};
+    if (byLogto.displayName !== displayName) updates.displayName = displayName;
+    if (email && byLogto.email !== email) updates.email = email;
+
+    if (Object.keys(updates).length > 0) {
       return prisma.user.update({
         where: { id: byLogto.id },
-        data: { displayName },
+        data: updates,
       });
     }
     return byLogto;

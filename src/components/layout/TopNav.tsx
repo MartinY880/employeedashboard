@@ -6,7 +6,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { LayoutDashboard, Users, CalendarDays, BookOpen, LogOut, Bell, ShieldCheck, Volume2, VolumeX, Trophy, Award, Star, Lightbulb, CheckCheck, Trash2, Link2, PanelTop, Settings, Moon, Sun, Briefcase, Menu, X } from "lucide-react";
+import { LayoutDashboard, Users, CalendarDays, BookOpen, LogOut, Bell, ShieldCheck, Volume2, VolumeX, Trophy, Award, Star, Lightbulb, CheckCheck, Trash2, Link2, PanelTop, Settings, Moon, Sun, Briefcase, Menu, X, MessageCircle } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -99,6 +99,8 @@ function getNotificationIcon(type: string) {
     case "PROPS": return <Award className="w-4 h-4 text-amber-500 shrink-0" />;
     case "HIGHLIGHT": return <Star className="w-4 h-4 text-blue-500 shrink-0" />;
     case "IDEA_SELECTED": return <Lightbulb className="w-4 h-4 text-green-500 shrink-0" />;
+    case "MYSHARE_COMMENT":
+    case "MYSHARE_REPLY": return <MessageCircle className="w-4 h-4 text-indigo-500 shrink-0" />;
     default: return <Bell className="w-4 h-4 text-gray-400 shrink-0" />;
   }
 }
@@ -371,7 +373,7 @@ export function TopNav({ user }: TopNavProps) {
               <div className="flex flex-col items-center justify-center py-16 text-gray-400">
                 <Bell className="w-10 h-10 mb-3 opacity-30" />
                 <p className="text-sm font-medium">No notifications yet</p>
-                <p className="text-xs mt-1">You&apos;ll see updates here when you receive props, highlights, or idea selections.</p>
+                <p className="text-xs mt-1">You&apos;ll see updates here when you receive props, myshare posts, or idea selections.</p>
               </div>
             ) : (
               <>

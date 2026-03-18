@@ -1,6 +1,6 @@
 // ProConnect — Instrumentation Hook
 // Next.js calls this once when the server starts.
-// We use it to start a periodic timer that processes forwarding schedules.
+// We use it to start periodic timers for forwarding schedules and exam cleanup.
 
 export async function register() {
   // Only run on the server (Node.js runtime), not in the Edge runtime
@@ -28,5 +28,42 @@ export async function register() {
         console.error("[Instrumentation] Schedule check failed:", err)
       );
     }, INTERVAL_MS);
+
+    // ── Exam Pass Record Cleanup (daily at midnight EST) ──
+    const { cleanupExpiredExamRecords } = await import(
+      "@/lib/exam-cleanup"
+    );
+
+    function scheduleMidnightEST() {
+      const now = new Date();
+      // Compute next midnight in America/New_York
+      const estNow = new Date(
+        now.toLocaleString("en-US", { timeZone: "America/New_York" })
+      );
+      const nextMidnight = new Date(estNow);
+      nextMidnight.setDate(nextMidnight.getDate() + 1);
+      nextMidnight.setHours(0, 0, 0, 0);
+      // Convert back to UTC offset
+      const msUntilMidnight = nextMidnight.getTime() - estNow.getTime();
+      console.log(
+        `[Instrumentation] Exam cleanup scheduled in ${Math.round(msUntilMidnight / 60_000)} minutes`
+      );
+      setTimeout(() => {
+        cleanupExpiredExamRecords().catch((err) =>
+          console.error("[Instrumentation] Exam cleanup failed:", err)
+        );
+        // Re-schedule for the next day
+        scheduleMidnightEST();
+      }, msUntilMidnight);
+    }
+
+    // Run once on startup (catch up if server was down at midnight)
+    setTimeout(() => {
+      cleanupExpiredExamRecords().catch((err) =>
+        console.error("[Instrumentation] Initial exam cleanup failed:", err)
+      );
+    }, 10_000);
+
+    scheduleMidnightEST();
   }
 }
