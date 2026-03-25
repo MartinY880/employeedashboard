@@ -20,9 +20,16 @@ export interface CelebrationItem {
 
 export async function GET() {
   try {
-    const now = new Date();
-    const todayMonth = now.getMonth() + 1; // 1-based
-    const todayDay = now.getDate();
+    // Use Eastern Time so the date doesn't roll over at 7 PM ET
+    const eastern = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(new Date());
+    const todayMonth = +eastern.find((p) => p.type === "month")!.value;
+    const todayDay = +eastern.find((p) => p.type === "day")!.value;
+    const todayYear = +eastern.find((p) => p.type === "year")!.value;
 
     // ── Birthdays (today only) ─────────────────────────
     const allWithBirthday = await prisma.salesforceDirectory.findMany({
@@ -50,7 +57,7 @@ export async function GET() {
       if (!emp.employmentStartDate) continue;
       const sd = new Date(emp.employmentStartDate);
       if (sd.getUTCMonth() + 1 === todayMonth && sd.getUTCDate() === todayDay) {
-        const years = now.getFullYear() - sd.getUTCFullYear();
+        const years = todayYear - sd.getUTCFullYear();
         if (years > 0) {
           anniversaryEntries.push({ email: emp.email, years });
         }
@@ -58,7 +65,7 @@ export async function GET() {
     }
 
     // ── Exams Passed (last 30 days) ────────────────────
-    const thirtyDaysAgo = new Date(now);
+    const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
     const examRecords = await prisma.examPassRecord.findMany({
@@ -223,23 +230,39 @@ export async function POST(request: Request) {
     }
 
     // ── Bulk CSV import for directory entries ───────────
-    // Expected columns: email, birthday (optional), employmentStartDate (optional)
+    // Expected columns: id (Salesforce ID), email, birthday (optional), employmentStartDate (optional)
     if (action === "importDirectory") {
       const { csvText } = body;
       if (!csvText || typeof csvText !== "string") {
         return NextResponse.json({ error: "csvText is required" }, { status: 400 });
       }
-      const { rows, errors } = parseCsvRows(csvText, ["email"]);
+      const { rows, errors } = parseCsvRows(csvText, ["id"]);
       let imported = 0;
       for (const row of rows) {
-        const email = row.email.toLowerCase().trim();
-        if (!email || !email.includes("@")) continue;
+        const id = (row.id || "").trim();
+        if (!id) continue;
+
+        // Detect swapped email / employee_name columns (Salesforce exports may vary)
+        const col2 = (row.email || "").trim();
+        const col3 = (row.employee_name || "").trim();
+        const email = (col2.includes("@") ? col2 : col3.includes("@") ? col3 : "").toLowerCase();
+        if (!email) continue;
         const birthday = parseDate(row.birthday || row.date_of_birth || row.dob || row.birthdate);
         const startDate = parseDate(row.employmentstartdate || row.employment_start_date || row.start_date || row.hire_date || row.hiredate);
+
+        // If a different record already owns this email, remove it first so the upsert-by-id won't hit a unique constraint
+        const existingByEmail = await prisma.salesforceDirectory.findUnique({ where: { email } });
+        if (existingByEmail && existingByEmail.id !== id) {
+          // Cascade: remove any exam record tied to this email first (FK)
+          await prisma.examPassRecord.deleteMany({ where: { email } });
+          await prisma.salesforceDirectory.delete({ where: { email } });
+        }
+
         await prisma.salesforceDirectory.upsert({
-          where: { email },
-          create: { id: email, email, birthday, employmentStartDate: startDate },
+          where: { id },
+          create: { id, email, birthday, employmentStartDate: startDate },
           update: {
+            email,
             ...(birthday !== undefined ? { birthday } : {}),
             ...(startDate !== undefined ? { employmentStartDate: startDate } : {}),
           },

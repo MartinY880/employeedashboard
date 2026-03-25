@@ -65,5 +65,57 @@ export async function register() {
     }, 10_000);
 
     scheduleMidnightEST();
+
+    // ── Role Reconciliation (every 30 minutes) ──
+    const ROLE_SYNC_INTERVAL_MS = 30 * 60_000; // 30 minutes
+    const { isM2MConfigured, syncUserRole, mapJobTitleToRoleName } =
+      await import("@/lib/logto-management");
+    const { prisma } = await import("@/lib/prisma");
+
+    async function reconcileRoles() {
+      if (!isM2MConfigured) return;
+      try {
+        const snapshots = await prisma.directorySnapshot.findMany({
+          select: { mail: true, jobTitle: true },
+          where: { mail: { not: null } },
+        });
+
+        let synced = 0;
+        for (const snap of snapshots) {
+          if (!snap.mail) continue;
+          const targetRole = await mapJobTitleToRoleName(snap.jobTitle);
+          if (targetRole.toLowerCase() === "employee") continue;
+          const result = await syncUserRole(snap.mail, snap.jobTitle);
+          if (result.status === "updated") synced++;
+          if (result.status === "error") {
+            console.warn(`[Role Reconciliation] ${snap.mail}: ${result.detail}`);
+          }
+        }
+        if (synced > 0) {
+          console.log(`[Role Reconciliation] Updated ${synced} user(s)`);
+        }
+      } catch (err) {
+        console.error("[Role Reconciliation] Failed:", err);
+      }
+    }
+
+    if (isM2MConfigured) {
+      console.log(
+        `[Instrumentation] Starting role reconciliation (every ${ROLE_SYNC_INTERVAL_MS / 60_000} min)`
+      );
+
+      // Initial run after 30s delay
+      setTimeout(() => {
+        reconcileRoles().catch((err) =>
+          console.error("[Instrumentation] Initial role reconciliation failed:", err)
+        );
+      }, 30_000);
+
+      setInterval(() => {
+        reconcileRoles().catch((err) =>
+          console.error("[Instrumentation] Role reconciliation failed:", err)
+        );
+      }, ROLE_SYNC_INTERVAL_MS);
+    }
   }
 }

@@ -610,6 +610,26 @@ CREATE TABLE IF NOT EXISTS myshare_comment_likes (
   UNIQUE("commentId", "userId")
 );'
 
+# --- role_mappings ---
+create_table_if_missing "role_mappings" '
+CREATE TABLE IF NOT EXISTS role_mappings (
+  id              TEXT PRIMARY KEY,
+  job_title       TEXT NOT NULL UNIQUE,
+  logto_role_name TEXT NOT NULL,
+  "createdAt"     TIMESTAMP(3) NOT NULL DEFAULT now(),
+  "updatedAt"     TIMESTAMP(3) NOT NULL DEFAULT now()
+);'
+
+# --- role_mapping_exclusions ---
+create_table_if_missing "role_mapping_exclusions" '
+CREATE TABLE IF NOT EXISTS role_mapping_exclusions (
+  id           TEXT PRIMARY KEY,
+  email        TEXT NOT NULL UNIQUE,
+  display_name TEXT NOT NULL,
+  reason       TEXT,
+  "createdAt"  TIMESTAMP(3) NOT NULL DEFAULT now()
+);'
+
 # ══════════════════════════════════════════════════════════════
 # 3. COLUMNS — add missing columns to existing tables
 # ══════════════════════════════════════════════════════════════

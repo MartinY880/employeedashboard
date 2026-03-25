@@ -5,6 +5,8 @@ import { NextResponse } from "next/server";
 import { prisma, ensureDbUser } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/logto";
 import { createNotification } from "@/lib/notifications";
+// COMMENTED OUT FOR PRODUCTION — @mention feature disabled for now
+// import { extractMentions, mentionDisplayLength, stripMentionMarkup } from "@/lib/mentions";
 
 export async function GET(request: Request) {
   try {
@@ -107,12 +109,18 @@ export async function POST(request: Request) {
 
     // ── Email notifications ──────────────
     const commenterName = user.name || "Someone";
-    const truncatedContent = content.trim().length > 120
-      ? content.trim().slice(0, 120) + "…"
-      : content.trim();
+    const plainContent = content.trim();
+    const truncatedContent = plainContent.length > 120
+      ? plainContent.slice(0, 120) + "…"
+      : plainContent;
 
     const logCtx = { ideaId, commentId: comment.id, parentId: parentId || null, commenter: dbUser.id, commenterName };
     console.log(`[IdeaComments] Starting email notifications`, JSON.stringify(logCtx));
+
+    // Track who actually receives a notification in the comment/reply block
+    // so the @mention block can skip them (no double emails)
+    const alreadyNotified = new Set<string>();
+    alreadyNotified.add(dbUser.id); // never notify self
 
     try {
       // Look up the idea to get authorId (DB User.id) + title
@@ -142,6 +150,7 @@ export async function POST(request: Request) {
               message: `${commenterName} replied to your comment on "${idea.title}": "${truncatedContent}"`,
               metadata: { ideaId, commentId: comment.id },
             });
+            alreadyNotified.add(parentComment.authorId);
           }
 
           // Also notify idea author if different from both commenter and parent author
@@ -160,6 +169,7 @@ export async function POST(request: Request) {
               message: `${commenterName} commented on your idea "${idea.title}": "${truncatedContent}"`,
               metadata: { ideaId, commentId: comment.id },
             });
+            alreadyNotified.add(idea.authorId);
           }
         } else {
           // ── Top-level comment: notify idea author ──
@@ -176,11 +186,57 @@ export async function POST(request: Request) {
               message: `${commenterName} commented on your idea "${idea.title}": "${truncatedContent}"`,
               metadata: { ideaId, commentId: comment.id },
             });
+            alreadyNotified.add(idea.authorId);
           }
         }
     } catch (err) {
       console.error(`[IdeaComments] Notification error for ideaId=${ideaId} commentId=${comment.id}:`, err);
     }
+
+    // ── @Mention notifications — COMMENTED OUT FOR PRODUCTION ──────────────
+    // try {
+    //   const mentions = extractMentions(content.trim());
+    //   if (mentions.length > 0) {
+    //     const mentionDisplay = stripMentionMarkup(content.trim());
+    //     const truncMention = mentionDisplay.length > 120
+    //       ? mentionDisplay.slice(0, 120) + "…"
+    //       : mentionDisplay;
+    //     for (const mention of mentions) {
+    //       const snapshot = await prisma.$queryRaw<{ mail: string | null; user_principal_name: string }[]>`
+    //         SELECT mail, user_principal_name AS "userPrincipalName"
+    //         FROM directory_snapshots WHERE id = ${mention.userId} LIMIT 1
+    //       `;
+    //       if (!snapshot[0]) {
+    //         console.log(`[IdeaComments] Mention: userId=${mention.userId} (${mention.displayName}) not found in directory — skipping`);
+    //         continue;
+    //       }
+    //       const mentionEmail = (snapshot[0].mail || snapshot[0].user_principal_name).toLowerCase();
+    //       const recipientUser = await prisma.user.findFirst({
+    //         where: { email: { equals: mentionEmail, mode: "insensitive" } },
+    //         select: { id: true },
+    //       });
+    //       if (!recipientUser) {
+    //         console.log(`[IdeaComments] Mention: no DB user for email=${mentionEmail} — skipping`);
+    //         continue;
+    //       }
+    //       if (alreadyNotified.has(recipientUser.id)) {
+    //         console.log(`[IdeaComments] Mention: userId=${recipientUser.id} already notified — skipping`);
+    //         continue;
+    //       }
+    //       alreadyNotified.add(recipientUser.id);
+    //       console.log(`[IdeaComments] Sending MENTION notification to userId=${recipientUser.id} (${mention.displayName})`);
+    //       await createNotification({
+    //         recipientUserId: recipientUser.id,
+    //         type: "MENTION",
+    //         title: "You were mentioned in a comment",
+    //         message: `${commenterName} mentioned you in a comment: "${truncMention}"`,
+    //         metadata: { ideaId, commentId: comment.id },
+    //       });
+    //     }
+    //   }
+    // } catch (err) {
+    //   console.error(`[IdeaComments] Mention notification error for commentId=${comment.id}:`, err);
+    // }
 
     return NextResponse.json({ comment: { ...comment, userLiked: false, canDelete: true, replies: [] } }, { status: 201 });
   } catch {

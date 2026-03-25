@@ -7,6 +7,8 @@ import { getAuthUser } from "@/lib/logto";
 import { hasAnyAdminPermission } from "@/lib/rbac";
 import { PortalShell } from "@/components/layout/PortalShell";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const { isAuthenticated, user } = await getAuthUser();
 

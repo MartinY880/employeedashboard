@@ -64,7 +64,8 @@ export function useCalendar(limitOrOpts: number | UseCalendarOptions = 6) {
           }));
       } else {
         // Widget mode: upcoming holidays only, limited
-        const today = new Date().toISOString().split("T")[0];
+        // Use Eastern Time so today doesn't roll over at 7 PM ET
+        const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
         result = data
           .filter((h: CalendarHoliday) => h.date >= today)
           .sort((a: CalendarHoliday, b: CalendarHoliday) => a.date.localeCompare(b.date))

@@ -123,7 +123,7 @@ export default function CalendarPage() {
 
   const getCategoryColor = (category: string) => categoryColors[category] || DEFAULT_CATEGORY_COLORS[category] || "#6b7280";
 
-  const todayStr = today.toISOString().split("T")[0];
+  const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
 
   // Filter holidays by active category
   const filteredHolidays = useMemo(() => {

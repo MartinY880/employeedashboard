@@ -332,6 +332,7 @@ enum NotificationType {
   IDEA_REPLY
   MYSHARE_COMMENT
   MYSHARE_REPLY
+  MENTION
 }
 
 enum PropsReactionType {
@@ -746,4 +747,26 @@ model MyShareCommentLike {
 
   @@unique([commentId, userId])
   @@map("myshare_comment_likes")
+}
+
+// ─── Role Mappings (job title → Logto role) ───────────────
+
+model RoleMapping {
+  id            String   @id @default(cuid())
+  jobTitle      String   @unique @map("job_title")
+  logtoRoleName String   @map("logto_role_name")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("role_mappings")
+}
+
+model RoleMappingExclusion {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  displayName String   @map("display_name")
+  reason      String?
+  createdAt   DateTime @default(now())
+
+  @@map("role_mapping_exclusions")
 }

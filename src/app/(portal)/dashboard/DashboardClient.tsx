@@ -21,6 +21,7 @@ import { ImportantDatesWidget } from "@/components/widgets/ImportantDatesWidget"
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { DashboardSlider, type DashboardSliderStyle, type DashboardSliderMedia, type DashboardSliderObjectFit } from "@/components/widgets/DashboardSlider";
 import { ClosersTableBanner } from "@/components/widgets/ClosersTableBanner";
+import { UnifiedReportsWidget } from "@/components/widgets/UnifiedReportsWidget";
 import { CelebrationsBanner } from "@/components/widgets/CelebrationsBanner";
 import Link from "next/link";
 import { Trophy, ArrowRight, Plane, X } from "lucide-react";
@@ -200,6 +201,13 @@ export default function DashboardClient({ visibility, sliderConfig, showVideoSpo
         </div>
       )}
 
+      {/* Unified Reports Widget (Company + Individual Pipeline) */}
+      <section className="mb-5">
+        <ErrorBoundary label="Reports" compact>
+          <UnifiedReportsWidget />
+        </ErrorBoundary>
+      </section>
+
       {/* Closers Table Awards Banner */}
       <ErrorBoundary label="Closers Table" compact>
         <ClosersTableBanner />
@@ -255,7 +263,7 @@ export default function DashboardClient({ visibility, sliderConfig, showVideoSpo
         </div>
 
         {/* Center: Be Brilliant */}
-        <div ref={brilliantRef} className="space-y-5">
+        <div ref={brilliantRef} className="min-w-0 space-y-5">
           <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
             <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 border-t-[3px] border-t-brand-blue">
               <h3 className="text-sm font-bold text-brand-blue tracking-wide uppercase flex items-center gap-1.5">
@@ -270,7 +278,7 @@ export default function DashboardClient({ visibility, sliderConfig, showVideoSpo
         </div>
 
         {/* Right: MyShare Feed */}
-        <div className="space-y-5">
+        <div className="min-w-0 space-y-5">
           <div
             data-myshare-container
             className="relative bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden"

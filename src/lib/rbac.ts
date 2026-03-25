@@ -22,6 +22,9 @@ export const PERMISSIONS = {
   MANAGE_LENDER_ACCOUNT_EXECUTIVES: "manage:lender_account_executives",
   MANAGE_CLOSERS_TABLE: "manage:closers_table",
   MANAGE_CELEBRATIONS: "manage:celebrations",
+  MANAGE_ROLE_MAPPINGS: "manage:role_mappings",
+  MANAGE_SALESFORCE_REPORT: "manage:salesforce_report",
+  MANAGE_ACTIVE_PIPELINE: "manage:active_pipeline",
 } as const;
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -49,6 +52,9 @@ export const ROUTE_PERMISSION: Record<string, Permission> = {
   "/admin/lender-account-executives": PERMISSIONS.MANAGE_LENDER_ACCOUNT_EXECUTIVES,
   "/admin/closers-table": PERMISSIONS.MANAGE_CLOSERS_TABLE,
   "/admin/celebrations": PERMISSIONS.MANAGE_CELEBRATIONS,
+  "/admin/role-mappings": PERMISSIONS.MANAGE_ROLE_MAPPINGS,
+  "/admin/salesforce-report": PERMISSIONS.MANAGE_SALESFORCE_REPORT,
+  "/admin/active-pipeline": PERMISSIONS.MANAGE_ACTIVE_PIPELINE,
 };
 
 // ─── Fallback: derive permissions from role when Logto API Resource isn't configured ───

@@ -6,6 +6,8 @@ import { redirect } from "next/navigation";
 import { getAuthUser } from "@/lib/logto";
 import { PortalShell } from "@/components/layout/PortalShell";
 
+export const dynamic = "force-dynamic";
+
 export default async function PortalLayout({ children }: { children: ReactNode }) {
   const { isAuthenticated, user } = await getAuthUser();
 
