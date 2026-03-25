@@ -354,10 +354,11 @@ export default function AdminCelebrationsPage() {
               Import from CSV
             </h2>
             <p className="text-xs text-brand-grey mb-4">
-              Upload a CSV exported from Salesforce. Required column: <code className="font-mono bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-[11px]">email</code>. Optional:
+              Upload a CSV exported from Salesforce. Required columns: <code className="font-mono bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-[11px]">id</code> (Salesforce ID),
+              <code className="font-mono bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-[11px] ml-1">email</code>. Optional:
               <code className="font-mono bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-[11px] ml-1">birthday</code>,
               <code className="font-mono bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-[11px] ml-1">employment_start_date</code> (or hire_date).
-              Existing entries with the same email will be updated.
+              Existing entries with the same Salesforce ID will be updated.
             </p>
             <div className="flex items-center gap-3">
               <input
@@ -379,7 +380,7 @@ export default function AdminCelebrationsPage() {
                 variant="outline"
                 className="gap-2"
                 onClick={() => {
-                  const csv = "email,employee_name,birthday,employment_start_date\n";
+                  const csv = "id,employee_name,email,birthday,employment_start_date\n";
                   const blob = new Blob([csv], { type: "text/csv" });
                   const a = document.createElement("a");
                   a.href = URL.createObjectURL(blob);

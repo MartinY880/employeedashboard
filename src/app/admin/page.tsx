@@ -28,6 +28,8 @@ import {
   CalendarClock,
   Award,
   PartyPopper,
+  KeyRound,
+  BarChart3,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PERMISSIONS, ROUTE_PERMISSION } from "@/lib/rbac";
@@ -272,6 +274,36 @@ const adminPages = [
     color: "text-pink-500",
     bgColor: "bg-pink-50",
     permission: PERMISSIONS.MANAGE_CELEBRATIONS,
+  },
+  {
+    title: "Role Mappings",
+    description: "Map directory job titles to Logto roles — control which positions auto-assign roles on login.",
+    icon: KeyRound,
+    href: "/admin/role-mappings",
+    badge: "CRUD",
+    color: "text-violet-500",
+    bgColor: "bg-violet-50",
+    permission: PERMISSIONS.MANAGE_ROLE_MAPPINGS,
+  },
+  {
+    title: "Salesforce Report Widget",
+    description: "Configure a live Salesforce report on the dashboard — pick a report, choose columns, and set how many records to display.",
+    icon: BarChart3,
+    href: "/admin/salesforce-report",
+    badge: "Config",
+    color: "text-blue-500",
+    bgColor: "bg-blue-50",
+    permission: PERMISSIONS.MANAGE_SALESFORCE_REPORT,
+  },
+  {
+    title: "Per User Reports",
+    description: "Configure per-user Salesforce reports so each role sees the right dashboard data.",
+    icon: Activity,
+    href: "/admin/active-pipeline",
+    badge: "Config",
+    color: "text-emerald-600",
+    bgColor: "bg-emerald-50",
+    permission: PERMISSIONS.MANAGE_ACTIVE_PIPELINE,
   },
 ];
 

@@ -165,13 +165,15 @@ function MediaLightbox({
   const item = media[current];
   const isVideo = item.mimeType?.startsWith("video/");
   const authorPhoto = getPhotoUrl(post.authorEmail, post.authorName);
+  const [mobileComments, setMobileComments] = useState(false);
+  const totalCommentCount = comments.reduce((acc, c) => acc + 1 + (c.replies?.length ?? 0), 0);
 
   return createPortal(
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[999] bg-black/90 flex items-center justify-center p-4"
+      className="fixed inset-0 z-[999] bg-black/90 flex items-center justify-center p-0 md:p-4"
       onClick={onClose}
     >
       {/* Close */}
@@ -182,21 +184,177 @@ function MediaLightbox({
         <X className="w-5 h-5" />
       </button>
 
-      {/* Instagram-style container: media left, details right */}
+      {/* ── Mobile Layout ── */}
       <div
         onClick={(e) => e.stopPropagation()}
-        className="flex bg-white dark:bg-gray-900 rounded-xl overflow-hidden shadow-2xl max-w-5xl w-full max-h-[90vh]"
+        className="md:hidden flex flex-col w-full h-full"
+      >
+        {/* Full image area — clicking the black background closes */}
+        <div
+          className="flex-1 flex items-center justify-center bg-black relative"
+          onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+          onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
+          onTouchEnd={(e) => {
+            const diff = touchStartX.current - e.changedTouches[0].clientX;
+            if (Math.abs(diff) > 50) goTo(diff > 0 ? current + 1 : current - 1);
+          }}
+        >
+          {isVideo ? (
+            <video src={item.fileUrl} controls autoPlay playsInline className="max-w-full max-h-full object-contain" />
+          ) : (
+            <motion.img
+              key={item.id}
+              src={item.fileUrl}
+              alt=""
+              className="max-w-full max-h-full object-contain"
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.2 }}
+            />
+          )}
+
+          {/* Prev/Next */}
+          {current > 0 && (
+            <button onClick={() => goTo(current - 1)} className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center text-white">
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+          )}
+          {current < media.length - 1 && (
+            <button onClick={() => goTo(current + 1)} className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center text-white">
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          )}
+
+          {/* Dots */}
+          {media.length > 1 && (
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
+              {media.map((m, i) => (
+                <button key={m.id} onClick={() => goTo(i)} className={`rounded-full transition-all ${i === current ? "w-2.5 h-2.5 bg-white" : "w-2 h-2 bg-white/40"}`} />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Bottom bar: like + comments button */}
+        <div className="shrink-0 bg-black/80 backdrop-blur-sm px-4 py-3 flex items-center gap-4 border-t border-white/10">
+          <button onClick={onLike} className="flex items-center gap-1.5">
+            <Heart className={`w-6 h-6 ${post.userLiked ? "fill-rose-500 text-rose-500" : "text-white"}`} />
+            {post.likeCount > 0 && (
+              <span className={`text-[13px] font-semibold tabular-nums ${post.userLiked ? "text-rose-500" : "text-white/70"}`}>
+                {post.likeCount}
+              </span>
+            )}
+          </button>
+          <button onClick={() => setMobileComments(true)} className="flex items-center gap-1.5">
+            <MessageCircle className="w-6 h-6 text-white" />
+            {totalCommentCount > 0 && (
+              <span className="text-[13px] font-semibold text-white/70 tabular-nums">{totalCommentCount}</span>
+            )}
+          </button>
+          <span className="ml-auto text-[11px] text-white/50">{post.authorName} · {getRelativeTime(post.createdAt)}</span>
+        </div>
+
+        {/* Mobile comments bottom sheet (75% screen) */}
+        <AnimatePresence>
+          {mobileComments && (
+            <motion.div
+              key="mobile-comments-overlay"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-50 flex flex-col justify-end"
+            >
+              <div className="absolute inset-0 bg-black/40" onClick={() => { setMobileComments(false); onClose(); }} />
+              <motion.div
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 30, stiffness: 300 }}
+                className="relative h-[75%] bg-white dark:bg-gray-900 rounded-t-2xl shadow-2xl flex flex-col overflow-hidden"
+              >
+                {/* Drag handle */}
+                <div className="flex justify-center pt-2.5 pb-1 shrink-0">
+                  <div className="w-10 h-1 rounded-full bg-gray-300 dark:bg-gray-600" />
+                </div>
+                {/* Header */}
+                <div className="flex items-center justify-center px-5 py-2 border-b border-gray-100 dark:border-gray-800 shrink-0">
+                  <h3 className="text-[15px] font-bold text-gray-900 dark:text-gray-100">
+                    Comments{totalCommentCount > 0 && <span className="ml-1.5 text-gray-400 font-normal text-[13px]">({totalCommentCount})</span>}
+                  </h3>
+                </div>
+                {/* Caption */}
+                {post.caption && (
+                  <div className="px-5 py-2.5 border-b border-gray-50 dark:border-gray-800/50 shrink-0">
+                    <p className="text-[13px] text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap break-words">
+                      <span className="font-bold text-gray-900 dark:text-gray-100 mr-1.5">{post.authorName}</span>
+                      {post.caption}
+                    </p>
+                  </div>
+                )}
+                {/* Comments list */}
+                <div className="flex-1 overflow-y-auto min-h-0 px-5 py-3 space-y-4">
+                  {loading ? (
+                    <div className="flex items-center justify-center gap-2 py-8 text-[13px] text-gray-400">
+                      <Loader2 className="w-4 h-4 animate-spin" /> Loading…
+                    </div>
+                  ) : comments.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-8 text-center">
+                      <MessageCircle className="w-8 h-8 text-gray-200 dark:text-gray-700 mb-2" />
+                      <p className="text-[12px] text-gray-400">No comments yet</p>
+                    </div>
+                  ) : (
+                    comments.map((c) => (
+                      <CommentWithReplies
+                        key={c.id}
+                        comment={c}
+                        onDelete={handleDeleteComment}
+                        onLike={handleLikeComment}
+                        onReplyClick={(id, name) => {
+                          setReplyTo({ id, name });
+                          inputRef.current?.focus();
+                        }}
+                      />
+                    ))
+                  )}
+                </div>
+                {/* Comment input */}
+                <div className="shrink-0 border-t border-gray-100 dark:border-gray-800 px-4 py-3 bg-white dark:bg-gray-900">
+                  {replyTo && (
+                    <div className="flex items-center gap-1.5 text-[10px] text-brand-blue mb-2">
+                      <Reply className="w-3 h-3" />
+                      <span>Replying to <strong>{replyTo.name}</strong></span>
+                      <button type="button" onClick={() => setReplyTo(null)} className="text-gray-400 hover:text-red-400"><X className="w-3 h-3" /></button>
+                    </div>
+                  )}
+                  <form onSubmit={handleSubmit} className="flex gap-2 items-center">
+                    <Input
+                      ref={inputRef}
+                      placeholder={replyTo ? `Reply to ${replyTo.name}…` : "Add a comment…"}
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      className="h-9 text-[13px] bg-gray-50 dark:bg-gray-800 dark:border-gray-700 border-gray-200 rounded-full flex-1 px-4"
+                      maxLength={1000}
+                    />
+                    <Button type="submit" size="sm" disabled={!newComment.trim() || sending} className="h-9 w-9 p-0 rounded-full bg-brand-blue hover:bg-brand-blue/90 text-white shrink-0">
+                      {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                    </Button>
+                  </form>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* ── Desktop Layout ── */}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="hidden md:flex bg-white dark:bg-gray-900 rounded-xl overflow-hidden shadow-2xl max-w-5xl w-full max-h-[90vh]"
       >
         {/* Left: Media */}
         <div className="relative flex-1 bg-black flex items-center justify-center min-h-[400px] max-h-[90vh]">
           {isVideo ? (
-            <video
-              src={item.fileUrl}
-              controls
-              autoPlay
-              playsInline
-              className="max-w-full max-h-[90vh] object-contain"
-            />
+            <video src={item.fileUrl} controls autoPlay playsInline className="max-w-full max-h-[90vh] object-contain" />
           ) : (
             <motion.img
               key={item.id}
@@ -209,35 +367,21 @@ function MediaLightbox({
             />
           )}
 
-          {/* Prev/Next */}
           {current > 0 && (
-            <button
-              onClick={() => goTo(current - 1)}
-              className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/70 transition-colors"
-            >
+            <button onClick={() => goTo(current - 1)} className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/70 transition-colors">
               <ChevronLeft className="w-4 h-4" />
             </button>
           )}
           {current < media.length - 1 && (
-            <button
-              onClick={() => goTo(current + 1)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/70 transition-colors"
-            >
+            <button onClick={() => goTo(current + 1)} className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/70 transition-colors">
               <ChevronRight className="w-4 h-4" />
             </button>
           )}
 
-          {/* Dots */}
           {media.length > 1 && (
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
               {media.map((m, i) => (
-                <button
-                  key={m.id}
-                  onClick={() => goTo(i)}
-                  className={`rounded-full transition-all ${
-                    i === current ? "w-2.5 h-2.5 bg-white" : "w-2 h-2 bg-white/40 hover:bg-white/70"
-                  }`}
-                />
+                <button key={m.id} onClick={() => goTo(i)} className={`rounded-full transition-all ${i === current ? "w-2.5 h-2.5 bg-white" : "w-2 h-2 bg-white/40 hover:bg-white/70"}`} />
               ))}
             </div>
           )}
@@ -265,7 +409,6 @@ function MediaLightbox({
 
           {/* Scrollable: caption + comments */}
           <div className="flex-1 overflow-y-auto min-h-0">
-            {/* Caption */}
             {post.caption && (
               <div className="px-4 py-3 border-b border-gray-50 dark:border-gray-800/50">
                 <p className="text-[13px] text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap break-words">
@@ -275,7 +418,6 @@ function MediaLightbox({
               </div>
             )}
 
-            {/* Comments */}
             <div className="px-4 py-3 space-y-4">
               {loading ? (
                 <div className="flex items-center justify-center gap-2 py-8 text-[13px] text-gray-400">

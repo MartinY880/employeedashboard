@@ -58,6 +58,9 @@ services:
       OPENWEATHER_API_KEY: ${OPENWEATHER_API_KEY}
       OPENWEATHER_CITY: ${OPENWEATHER_CITY}
       SALESFORCE_SECRET: ${SALESFORCE_SECRET}
+      SF_CLIENT_ID: ${SF_CLIENT_ID}
+      SF_CLIENT_SECRET: ${SF_CLIENT_SECRET}
+      SF_LOGIN_URL: ${SF_LOGIN_URL}
     networks:
       - proconnect
       - traefik

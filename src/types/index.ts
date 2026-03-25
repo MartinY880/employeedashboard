@@ -9,6 +9,7 @@ export interface AuthUser {
   avatar?: string;
   role: "SUPER_ADMIN" | "ADMIN" | "EMPLOYEE";
   permissions: string[];
+  logtoRoles: string[]; // raw Logto role names (e.g. "loan_officer", "director", "avp")
 }
 
 // ─── User ─────────────────────────────────────────────────

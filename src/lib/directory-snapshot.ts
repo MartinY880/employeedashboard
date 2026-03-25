@@ -2,6 +2,11 @@ import "server-only";
 
 import { prisma } from "@/lib/prisma";
 import { fetchAllUsersFromGraphUnfiltered, resolveManagerIds, type GraphUser } from "@/lib/graph";
+import {
+  isM2MConfigured,
+  syncUserRole,
+  mapJobTitleToRoleName,
+} from "@/lib/logto-management";
 
 const SNAPSHOT_SYNC_TTL_MS = Number(process.env.DIRECTORY_SNAPSHOT_SYNC_TTL_MS || 15 * 60 * 1000);
 
@@ -107,8 +112,37 @@ function mapRowsToTree(rows: SnapshotRow[]): GraphUser[] {
     }
   }
 
-  const sortTree = (nodes: GraphUser[]) => {
-    nodes.sort((a, b) => a.displayName.localeCompare(b.displayName));
+  const MANAGING_PARTNER_NAMES = new Set([
+    "george abro",
+    "nathan shamo",
+    "andrew shamo",
+    "anthony karana",
+    "kevin kajy",
+    "donovan shaow",
+  ]);
+
+  const sortTree = (nodes: GraphUser[], isRoot = false) => {
+    if (isRoot) {
+      // At root level: Managing Partners first, then alphabetical within groups
+      const partners: GraphUser[] = [];
+      const others: GraphUser[] = [];
+      for (const node of nodes) {
+        if (
+          node.jobTitle?.toLowerCase().includes("managing partner") ||
+          MANAGING_PARTNER_NAMES.has(node.displayName.toLowerCase())
+        ) {
+          partners.push(node);
+        } else {
+          others.push(node);
+        }
+      }
+      partners.sort((a, b) => a.displayName.localeCompare(b.displayName));
+      others.sort((a, b) => a.displayName.localeCompare(b.displayName));
+      nodes.length = 0;
+      nodes.push(...partners, ...others);
+    } else {
+      nodes.sort((a, b) => a.displayName.localeCompare(b.displayName));
+    }
     for (const node of nodes) {
       if (node.directReports?.length) {
         sortTree(node.directReports);
@@ -116,7 +150,7 @@ function mapRowsToTree(rows: SnapshotRow[]): GraphUser[] {
     }
   };
 
-  sortTree(roots);
+  sortTree(roots, true);
   return roots;
 }
 
@@ -254,6 +288,18 @@ export async function syncDirectorySnapshotFromGraph(): Promise<void> {
           `;
         }
 
+        // Backfill job_title for known managing partners if Entra has it blank
+        const MANAGING_PARTNER_NAMES_DB = [
+          'george abro', 'nathan shamo', 'andrew shamo',
+          'anthony karana', 'kevin kajy', 'donovan shaow',
+        ];
+        await tx.$executeRaw`
+          UPDATE directory_snapshots
+          SET job_title = 'Managing Partner'
+          WHERE (job_title IS NULL OR TRIM(job_title) = '')
+            AND LOWER(display_name) = ANY(${MANAGING_PARTNER_NAMES_DB})
+        `;
+
         if (ids.length > 0) {
           await tx.$executeRaw`
             DELETE FROM directory_snapshots
@@ -271,6 +317,28 @@ export async function syncDirectorySnapshotFromGraph(): Promise<void> {
             updated_at = NOW()
         `;
       }, { timeout: 20000 });
+
+      // ── Post-sync: reconcile Logto roles in the background (non-blocking) ──
+      if (isM2MConfigured) {
+        const usersWithEmail = flat.filter((u) => u.mail);
+        // Fire-and-forget so the directory sync returns immediately
+        void (async () => {
+          for (const user of usersWithEmail) {
+            try {
+              const targetRole = await mapJobTitleToRoleName(user.jobTitle);
+              if (targetRole.toLowerCase() === "employee") continue;
+              // syncUserRole checks Logto and skips writes if already correct
+              const result = await syncUserRole(user.mail!, user.jobTitle);
+              if (result.status === "error") {
+                console.warn(`[Directory Sync] Role sync error for ${user.mail}: ${result.detail}`);
+              }
+            } catch (err) {
+              console.warn(`[Directory Sync] Role sync failed for ${user.mail}:`, err);
+            }
+          }
+          console.log("[Directory Sync] Background role reconciliation complete");
+        })();
+      }
     })().finally(() => {
       syncInFlight = null;
     });
@@ -374,7 +442,7 @@ export async function searchSnapshotUsers(search: string, limit = 10): Promise<G
 
 export async function getSnapshotTreeUsers(): Promise<GraphUser[]> {
   await ensureSnapshotTables();
-  // Org chart display: require department + jobTitle + managerId
+  // Org chart display: require (department + jobTitle) OR be a known root/managing partner
   const rows = await prisma.$queryRaw<SnapshotRow[]>`
     SELECT
       id,
@@ -390,8 +458,15 @@ export async function getSnapshotTreeUsers(): Promise<GraphUser[]> {
       fax_number AS "faxNumber",
       manager_id AS "managerId"
     FROM directory_snapshots
-    WHERE department IS NOT NULL AND TRIM(department) <> ''
+    WHERE (
+      department IS NOT NULL AND TRIM(department) <> ''
       AND job_title IS NOT NULL AND TRIM(job_title) <> ''
+    )
+    OR LOWER(job_title) LIKE '%managing partner%'
+    OR LOWER(display_name) IN (
+      'george abro', 'nathan shamo', 'andrew shamo',
+      'anthony karana', 'kevin kajy', 'donovan shaow'
+    )
     ORDER BY display_name ASC
   `;
 

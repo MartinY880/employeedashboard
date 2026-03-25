@@ -153,6 +153,19 @@ export function PillarGridV3({ data, cardTitleSize = 14, cardMessageSize = 12, i
             </div>
 
             {/* Col 2 section */}
+            <div className="relative px-4 py-2 overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-brand-blue to-[#084f96]" style={{ opacity: cardBgOpacity / 100 }} />
+              <p
+                className="relative z-10 font-bold uppercase tracking-[0.12em] text-white"
+                style={{
+                  fontSize: `${colTitleSize}px`,
+                  textAlign: titleAlign,
+                  color: col2TitleColor || undefined,
+                }}
+              >
+                {data.columnTitles[1]}
+              </p>
+            </div>
             <div
               data-section="col2"
               className="relative px-4 py-3 overflow-hidden"
@@ -161,16 +174,6 @@ export function PillarGridV3({ data, cardTitleSize = 14, cardMessageSize = 12, i
                 className={`absolute inset-0 ${!row.col2Color ? "bg-white dark:bg-gray-800" : ""}`}
                 style={{ opacity: cardBgOpacity / 100, ...(row.col2Color ? { backgroundColor: row.col2Color } : {}) }}
               />
-              <p
-                className={`relative z-10 font-semibold uppercase tracking-wider mb-1 ${col2TitleColor ? "" : "opacity-50"}`}
-                style={{
-                  fontSize: `${colTitleSize}px`,
-                  textAlign: titleAlign,
-                  color: col2TitleColor || (row.col2Color ? (isLightColor(row.col2Color) ? "#333333" : "#ffffff") : undefined),
-                }}
-              >
-                {data.columnTitles[1]}
-              </p>
               <div
                 className={`relative z-10 font-medium leading-relaxed pillar-rich-text ${
                   !row.col2Color ? "text-gray-800 dark:text-gray-100" : ""
@@ -186,24 +189,27 @@ export function PillarGridV3({ data, cardTitleSize = 14, cardMessageSize = 12, i
             </div>
 
             {/* Col 3 section */}
+            <div className="relative px-4 py-2 border-t border-black/5 overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-brand-blue to-[#084f96]" style={{ opacity: cardBgOpacity / 100 }} />
+              <p
+                className="relative z-10 font-bold uppercase tracking-[0.12em] text-white"
+                style={{
+                  fontSize: `${colTitleSize}px`,
+                  textAlign: titleAlign,
+                  color: col3TitleColor || undefined,
+                }}
+              >
+                {data.columnTitles[2]}
+              </p>
+            </div>
             <div
               data-section="col3"
-              className="relative px-4 py-3 border-t border-black/5 flex-1 overflow-hidden"
+              className="relative px-4 py-3 flex-1 overflow-hidden"
             >
               <div
                 className={`absolute inset-0 ${!row.col3Color ? "bg-white dark:bg-gray-800" : ""}`}
                 style={{ opacity: cardBgOpacity / 100, ...(row.col3Color ? { backgroundColor: row.col3Color } : {}) }}
               />
-              <p
-                className={`relative z-10 font-semibold uppercase tracking-wider mb-1 ${col3TitleColor ? "" : "opacity-50"}`}
-                style={{
-                  fontSize: `${colTitleSize}px`,
-                  textAlign: titleAlign,
-                  color: col3TitleColor || (row.col3Color ? (isLightColor(row.col3Color) ? "#333333" : "#ffffff") : undefined),
-                }}
-              >
-                {data.columnTitles[2]}
-              </p>
               <div
                 className={`relative z-10 font-medium leading-relaxed pillar-rich-text ${
                   !row.col3Color ? "text-gray-800 dark:text-gray-100" : ""

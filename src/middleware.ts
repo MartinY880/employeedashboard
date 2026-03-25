@@ -33,7 +33,7 @@ export function middleware(request: NextRequest) {
   // Bump this value to force all users to re-authenticate.
   // The middleware deletes the Logto session cookie if the user
   // hasn't logged in since the epoch was set.
-  const FORCE_LOGOUT_EPOCH = "1";
+  const FORCE_LOGOUT_EPOCH = "2";
   const epochCookie = request.cookies.get("session_epoch");
   if (epochCookie?.value !== FORCE_LOGOUT_EPOCH && request.cookies.has(cookieKey)) {
     const response = NextResponse.redirect(new URL("/sign-in", request.url));

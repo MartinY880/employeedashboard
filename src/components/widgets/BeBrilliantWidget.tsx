@@ -39,7 +39,42 @@ import {
 } from "@/components/ui/dialog";
 import { useIdeas } from "@/hooks/useIdeas";
 import { useSounds } from "@/components/shared/SoundProvider";
+// COMMENTED OUT FOR PRODUCTION — @mention feature disabled for now
+// import { MentionInput, type MentionInputHandle } from "@/components/shared/MentionInput";
 import type { Idea, IdeaComment } from "@/types";
+
+/* ── Render comment content (mentions disabled) ────────── */
+// COMMENTED OUT FOR PRODUCTION — @mention rendering disabled for now
+// const MENTION_RENDER_REGEX = /@\[([^\]]+)\]\([^)]+\)/g;
+//
+// function renderCommentContent(content: string) {
+//   const parts: (string | React.ReactNode)[] = [];
+//   let lastIndex = 0;
+//   let match: RegExpExecArray | null;
+//   const regex = new RegExp(MENTION_RENDER_REGEX.source, "g");
+//   let key = 0;
+//
+//   while ((match = regex.exec(content)) !== null) {
+//     if (match.index > lastIndex) {
+//       parts.push(content.slice(lastIndex, match.index));
+//     }
+//     parts.push(
+//       <span key={key++} className="text-brand-blue font-semibold">
+//         @{match[1]}
+//       </span>,
+//     );
+//     lastIndex = match.index + match[0].length;
+//   }
+//
+//   if (lastIndex < content.length) {
+//     parts.push(content.slice(lastIndex));
+//   }
+//
+//   return parts.length > 0 ? parts : content;
+// }
+function renderCommentContent(content: string) {
+  return content;
+}
 
 const TRENDING_THRESHOLD = 15;
 
@@ -69,7 +104,7 @@ function CommentBubble({
         <div className="flex-1 min-w-0">
           <div className="inline-block bg-gray-100 dark:bg-gray-800 rounded-2xl px-3 py-1.5 max-w-[90%]">
             <span className="font-semibold text-[12px] text-gray-800 dark:text-gray-200 block leading-tight">{comment.authorName}</span>
-            <p className="text-[12px] text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words leading-relaxed mt-0.5">{comment.content}</p>
+            <p className="text-[12px] text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words leading-relaxed mt-0.5">{renderCommentContent(comment.content)}</p>
           </div>
           {/* Actions row: Like · Reply · Time · Delete */}
           <div className="flex items-center gap-2.5 mt-0.5 ml-2 text-[11px]">
@@ -327,13 +362,14 @@ function CommentThread({ ideaId, commentCount }: { ideaId: string; commentCount:
           <div className="shrink-0 w-6 h-6 rounded-full bg-brand-blue/20 dark:bg-brand-blue/30 flex items-center justify-center">
             <MessageCircle className="w-3 h-3 text-brand-blue" />
           </div>
+          {/* MentionInput commented out for production — using plain Input */}
           <Input
             ref={inputRef}
             placeholder={replyTo ? `Reply to ${replyTo.name}…` : "Write a comment…"}
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
-            className="h-7 text-[11px] bg-gray-50 dark:bg-gray-900 dark:border-gray-700 border-gray-200 rounded-full flex-1 px-3"
             maxLength={500}
+            className="h-7 text-[11px] bg-gray-50 dark:bg-gray-900 dark:border-gray-700 border-gray-200 rounded-full px-3"
           />
           <Button
             type="submit"
@@ -445,8 +481,8 @@ function IdeaCard({
 
       {/* Content */}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5 mb-0.5">
-          <span className="text-sm font-semibold text-gray-800 dark:text-gray-200 truncate leading-tight">
+        <div className="flex items-start gap-1.5 mb-0.5">
+          <span className="text-sm font-semibold text-gray-800 dark:text-gray-200 leading-tight break-words">
             {idea.title}
           </span>
           {isTrending && (
@@ -528,8 +564,8 @@ function SelectedIdeaRow({ idea }: { idea: Idea }) {
         {config.icon}
       </div>
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5 mb-0.5">
-          <span className="text-sm font-semibold text-gray-800 dark:text-gray-200 leading-tight">
+        <div className="flex items-start gap-1.5 mb-0.5">
+          <span className="text-sm font-semibold text-gray-800 dark:text-gray-200 leading-tight break-words">
             {idea.title}
           </span>
           <Badge

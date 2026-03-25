@@ -128,6 +128,7 @@ const DEV_USER: AuthUser = {
   avatar: undefined,
   role: "SUPER_ADMIN",
   permissions: ROLE_DEFAULT_PERMISSIONS.SUPER_ADMIN,
+  logtoRoles: ["super_admin"],
 };
 
 // ─── Cookie key used by @logto/next ───────────────────────
@@ -164,7 +165,25 @@ export async function getAuthScopeDebugInfo(): Promise<AuthScopeDebugInfo> {
 
   const { getLogtoContext } = await import("@logto/next/server-actions");
 
-  const context = await getLogtoContext(logtoConfig, { fetchUserInfo: true });
+  let context: Awaited<ReturnType<typeof getLogtoContext>>;
+  try {
+    context = await getLogtoContext(logtoConfig, { fetchUserInfo: true });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn("[Auth] Debug scope info session error:", msg);
+    return {
+      isLogtoConfigured: true,
+      apiResourceConfigured: Boolean(LOGTO_API_RESOURCE),
+      strictScopes: LOGTO_STRICT_SCOPES,
+      hasAccessToken: false,
+      rawScope: "",
+      tokenPermissions: [],
+      adminPermissionsFromToken: [],
+      resolvedRole: "EMPLOYEE" as const,
+      effectivePermissions: [],
+      usedRoleFallback: true,
+    };
+  }
   const claims = (context.claims as Record<string, unknown>) ?? {};
   const userInfo = (context.userInfo as Record<string, unknown>) ?? {};
   const info: Record<string, unknown> = {
@@ -242,22 +261,12 @@ export async function getAuthUser(): Promise<{
   try {
     context = await getLogtoContext(logtoConfig, { fetchUserInfo: true });
   } catch (err) {
-    // Treat any session error as signed-out rather than crashing the server.
-    // Covers: expired/revoked refresh tokens (invalid_grant), cookie decryption
-    // failures (wrong LOGTO_COOKIE_SECRET), and other Logto SDK errors.
+    // Treat ALL getLogtoContext errors as signed-out rather than crashing.
+    // Covers: expired/revoked refresh tokens, cookie decryption failures
+    // (e.g. stale cookies after deploy), and any other Logto SDK errors.
     const msg = err instanceof Error ? err.message : String(err);
-    const isSessionError =
-      msg.includes("invalid_grant") ||
-      msg.includes("Grant request is invalid") ||
-      msg.includes("decryption") ||
-      msg.includes("decrypt") ||
-      msg.includes("cookie") ||
-      msg.includes("integrity");
-    if (isSessionError) {
-      console.warn("[Auth] Session invalid — treating as signed out:", msg);
-      return { isAuthenticated: false, user: null };
-    }
-    throw err;
+    console.warn("[Auth] Session error — treating as signed out:", msg);
+    return { isAuthenticated: false, user: null };
   }
 
   if (!context.isAuthenticated) {
@@ -334,6 +343,7 @@ export async function getAuthUser(): Promise<{
     avatar: (info.picture as string) ?? undefined,
     role,
     permissions,
+    logtoRoles: normalizedRoles,
   };
 
   // Lightweight profile sync — keep the DB user in sync with Logto

@@ -12,7 +12,11 @@ interface BlueStripProps {
 }
 
 function getGreeting(): string {
-  const hour = new Date().getHours();
+  const hour = +new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    hour: "numeric",
+    hour12: false,
+  }).formatToParts(new Date()).find((p) => p.type === "hour")!.value;
   if (hour < 12) return "Good morning";
   if (hour < 17) return "Good afternoon";
   return "Good evening";
@@ -25,6 +29,7 @@ export function BlueStrip({ userName = "User" }: BlueStripProps) {
   useEffect(() => {
     setToday(
       new Date().toLocaleDateString("en-US", {
+        timeZone: "America/New_York",
         weekday: "long",
         month: "long",
         day: "numeric",

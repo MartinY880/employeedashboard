@@ -42,6 +42,7 @@ export async function ensureDbUser(
     const updates: Record<string, string> = {};
     if (byLogto.displayName !== displayName) updates.displayName = displayName;
     if (email && byLogto.email !== email) updates.email = email;
+    if (byLogto.role !== role) updates.role = role;
 
     if (Object.keys(updates).length > 0) {
       return prisma.user.update({

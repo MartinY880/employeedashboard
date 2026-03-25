@@ -172,9 +172,6 @@ export function CelebrationsBanner() {
             <h3 className="text-sm font-bold text-brand-blue tracking-wide uppercase">
               Celebrations
             </h3>
-            <span className="text-[10px] font-semibold bg-brand-blue/10 text-brand-blue px-1.5 py-0.5 rounded-md tabular-nums">
-              {data.items.length}
-            </span>
           </div>
 
           {/* Filter tabs */}

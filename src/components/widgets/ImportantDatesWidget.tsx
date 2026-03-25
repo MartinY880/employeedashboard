@@ -8,6 +8,21 @@ import { motion } from "framer-motion";
 import { CalendarClock } from "lucide-react";
 import type { ImportantDate } from "@/types";
 
+/** Get today's date components in Eastern Time */
+function easternToday(): Date {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  return new Date(
+    +parts.find((p) => p.type === "year")!.value,
+    +parts.find((p) => p.type === "month")!.value - 1,
+    +parts.find((p) => p.type === "day")!.value,
+  );
+}
+
 /** Parse a DB date string into a local Date without timezone shift */
 function parseUTCDate(dateStr: string): Date {
   const d = new Date(dateStr);
@@ -17,8 +32,7 @@ function parseUTCDate(dateStr: string): Date {
 /** Resolve the next occurrence based on recurrence type */
 function resolveDate(entry: ImportantDate): Date {
   const d = parseUTCDate(entry.date);
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const today = easternToday();
 
   if (entry.recurType === "first_workday") {
     // First workday of the month: 1st, adjusted to Monday if Sat/Sun
@@ -66,8 +80,7 @@ function formatWeekday(d: Date): string {
 
 /** Days until the date from today */
 function daysUntil(d: Date): number {
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const today = easternToday();
   return Math.ceil((d.getTime() - today.getTime()) / 86400000);
 }
 
@@ -106,10 +119,10 @@ export function ImportantDatesWidget() {
   }, []);
 
   // Resolve dates, filter to current + next month, then sort
-  const now = new Date();
-  const curYear = now.getFullYear();
-  const curMonth = now.getMonth();
-  const curDay = now.getDate();
+  const etNow = easternToday();
+  const curYear = etNow.getFullYear();
+  const curMonth = etNow.getMonth();
+  const curDay = etNow.getDate();
 
   const sorted = dates
     .map((d) => ({ ...d, resolved: resolveDate(d) }))
