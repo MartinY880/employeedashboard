@@ -102,6 +102,44 @@ export async function findUserByEmail(email: string): Promise<LogtoUser | null> 
   return users.find((u) => u.primaryEmail?.toLowerCase() === email.toLowerCase()) ?? null;
 }
 
+/** Find a Logto user by email first, then by exact name/username as fallback. */
+export async function findUserByIdentity(
+  email: string | null | undefined,
+  name: string | null | undefined,
+): Promise<LogtoUser | null> {
+  const normalizedEmail = (email || "").trim().toLowerCase();
+  const normalizedName = (name || "").trim().toLowerCase();
+
+  if (normalizedEmail) {
+    const byEmail = await findUserByEmail(normalizedEmail);
+    if (byEmail) return byEmail;
+  }
+
+  if (!normalizedName) return null;
+
+  // Fallback search by display name / username.
+  const res = await mgmtFetch(`/users?search=${encodeURIComponent(normalizedName)}&page=1&page_size=50`);
+  if (!res.ok) {
+    throw new Error(`Failed to search users by identity: ${res.status}`);
+  }
+
+  const users: LogtoUser[] = await res.json();
+
+  // Prefer an exact name/username hit.
+  const exact = users.find((u) =>
+    (u.name?.toLowerCase() === normalizedName) || (u.username?.toLowerCase() === normalizedName),
+  );
+  if (exact) return exact;
+
+  // If no exact match, return a case-insensitive contains match as last resort.
+  const partial = users.find((u) =>
+    (u.name?.toLowerCase().includes(normalizedName)) ||
+    (u.username?.toLowerCase().includes(normalizedName)) ||
+    (u.primaryEmail?.toLowerCase().includes(normalizedName)),
+  );
+  return partial ?? null;
+}
+
 /** Get the roles currently assigned to a Logto user */
 export async function getUserRoles(userId: string): Promise<LogtoRole[]> {
   const res = await mgmtFetch(`/users/${userId}/roles`);
@@ -160,16 +198,20 @@ export async function removeRoles(userId: string, roleIds: string[]): Promise<vo
 /** Map a directory job title to the desired Logto role name.
  *  Reads from the role_mappings table (case-insensitive contains match).
  *  Falls back to "Employee" when no mapping matches. */
-export async function mapJobTitleToRoleName(jobTitle: string | null | undefined): Promise<string> {
-  if (!jobTitle) return "Employee";
+export async function resolveJobTitleRoleTarget(
+  jobTitle: string | null | undefined,
+): Promise<{ roleName: string; isExplicitMapping: boolean }> {
+  if (!jobTitle) return { roleName: "Employee", isExplicitMapping: false };
   const t = jobTitle.trim();
-  if (!t) return "Employee";
+  if (!t) return { roleName: "Employee", isExplicitMapping: false };
 
   // Look for an exact match first (case-insensitive)
   const exactMatch = await prisma.roleMapping.findFirst({
     where: { jobTitle: { equals: t, mode: "insensitive" } },
   });
-  if (exactMatch) return exactMatch.logtoRoleName;
+  if (exactMatch) {
+    return { roleName: exactMatch.logtoRoleName, isExplicitMapping: true };
+  }
 
   // Fallback: check if any mapping's jobTitle appears as a whole-word match
   // in the user's title.  Sort longest-first so "Sales Director" is tested
@@ -182,11 +224,16 @@ export async function mapJobTitleToRoleName(jobTitle: string | null | undefined)
     const escaped = mapping.jobTitle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const re = new RegExp(`\\b${escaped}\\b`, "i");
     if (re.test(lower)) {
-      return mapping.logtoRoleName;
+      return { roleName: mapping.logtoRoleName, isExplicitMapping: true };
     }
   }
 
-  return "Employee";
+  return { roleName: "Employee", isExplicitMapping: false };
+}
+
+export async function mapJobTitleToRoleName(jobTitle: string | null | undefined): Promise<string> {
+  const target = await resolveJobTitleRoleTarget(jobTitle);
+  return target.roleName;
 }
 
 /**
@@ -219,7 +266,8 @@ export async function syncUserRole(
       return { email, status: "skipped", detail: "Excluded from role mapping" };
     }
 
-    const targetRoleName = await mapJobTitleToRoleName(jobTitle);
+    const target = await resolveJobTitleRoleTarget(jobTitle);
+    const targetRoleName = target.roleName;
 
     // Find the user in Logto
     const logtoUser = await findUserByEmail(email);
@@ -250,12 +298,11 @@ export async function syncUserRole(
     // only upgrade from Employee — don't touch users with other roles.
     // If an explicit mapping exists (non-Employee target), always apply it
     // so role changes follow title changes.
-    const isExplicitMapping = targetRoleName.toLowerCase() !== "employee";
     const nonEmployeeRole = currentRoles.find(
       (r) => r.name.toLowerCase() !== "employee",
     );
 
-    if (!isExplicitMapping && nonEmployeeRole) {
+    if (!target.isExplicitMapping && nonEmployeeRole) {
       return {
         email,
         status: "skipped",

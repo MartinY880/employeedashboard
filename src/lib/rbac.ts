@@ -25,6 +25,7 @@ export const PERMISSIONS = {
   MANAGE_ROLE_MAPPINGS: "manage:role_mappings",
   MANAGE_SALESFORCE_REPORT: "manage:salesforce_report",
   MANAGE_ACTIVE_PIPELINE: "manage:active_pipeline",
+  VIEW_AS_USER: "view:as_user",
 } as const;
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];

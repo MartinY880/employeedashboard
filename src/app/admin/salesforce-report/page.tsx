@@ -24,6 +24,7 @@ import {
   ArrowDown,
   Table2,
   TrendingUp,
+  PieChart as PieChartIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -417,11 +418,15 @@ export default function SalesforceReportAdminPage() {
                     className={`flex h-8 w-8 items-center justify-center rounded-lg ${
                       section.displayMode === "stat"
                         ? "bg-emerald-50 text-emerald-500"
-                        : "bg-blue-50 text-blue-500"
+                        : section.displayMode === "chart"
+                          ? "bg-purple-50 text-purple-500"
+                          : "bg-blue-50 text-blue-500"
                     }`}
                   >
                     {section.displayMode === "stat" ? (
                       <TrendingUp className="w-4 h-4" />
+                    ) : section.displayMode === "chart" ? (
+                      <PieChartIcon className="w-4 h-4" />
                     ) : (
                       <Table2 className="w-4 h-4" />
                     )}
@@ -440,7 +445,7 @@ export default function SalesforceReportAdminPage() {
                         {section.enabled ? "ON" : "OFF"}
                       </Badge>
                       <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                        {section.displayMode === "stat" ? "Stat" : "Table"}
+                        {section.displayMode === "stat" ? "Stat" : section.displayMode === "chart" ? "Chart" : "Table"}
                       </Badge>
 
                       {(section.visibleToRoles ?? []).length > 0 && (
@@ -698,6 +703,16 @@ export default function SalesforceReportAdminPage() {
                               >
                                 <TrendingUp className="w-4 h-4" /> Stat
                               </button>
+                              <button
+                                onClick={() => updateSection(section.id, { displayMode: "chart" })}
+                                className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-all ${
+                                  section.displayMode === "chart"
+                                    ? "border-purple-500 bg-purple-50 text-gray-900 dark:text-gray-100 font-medium"
+                                    : "border-gray-200 dark:border-gray-700 text-gray-500"
+                                }`}
+                              >
+                                <PieChartIcon className="w-4 h-4" /> Chart
+                              </button>
                             </div>
                           </div>
                           {section.displayMode === "table" && (
@@ -761,6 +776,56 @@ export default function SalesforceReportAdminPage() {
                                 }
                                 placeholder={section.title || "Label above the number"}
                               />
+                            </div>
+                          </div>
+                        )}
+
+                        {section.displayMode === "chart" && cols.length > 0 && (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Chart Label Column
+                              </label>
+                              <select
+                                value={section.chartLabelColumn || ""}
+                                onChange={(e) =>
+                                  updateSection(section.id, {
+                                    chartLabelColumn: e.target.value || undefined,
+                                  })
+                                }
+                                className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm"
+                              >
+                                <option value="">First column (default)</option>
+                                {cols.map((c) => (
+                                  <option key={c.name} value={c.name}>
+                                    {c.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Chart Value Column
+                              </label>
+                              <select
+                                value={section.chartValueColumn || ""}
+                                onChange={(e) =>
+                                  updateSection(section.id, {
+                                    chartValueColumn: e.target.value || undefined,
+                                  })
+                                }
+                                className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm"
+                              >
+                                <option value="">Last column (default)</option>
+                                {cols.map((c) => (
+                                  <option key={c.name} value={c.name}>
+                                    {c.label}
+                                  </option>
+                                ))}
+                              </select>
+                              <p className="text-xs text-brand-grey mt-1">
+                                Pie slice values should come from a numeric column.
+                              </p>
                             </div>
                           </div>
                         )}

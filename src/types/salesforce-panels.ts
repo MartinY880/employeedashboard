@@ -4,7 +4,7 @@ export interface SfReportPanel {
   id: string;
   enabled: boolean;
   title: string;
-  displayMode: "table" | "stat";
+  displayMode: "table" | "stat" | "chart";
   reportUrl: string;
   reportId: string;
   reportName: string;
@@ -15,6 +15,8 @@ export interface SfReportPanel {
   highlightTopN: number; // 0 = none, 1–5 = highlight that many rows
   statColumn?: string; // for stat mode: which column to pull value from
   statLabel?: string; // for stat mode: label above the big number
+  chartValueColumn?: string; // for chart mode: which column provides slice values
+  chartLabelColumn?: string; // for chart mode: which column provides labels
   sortColumn?: string; // column API name to sort rows by (empty = Salesforce default order)
   sortDirection?: "asc" | "desc"; // sort direction (default "asc")
   visibleToRoles?: string[]; // Logto role names that can see this section (empty = everyone)
@@ -30,7 +32,7 @@ export interface SfReportPanelsConfig {
 export interface PanelData {
   id: string;
   title: string;
-  displayMode: "table" | "stat";
+  displayMode: "table" | "stat" | "chart";
   highlightTopN: number;
   columns?: { name: string; label: string }[];
   rows?: { cells: { label: string; value: string }[] }[];
@@ -39,6 +41,7 @@ export interface PanelData {
   statValue?: string;
   statLabel?: string;
   fetchedAt?: string;
+  chartData?: { label: string; value: number }[];
   grandTotals?: { name: string; label: string; value: string }[];
 }
 
