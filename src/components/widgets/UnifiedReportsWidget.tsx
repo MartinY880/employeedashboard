@@ -5,7 +5,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
   BarChart3,
@@ -15,9 +15,9 @@ import {
   Loader2,
   X,
   Eye,
+  RefreshCw,
   ChevronDown,
   UserSearch,
-  Check,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PieChart } from "@/components/charts/PieChart";
@@ -47,6 +47,13 @@ interface UnifiedPanel {
   grandTotals?: { name: string; label: string; value: string }[];
 }
 
+interface ViewAsSuggestion {
+  name: string;
+  email: string;
+  jobTitle: string;
+  logtoRoles: string[];
+}
+
 // ─── Main Widget ────────────────────────────────────────
 
 export function UnifiedReportsWidget() {
@@ -62,15 +69,23 @@ export function UnifiedReportsWidget() {
     email: string;
     roles?: string[];
   } | null>(null);
+  const [viewingAsMode, setViewingAsMode] = useState<"manual" | "auto" | null>(null);
+  const [viewingAsAutoRotatesAt, setViewingAsAutoRotatesAt] = useState<string | null>(null);
+  const [autoRotateEnabled, setAutoRotateEnabled] = useState(true);
+  const [canToggleAutoRotate, setCanToggleAutoRotate] = useState(false);
   const [canViewAs, setCanViewAs] = useState(false);
   const [clearingViewAs, setClearingViewAs] = useState(false);
 
   // Admin View-As controls
   const [viewAsOpen, setViewAsOpen] = useState(false);
   const [viewAsName, setViewAsName] = useState("");
-  const [viewAsRoles, setViewAsRoles] = useState<string[]>([]);
-  const [availableRoles, setAvailableRoles] = useState<{ id: string; name: string; normalized: string }[]>([]);
+  const [viewAsEmail, setViewAsEmail] = useState("");
+  const [viewAsSuggestions, setViewAsSuggestions] = useState<ViewAsSuggestion[]>([]);
+  const [searchingViewAs, setSearchingViewAs] = useState(false);
   const [applyingViewAs, setApplyingViewAs] = useState(false);
+  const [togglingAutoRotate, setTogglingAutoRotate] = useState(false);
+  const [refreshingAutoUser, setRefreshingAutoUser] = useState(false);
+  const [viewAsError, setViewAsError] = useState("");
 
   const fetchData = useCallback(async () => {
     try {
@@ -98,7 +113,13 @@ export function UnifiedReportsWidget() {
           ),
         );
         setViewingAs(data.viewingAs ?? null);
-        if (data.canViewAs) setCanViewAs(true);
+        setViewingAsMode(data.viewingAsMode === "auto" || data.viewingAsMode === "manual" ? data.viewingAsMode : null);
+        setViewingAsAutoRotatesAt(typeof data.viewingAsAutoRotatesAt === "string" ? data.viewingAsAutoRotatesAt : null);
+        if (typeof data.autoRotateEnabled === "boolean") {
+          setAutoRotateEnabled(data.autoRotateEnabled);
+        }
+        setCanToggleAutoRotate(Boolean(data.canToggleAutoRotate));
+        setCanViewAs(Boolean(data.canViewAs));
       }
     } catch {
       /* ignore — individual setters handle partial failures */
@@ -107,50 +128,133 @@ export function UnifiedReportsWidget() {
     }
   }, []);
 
-  // Load available roles when admin opens the view-as panel
-  useEffect(() => {
-    if (!canViewAs) return;
-    fetch("/api/active-pipeline/roles")
-      .then((r) => (r.ok ? r.json() : { roles: [] }))
-      .then((data) => setAvailableRoles(data.roles ?? []))
-      .catch(() => {});
-  }, [canViewAs]);
-
   // Pre-fill view-as form when existing impersonation is loaded
   useEffect(() => {
     if (viewingAs) {
       setViewAsName(viewingAs.name || viewingAs.email || "");
-      setViewAsRoles(viewingAs.roles ?? []);
+      setViewAsEmail(viewingAs.email || "");
     }
   }, [viewingAs]);
+
+  useEffect(() => {
+    if (!canViewAs || !viewAsOpen) {
+      setViewAsSuggestions([]);
+      setSearchingViewAs(false);
+      return;
+    }
+
+    const query = viewAsName.trim();
+    if (query.length < 2) {
+      setViewAsSuggestions([]);
+      setSearchingViewAs(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      setSearchingViewAs(true);
+      try {
+        const res = await fetch(`/api/active-pipeline/view-as/search?query=${encodeURIComponent(query)}&limit=8`, {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        if (!res.ok) {
+          setViewAsSuggestions([]);
+          return;
+        }
+        const data = await res.json();
+        setViewAsSuggestions(Array.isArray(data.users) ? data.users : []);
+      } catch {
+        setViewAsSuggestions([]);
+      } finally {
+        setSearchingViewAs(false);
+      }
+    }, 220);
+
+    return () => {
+      controller.abort();
+      clearTimeout(timer);
+    };
+  }, [canViewAs, viewAsOpen, viewAsName]);
 
   const applyViewAs = useCallback(async () => {
     if (!viewAsName.trim()) return;
     setApplyingViewAs(true);
+    setViewAsError("");
     try {
-      await fetch("/api/active-pipeline/view-as", {
+      const res = await fetch("/api/active-pipeline/view-as", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: viewAsName.trim(), email: "", roles: viewAsRoles }),
+        body: JSON.stringify({ name: viewAsName.trim(), email: viewAsEmail.trim() }),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(typeof data.error === "string" ? data.error : "Failed to apply View As");
+      }
       setViewAsOpen(false);
+      setViewAsSuggestions([]);
       await fetchData();
-    } catch { /* ignore */ }
+    } catch (err) {
+      setViewAsError(err instanceof Error ? err.message : "Failed to apply View As");
+    }
     finally { setApplyingViewAs(false); }
-  }, [viewAsName, viewAsRoles, fetchData]);
+  }, [viewAsName, viewAsEmail, fetchData]);
 
   const clearViewAs = useCallback(async () => {
     setClearingViewAs(true);
     try {
       await fetch("/api/active-pipeline/view-as", { method: "DELETE" });
       setViewingAs(null);
+      setViewingAsMode(null);
+      setViewingAsAutoRotatesAt(null);
       setViewAsName("");
-      setViewAsRoles([]);
+      setViewAsEmail("");
+      setViewAsSuggestions([]);
+      setViewAsError("");
       await fetchData();
     } catch {
       /* ignore */
     } finally {
       setClearingViewAs(false);
+    }
+  }, [fetchData]);
+
+  const setAutoRotate = useCallback(async (enabled: boolean) => {
+    setTogglingAutoRotate(true);
+    setViewAsError("");
+    try {
+      const res = await fetch("/api/active-pipeline/view-as", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(typeof data.error === "string" ? data.error : "Failed to update auto rotation setting");
+      }
+      setAutoRotateEnabled(enabled);
+      await fetchData();
+    } catch (err) {
+      setViewAsError(err instanceof Error ? err.message : "Failed to update auto rotation setting");
+    } finally {
+      setTogglingAutoRotate(false);
+    }
+  }, [fetchData]);
+
+  const refreshAutoUser = useCallback(async () => {
+    setRefreshingAutoUser(true);
+    setViewAsError("");
+    try {
+      const res = await fetch("/api/active-pipeline/view-as", { method: "PUT" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(typeof data.error === "string" ? data.error : "Failed to refresh auto-selected user");
+      }
+      await fetchData();
+    } catch (err) {
+      setViewAsError(err instanceof Error ? err.message : "Failed to refresh auto-selected user");
+    } finally {
+      setRefreshingAutoUser(false);
     }
   }, [fetchData]);
 
@@ -184,7 +288,7 @@ export function UnifiedReportsWidget() {
     );
   }
 
-  if (orderedPanels.length === 0) return null;
+  if (orderedPanels.length === 0 && !canViewAs) return null;
 
   // Group stat panels into one stacked column; each non-stat panel is its own column
   type ColumnGroup = { type: "single"; panel: UnifiedPanel } | { type: "stat-stack"; panels: UnifiedPanel[] };
@@ -215,16 +319,33 @@ export function UnifiedReportsWidget() {
         className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden"
       >
         {/* Admin View-As Toolbar */}
-        {canViewAs && orderedPanels.length > 0 && (
+        {canViewAs && (
           <ViewAsToolbar
             viewingAs={viewingAs}
+            mode={viewingAsMode}
+            autoRotatesAt={viewingAsAutoRotatesAt}
+            autoRotateEnabled={autoRotateEnabled}
+            canToggleAutoRotate={canToggleAutoRotate}
+            autoRotateBusy={togglingAutoRotate}
+            refreshingAutoUser={refreshingAutoUser}
             open={viewAsOpen}
             onToggle={() => setViewAsOpen((v) => !v)}
+            onToggleAutoRotate={setAutoRotate}
+            onRefreshAutoUser={refreshAutoUser}
             name={viewAsName}
-            onNameChange={setViewAsName}
-            roles={viewAsRoles}
-            onRolesChange={setViewAsRoles}
-            availableRoles={availableRoles}
+            onNameChange={(value) => {
+              setViewAsName(value);
+              setViewAsEmail("");
+            }}
+            suggestions={viewAsSuggestions}
+            searching={searchingViewAs}
+            onPickSuggestion={(entry) => {
+              setViewAsName(entry.name);
+              setViewAsEmail(entry.email);
+              setViewAsSuggestions([]);
+              setViewAsError("");
+            }}
+            error={viewAsError}
             onApply={applyViewAs}
             onClear={clearViewAs}
             applying={applyingViewAs}
@@ -292,57 +413,105 @@ export function UnifiedReportsWidget() {
 
 function ViewAsToolbar({
   viewingAs,
+  mode,
+  autoRotatesAt,
+  autoRotateEnabled,
+  canToggleAutoRotate,
+  autoRotateBusy,
+  refreshingAutoUser,
   open,
   onToggle,
+  onToggleAutoRotate,
+  onRefreshAutoUser,
   name,
   onNameChange,
-  roles,
-  onRolesChange,
-  availableRoles,
+  suggestions,
+  searching,
+  onPickSuggestion,
+  error,
   onApply,
   onClear,
   applying,
   clearing,
 }: {
   viewingAs: { name: string; email: string; roles?: string[] } | null;
+  mode: "manual" | "auto" | null;
+  autoRotatesAt: string | null;
+  autoRotateEnabled: boolean;
+  canToggleAutoRotate: boolean;
+  autoRotateBusy: boolean;
+  refreshingAutoUser: boolean;
   open: boolean;
   onToggle: () => void;
+  onToggleAutoRotate: (enabled: boolean) => void;
+  onRefreshAutoUser: () => void;
   name: string;
   onNameChange: (v: string) => void;
-  roles: string[];
-  onRolesChange: (v: string[]) => void;
-  availableRoles: { id: string; name: string; normalized: string }[];
+  suggestions: ViewAsSuggestion[];
+  searching: boolean;
+  onPickSuggestion: (entry: ViewAsSuggestion) => void;
+  error: string;
   onApply: () => void;
   onClear: () => void;
   applying: boolean;
   clearing: boolean;
 }) {
   const hasActive = !!viewingAs;
+  const isAutoMode = mode === "auto";
 
   return (
     <div className={`border-b ${hasActive ? "border-orange-200 dark:border-orange-800 bg-orange-50/50 dark:bg-orange-900/10" : "border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30"}`}>
       {/* Collapsed bar */}
-      <button
-        onClick={onToggle}
-        className="w-full px-3 py-2 flex items-center justify-between gap-2 text-left"
-      >
-        <div className="flex items-center gap-2 min-w-0">
+      <div className="w-full px-3 py-2 flex items-center gap-2">
+        <button
+          onClick={onToggle}
+          className="min-w-0 flex-1 flex items-center gap-2 text-left"
+        >
           <UserSearch className={`w-3.5 h-3.5 shrink-0 ${hasActive ? "text-orange-600" : "text-gray-400"}`} />
           {hasActive ? (
             <span className="text-xs font-medium text-orange-800 dark:text-orange-300 truncate">
-              Viewing as: <span className="font-bold">{viewingAs.name || viewingAs.email}</span>
-              {viewingAs.roles && viewingAs.roles.length > 0 && (
-                <span className="ml-1 text-orange-600 dark:text-orange-400">
-                  ({viewingAs.roles.map(r => availableRoles.find(ar => ar.normalized === r)?.name || r).join(", ")})
-                </span>
-              )}
+              {isAutoMode ? "Auto preview as:" : "Viewing as:"} <span className="font-bold">{viewingAs.name || viewingAs.email}</span>
             </span>
           ) : (
             <span className="text-xs text-gray-500">View As...</span>
           )}
-        </div>
-        <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
+        </button>
+
+        {isAutoMode && (
+          <button
+            onClick={onRefreshAutoUser}
+            disabled={refreshingAutoUser}
+            className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/20 text-[11px] font-medium text-orange-700 dark:text-orange-300 hover:bg-orange-100 dark:hover:bg-orange-900/30 disabled:opacity-60 transition-colors shrink-0"
+          >
+            {refreshingAutoUser ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+            Refresh User
+          </button>
+        )}
+
+        {canToggleAutoRotate && (
+          <button
+            type="button"
+            role="switch"
+            aria-checked={autoRotateEnabled}
+            onClick={() => onToggleAutoRotate(!autoRotateEnabled)}
+            disabled={autoRotateBusy}
+            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${autoRotateEnabled ? "bg-orange-500" : "bg-gray-300 dark:bg-gray-600"} ${autoRotateBusy ? "opacity-60" : ""} shrink-0`}
+            title={autoRotateEnabled ? "Auto rotate is on" : "Auto rotate is off"}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${autoRotateEnabled ? "translate-x-4" : "translate-x-0.5"}`}
+            />
+          </button>
+        )}
+
+        <button
+          onClick={onToggle}
+          className="inline-flex items-center justify-center h-6 w-6 rounded hover:bg-black/5 dark:hover:bg-white/10 shrink-0"
+          aria-label={open ? "Collapse View As" : "Expand View As"}
+        >
+          <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`} />
+        </button>
+      </div>
 
       {/* Expanded panel */}
       {open && (
@@ -360,21 +529,36 @@ function ViewAsToolbar({
                 onKeyDown={(e) => { if (e.key === "Enter") onApply(); }}
                 className="w-full rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-orange-400"
               />
+              {(searching || suggestions.length > 0) && (
+                <div className="mt-1 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm overflow-hidden">
+                  {searching ? (
+                    <div className="px-2.5 py-2 text-[11px] text-gray-500">Searching directory...</div>
+                  ) : (
+                    <div className="max-h-52 overflow-y-auto">
+                      {suggestions.map((entry) => (
+                        <button
+                          key={`${entry.name}|${entry.email}`}
+                          type="button"
+                          onClick={() => onPickSuggestion(entry)}
+                          className="w-full text-left px-2.5 py-2 hover:bg-orange-50 dark:hover:bg-orange-900/20 border-b border-gray-100 dark:border-gray-800 last:border-b-0"
+                        >
+                          <div className="text-xs font-semibold text-gray-800 dark:text-gray-200 truncate">
+                            {entry.name}
+                          </div>
+                          <div className="text-[11px] text-gray-500 truncate">
+                            {entry.email || "No email"}
+                            {entry.jobTitle ? ` • ${entry.jobTitle}` : ""}
+                          </div>
+                          <div className="text-[10px] text-orange-700 dark:text-orange-300 mt-0.5">
+                            Role: {entry.logtoRoles.length > 0 ? entry.logtoRoles.join(", ") : "No Logto roles"}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-
-            {/* Role selector */}
-            {availableRoles.length > 0 && (
-              <div className="flex-1 min-w-0">
-                <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">
-                  Role
-                </label>
-                <RoleDropdown
-                  roles={roles}
-                  availableRoles={availableRoles}
-                  onChange={onRolesChange}
-                />
-              </div>
-            )}
           </div>
 
           {/* Actions */}
@@ -387,6 +571,16 @@ function ViewAsToolbar({
               {applying ? <Loader2 className="w-3 h-3 animate-spin" /> : <Eye className="w-3 h-3" />}
               Apply
             </button>
+            {isAutoMode && (
+              <button
+                onClick={onRefreshAutoUser}
+                disabled={refreshingAutoUser}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/20 text-xs font-medium text-orange-700 dark:text-orange-300 hover:bg-orange-100 dark:hover:bg-orange-900/30 disabled:opacity-60 transition-colors"
+              >
+                {refreshingAutoUser ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                Refresh User
+              </button>
+            )}
             {hasActive && (
               <button
                 onClick={onClear}
@@ -398,73 +592,16 @@ function ViewAsToolbar({
               </button>
             )}
           </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Role Dropdown (multi-select) ───────────────────────
-
-function RoleDropdown({
-  roles,
-  availableRoles,
-  onChange,
-}: {
-  roles: string[];
-  availableRoles: { id: string; name: string; normalized: string }[];
-  onChange: (v: string[]) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  const toggle = (normalized: string) => {
-    onChange(
-      roles.includes(normalized)
-        ? roles.filter((r) => r !== normalized)
-        : [...roles, normalized],
-    );
-  };
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-orange-400"
-      >
-        <span className="truncate text-gray-700 dark:text-gray-300">
-          {roles.length === 0
-            ? "All roles (admin default)"
-            : roles.map(r => availableRoles.find(ar => ar.normalized === r)?.name || r).join(", ")}
-        </span>
-        <ChevronDown className={`w-3 h-3 ml-1 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
-      {open && (
-        <div className="absolute z-50 mt-1 w-full max-h-48 overflow-auto rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg py-1">
-          {availableRoles.map((r) => {
-            const selected = roles.includes(r.normalized);
-            return (
-              <button
-                key={r.id}
-                onClick={() => toggle(r.normalized)}
-                className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-left hover:bg-gray-50 dark:hover:bg-gray-800 ${selected ? "text-orange-700 dark:text-orange-300 font-medium" : "text-gray-700 dark:text-gray-300"}`}
-              >
-                <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center ${selected ? "bg-orange-500 border-orange-500" : "border-gray-300 dark:border-gray-600"}`}>
-                  {selected && <Check className="w-2.5 h-2.5 text-white" />}
-                </span>
-                {r.name}
-              </button>
-            );
-          })}
+          {isAutoMode && (
+            <div className="text-[11px] text-orange-700 dark:text-orange-300">
+              Auto preview mode: rotates hourly{autoRotatesAt ? ` (next ${formatRelativeTime(autoRotatesAt)})` : ""}.
+            </div>
+          )}
+          {error && (
+            <div className="text-[11px] text-red-600 dark:text-red-400">
+              {error}
+            </div>
+          )}
         </div>
       )}
     </div>

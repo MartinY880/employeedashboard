@@ -7,7 +7,7 @@ import { ensureDbUser, prisma } from "@/lib/prisma";
 import {
   isM2MConfigured,
   syncUserRole,
-  mapJobTitleToRoleName,
+  resolveJobTitleRoleTarget,
 } from "@/lib/logto-management";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -97,9 +97,10 @@ export async function GET(request: NextRequest) {
               });
 
               if (snapshot?.jobTitle) {
-                const targetRoleName = await mapJobTitleToRoleName(snapshot.jobTitle);
-                // Only sync Logto if the mapping produces a non-Employee role
-                if (targetRoleName.toLowerCase() !== "employee") {
+                const target = await resolveJobTitleRoleTarget(snapshot.jobTitle);
+                // Sync when a non-Employee role is targeted, or when
+                // Employee is explicitly mapped for this title.
+                if (target.roleName.toLowerCase() !== "employee" || target.isExplicitMapping) {
                   const result = await syncUserRole(email, snapshot.jobTitle);
                   dbg(`Role sync result: ${JSON.stringify(result)}`);
                   // syncUserRole now automatically updates the DB users table

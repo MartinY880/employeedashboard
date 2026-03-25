@@ -7,11 +7,22 @@ import { getAuthUser } from "@/lib/logto";
 import { hasPermission, PERMISSIONS } from "@/lib/rbac";
 import { prisma } from "@/lib/prisma";
 import { executeReportWithFilters } from "@/lib/salesforce-client";
+import { findUserByIdentity, getUserRoles, isM2MConfigured } from "@/lib/logto-management";
 import type { PipelinePanel, PipelineConfig, PipelinePanelData, ReportFilterConfig } from "@/types/active-pipeline";
 
 const CONFIG_ID = "active_pipeline_config";
 const CACHE_PREFIX = "pipeline_cache_";
 const VIEW_AS_PREFIX = "pipeline_viewas_";
+const AUTO_VIEW_AS_ENABLED_PREFIX = "pipeline_viewas_auto_enabled_";
+const AUTO_VIEW_AS_NONCE_PREFIX = "pipeline_viewas_auto_nonce_";
+const AUTO_VIEW_AS_POOL_CACHE_ID = "active_pipeline_view_as_auto_pool_v1";
+const AUTO_VIEW_AS_POOL_TTL_MS = 6 * 60 * 60 * 1000;
+const AUTO_VIEW_AS_SOURCE_LIMIT = 120;
+const AUTO_VIEW_AS_POOL_SIZE = 40;
+
+function normalizeRoleToken(role: string): string {
+  return role.trim().toLowerCase().replace(/[\s-]+/g, "_");
+}
 
 interface CachedPanelData {
   fetchedAt: string;
@@ -19,6 +30,148 @@ interface CachedPanelData {
   columns: { name: string; label: string }[];
   rows: { cells: { label: string; value: string }[] }[];
   grandTotals?: { name: string; label: string; value: string }[];
+}
+
+interface ViewAsIdentity {
+  name: string;
+  email: string;
+  roles?: string[];
+}
+
+interface AutoViewAsPoolCache {
+  fetchedAt: string;
+  users: ViewAsIdentity[];
+}
+
+interface AutoViewAsNonceData {
+  nonce: number;
+}
+
+interface AutoViewAsEnabledData {
+  enabled: boolean;
+}
+
+function stableHash32(input: string): number {
+  let hash = 0;
+  for (let i = 0; i < input.length; i += 1) {
+    hash = ((hash << 5) - hash + input.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
+}
+
+function getHourBucket(nowMs: number): number {
+  return Math.floor(nowMs / 3_600_000);
+}
+
+function nextHourBoundaryIso(nowMs: number): string {
+  return new Date((getHourBucket(nowMs) + 1) * 3_600_000).toISOString();
+}
+
+function pickHourlyRotatingIdentity(
+  candidates: ViewAsIdentity[],
+  seed: string,
+  nowMs: number,
+): ViewAsIdentity | null {
+  if (candidates.length === 0) return null;
+  const bucket = getHourBucket(nowMs);
+  const idx = stableHash32(`${seed}:${bucket}`) % candidates.length;
+  return candidates[idx] ?? null;
+}
+
+function hasVisiblePanelForRoles(
+  panels: PipelinePanel[],
+  roles: string[],
+): boolean {
+  const normalizedRoles = new Set(roles.map(normalizeRoleToken));
+  return panels.some((p) => {
+    if (!p.enabled || !p.reportId || p.visibleToSuperAdminOnly) return false;
+    const hasReportFilters = p.reportFilters?.some((f) => f.replaceWithUser);
+    if (!hasReportFilters && !p.filterColumn) return false;
+    if (!p.visibleToRoles || p.visibleToRoles.length === 0) return true;
+    return p.visibleToRoles.some((r) => normalizedRoles.has(normalizeRoleToken(r)));
+  });
+}
+
+async function loadAutoViewAsPool(): Promise<ViewAsIdentity[]> {
+  if (!isM2MConfigured) return [];
+
+  const cacheRow = await prisma.calendarSetting.findUnique({ where: { id: AUTO_VIEW_AS_POOL_CACHE_ID } });
+  if (cacheRow?.data) {
+    try {
+      const parsed = JSON.parse(cacheRow.data) as AutoViewAsPoolCache;
+      const isFresh = Date.now() - new Date(parsed.fetchedAt).getTime() < AUTO_VIEW_AS_POOL_TTL_MS;
+      if (isFresh && Array.isArray(parsed.users) && parsed.users.length > 0) {
+        return parsed.users;
+      }
+    } catch {
+      // Ignore malformed cache payload.
+    }
+  }
+
+  const snapshots = await prisma.directorySnapshot.findMany({
+    where: {
+      OR: [
+        { mail: { not: "" } },
+        { userPrincipalName: { not: "" } },
+      ],
+    },
+    select: {
+      displayName: true,
+      mail: true,
+      userPrincipalName: true,
+    },
+    orderBy: { displayName: "asc" },
+    take: AUTO_VIEW_AS_SOURCE_LIMIT,
+  });
+
+  const seenEmails = new Set<string>();
+  const users: ViewAsIdentity[] = [];
+
+  for (const row of snapshots) {
+    const email = (row.mail || row.userPrincipalName || "").trim();
+    if (!email) continue;
+
+    const emailKey = email.toLowerCase();
+    if (seenEmails.has(emailKey)) continue;
+
+    try {
+      const logtoUser = await findUserByIdentity(email, row.displayName);
+      if (!logtoUser) continue;
+
+      const roles = await getUserRoles(logtoUser.id);
+      const normalizedRoles = Array.from(new Set(
+        roles
+          .map((r) => normalizeRoleToken(r.name))
+          .filter(Boolean),
+      ));
+      if (normalizedRoles.length === 0) continue;
+
+      users.push({
+        name: row.displayName || email,
+        email,
+        roles: normalizedRoles,
+      });
+      seenEmails.add(emailKey);
+
+      if (users.length >= AUTO_VIEW_AS_POOL_SIZE) break;
+    } catch {
+      // Keep auto-pool construction resilient to per-user lookup failures.
+      continue;
+    }
+  }
+
+  const payload: AutoViewAsPoolCache = {
+    fetchedAt: new Date().toISOString(),
+    users,
+  };
+
+  await prisma.calendarSetting.upsert({
+    where: { id: AUTO_VIEW_AS_POOL_CACHE_ID },
+    create: { id: AUTO_VIEW_AS_POOL_CACHE_ID, data: JSON.stringify(payload) },
+    update: { data: JSON.stringify(payload) },
+  });
+
+  return users;
 }
 
 async function loadConfig(): Promise<PipelineConfig> {
@@ -57,10 +210,48 @@ export async function GET(request: Request) {
       return NextResponse.json({ panels: [] });
     }
 
-    // Check for "View As" impersonation (admin viewing as a specific user)
-    const isAdmin = hasPermission(user, PERMISSIONS.MANAGE_ACTIVE_PIPELINE);
-    let viewingAs: { name: string; email: string; roles?: string[] } | null = null;
-    if (isAdmin) {
+    const isViewAs = hasPermission(user, PERMISSIONS.VIEW_AS_USER);
+
+    // Dashboard View As impersonates the full widget (company + per-user sections).
+    // This is intentionally separate from admin "Test as User", which never writes this state.
+    let viewingAs: ViewAsIdentity | null = null;
+    let viewingAsMode: "manual" | "auto" | null = null;
+    let viewingAsAutoRotatesAt: string | null = null;
+    let autoRotateEnabled: boolean | null = null;
+    const canToggleAutoRotate = isViewAs && user.role === "SUPER_ADMIN";
+    let autoRotateNonce = 0;
+    if (isViewAs) {
+      if (user.role === "SUPER_ADMIN") {
+        autoRotateEnabled = true;
+        const autoRotateRow = await prisma.calendarSetting.findUnique({
+          where: { id: `${AUTO_VIEW_AS_ENABLED_PREFIX}${user.sub}` },
+        });
+        if (autoRotateRow?.data) {
+          try {
+            const parsed = JSON.parse(autoRotateRow.data) as AutoViewAsEnabledData;
+            if (typeof parsed.enabled === "boolean") {
+              autoRotateEnabled = parsed.enabled;
+            }
+          } catch {
+            /* ignore invalid auto-rotate setting payload */
+          }
+        }
+
+        const autoRotateNonceRow = await prisma.calendarSetting.findUnique({
+          where: { id: `${AUTO_VIEW_AS_NONCE_PREFIX}${user.sub}` },
+        });
+        if (autoRotateNonceRow?.data) {
+          try {
+            const parsed = JSON.parse(autoRotateNonceRow.data) as AutoViewAsNonceData;
+            if (Number.isFinite(parsed.nonce)) {
+              autoRotateNonce = parsed.nonce;
+            }
+          } catch {
+            /* ignore invalid auto-rotate nonce payload */
+          }
+        }
+      }
+
       const viewAsRow = await prisma.calendarSetting.findUnique({
         where: { id: `${VIEW_AS_PREFIX}${user.sub}` },
       });
@@ -73,22 +264,39 @@ export async function GET(request: Request) {
               email: parsed.email || "",
               roles: Array.isArray(parsed.roles) ? parsed.roles : undefined,
             };
+            viewingAsMode = "manual";
           }
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore invalid view-as payload */
+        }
+      }
+
+      if (!viewingAs && user.role === "SUPER_ADMIN" && autoRotateEnabled !== false) {
+        const nowMs = Date.now();
+        const candidates = await loadAutoViewAsPool();
+        const eligibleCandidates = candidates.filter((c) =>
+          hasVisiblePanelForRoles(config.panels, c.roles ?? []),
+        );
+        const autoSeed = `${user.sub}:${autoRotateNonce}`;
+        const autoIdentity = pickHourlyRotatingIdentity(eligibleCandidates, autoSeed, nowMs);
+        if (autoIdentity) {
+          viewingAs = autoIdentity;
+          viewingAsMode = "auto";
+          viewingAsAutoRotatesAt = nextHourBoundaryIso(nowMs);
+        }
       }
     }
 
-    // Effective roles for panel visibility
-    const effectiveRoles = viewingAs?.roles && viewingAs.roles.length > 0
-      ? viewingAs.roles
-      : user.logtoRoles ?? [];
+    const hasViewAsIdentity = Boolean(viewingAs?.name || viewingAs?.email);
+    const effectiveRoles = hasViewAsIdentity
+      ? (viewingAs?.roles ?? [])
+      : (user.logtoRoles ?? []);
+    const normalizedEffectiveRoles = new Set(effectiveRoles.map(normalizeRoleToken));
 
     const enabledPanels = config.panels
       .filter((p) => {
         if (!p.enabled || !p.reportId) return false;
-        // Has new-style report filters with at least one user replacement?
         const hasReportFilters = p.reportFilters?.some((f) => f.replaceWithUser);
-        // Or has legacy single-filter configured?
         return hasReportFilters || !!p.filterColumn;
       })
       .sort((a, b) => a.order - b.order)
@@ -97,26 +305,28 @@ export async function GET(request: Request) {
           return user.role === "SUPER_ADMIN";
         }
         if (!p.visibleToRoles || p.visibleToRoles.length === 0) return true;
-        // When impersonating with roles, use those instead of admin bypass
-        if (viewingAs?.roles && viewingAs.roles.length > 0) {
-          return p.visibleToRoles.some((r) => effectiveRoles.includes(r));
+        if (hasViewAsIdentity) {
+          return p.visibleToRoles.some((r) => normalizedEffectiveRoles.has(normalizeRoleToken(r)));
         }
         if (user.role === "SUPER_ADMIN" || user.role === "ADMIN") return true;
-        return p.visibleToRoles.some((r) => effectiveRoles.includes(r));
+        return p.visibleToRoles.some((r) => normalizedEffectiveRoles.has(normalizeRoleToken(r)));
       });
 
     if (enabledPanels.length === 0) {
       return NextResponse.json({
         panels: [],
-        ...(isAdmin ? { canViewAs: true } : {}),
+        ...(isViewAs ? { canViewAs: true } : {}),
+        ...(canToggleAutoRotate ? { canToggleAutoRotate: true } : {}),
         ...(viewingAs ? { viewingAs } : {}),
+        ...(viewingAsMode ? { viewingAsMode } : {}),
+        ...(viewingAsAutoRotatesAt ? { viewingAsAutoRotatesAt } : {}),
+        ...(autoRotateEnabled !== null ? { autoRotateEnabled } : {}),
       });
     }
 
-    // Determine the filter value — use impersonated user if active, else real user
+    // Use impersonated identity for dashboard view-as, otherwise real user
     const userName = viewingAs?.name || user.name || "";
     const userEmail = viewingAs?.email || user.email || "";
-    // Cache key uses the effective identity, not the admin's own identity when impersonating
     const cacheIdentity = viewingAs ? `viewas_${userName}_${userEmail}` : user.sub;
 
     // Fetch data for each panel (parallel, per-user cache)
@@ -135,8 +345,12 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       panels,
-      ...(isAdmin ? { canViewAs: true } : {}),
+      ...(isViewAs ? { canViewAs: true } : {}),
+      ...(canToggleAutoRotate ? { canToggleAutoRotate: true } : {}),
       ...(viewingAs ? { viewingAs } : {}),
+      ...(viewingAsMode ? { viewingAsMode } : {}),
+      ...(viewingAsAutoRotatesAt ? { viewingAsAutoRotatesAt } : {}),
+      ...(autoRotateEnabled !== null ? { autoRotateEnabled } : {}),
     });
   } catch (err) {
     console.error("[Pipeline] GET error:", err);

@@ -1502,11 +1502,11 @@ export default function ActivePipelineAdminPage() {
             <div className="flex items-center gap-2">
               <UserSearch className="w-5 h-5 text-orange-600" />
               <h2 className="text-lg font-bold text-orange-800 dark:text-orange-300">
-                Preview As User
+                Test As User
               </h2>
             </div>
             <p className="text-xs text-brand-grey mt-1">
-              Run a report with a specific name or email to preview what that user would see.
+              Run a report with a specific name or email to preview what that user would see. Results are live — no cache.
             </p>
           </div>
 
@@ -1531,15 +1531,9 @@ export default function ActivePipelineAdminPage() {
                     const hasFilters = s.reportFilters?.some((f) => f.replaceWithUser) || !!s.filterColumn;
                     const isReady = !!s.reportId && hasFilters;
                     return (
-                      <option
-                        key={s.id}
-                        value={s.id}
-                        disabled={!isReady}
-                      >
+                      <option key={s.id} value={s.id} disabled={!isReady}>
                         {s.title || "Untitled"}
-                        {isReady
-                          ? ` (${s.reportFilters?.filter((f) => f.replaceWithUser).length || 1} user filter${(s.reportFilters?.filter((f) => f.replaceWithUser).length || 1) > 1 ? "s" : ""})`
-                          : " — needs report + filters"}
+                        {isReady ? `` : " — needs report + filters"}
                       </option>
                     );
                   })}
@@ -1555,9 +1549,7 @@ export default function ActivePipelineAdminPage() {
                   value={testValue}
                   onChange={(e) => setTestValue(e.target.value)}
                   placeholder="John Doe"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleTestRun();
-                  }}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleTestRun(); }}
                 />
               </div>
 
@@ -1589,40 +1581,17 @@ export default function ActivePipelineAdminPage() {
             {/* Results */}
             {testResult && (
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Badge className="bg-orange-100 text-orange-800 border-orange-200">
-                      {testResult.panelTitle}
-                    </Badge>
-                    <Badge variant="secondary" className="text-xs">
-                      {testResult.totalRows} {testResult.totalRows === 1 ? "row" : "rows"}
-                    </Badge>
-                    <Badge variant="outline" className="text-xs">
-                      &quot;{testResult.testValue}&quot;
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-brand-grey">{testResult.reportName}</span>
-                    <Button
-                      size="sm"
-                      onClick={async () => {
-                        try {
-                          await fetch("/api/active-pipeline/view-as", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ name: testResult.testValue, email: testResult.testValue }),
-                          });
-                          showToast("success", `Dashboard now showing as "${testResult.testValue}". Go to your dashboard to see it.`);
-                        } catch {
-                          showToast("error", "Failed to set view-as mode");
-                        }
-                      }}
-                      className="gap-1.5 bg-orange-600 hover:bg-orange-700 text-white text-xs"
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                      View on Dashboard
-                    </Button>
-                  </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge className="bg-orange-100 text-orange-800 border-orange-200">
+                    {testResult.panelTitle}
+                  </Badge>
+                  <Badge variant="secondary" className="text-xs">
+                    {testResult.totalRows} {testResult.totalRows === 1 ? "row" : "rows"}
+                  </Badge>
+                  <Badge variant="outline" className="text-xs">
+                    &quot;{testResult.testValue}&quot;
+                  </Badge>
+                  <span className="text-xs text-brand-grey ml-auto">{testResult.reportName}</span>
                 </div>
 
                 {testResult.rows.length > 0 ? (
@@ -1630,14 +1599,9 @@ export default function ActivePipelineAdminPage() {
                     <table className="w-full text-sm">
                       <thead className="sticky top-0 z-10">
                         <tr className="bg-gray-50 dark:bg-gray-800/80">
-                          <th className="px-3 py-2 text-left text-[11px] font-semibold text-brand-grey uppercase tracking-wider w-10">
-                            #
-                          </th>
+                          <th className="px-3 py-2 text-left text-[11px] font-semibold text-brand-grey uppercase tracking-wider w-10">#</th>
                           {testResult.columns.map((col) => (
-                            <th
-                              key={col.name}
-                              className="px-3 py-2 text-left text-[11px] font-semibold text-brand-grey uppercase tracking-wider"
-                            >
+                            <th key={col.name} className="px-3 py-2 text-left text-[11px] font-semibold text-brand-grey uppercase tracking-wider">
                               {col.label}
                             </th>
                           ))}
@@ -1645,18 +1609,10 @@ export default function ActivePipelineAdminPage() {
                       </thead>
                       <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                         {testResult.rows.map((row, i) => (
-                          <tr
-                            key={i}
-                            className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/30"
-                          >
-                            <td className="px-3 py-2 text-xs font-bold text-brand-grey">
-                              {i + 1}
-                            </td>
+                          <tr key={i} className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/30">
+                            <td className="px-3 py-2 text-xs font-bold text-brand-grey">{i + 1}</td>
                             {row.cells.map((cell, j) => (
-                              <td
-                                key={j}
-                                className="px-3 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap"
-                              >
+                              <td key={j} className="px-3 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap">
                                 {cell.label || cell.value || "—"}
                               </td>
                             ))}
@@ -1675,6 +1631,7 @@ export default function ActivePipelineAdminPage() {
           </div>
         </div>
       )}
+
     </motion.div>
   );
 }

@@ -103,6 +103,7 @@ export const isLogtoConfigured =
 const LOGTO_API_RESOURCE = process.env.LOGTO_API_RESOURCE || "";
 const LOGTO_STRICT_SCOPES = process.env.LOGTO_STRICT_SCOPES !== "false";
 const LOGTO_PERMISSION_SCOPES = Array.from(new Set(Object.values(PERMISSIONS)));
+const KNOWN_PERMISSION_SET = new Set<string>(LOGTO_PERMISSION_SCOPES);
 
 // ─── Logto SDK config ─────────────────────────────────────
 export const logtoConfig: LogtoNextConfig = {
@@ -214,15 +215,13 @@ export async function getAuthScopeDebugInfo(): Promise<AuthScopeDebugInfo> {
   const payload = accessToken ? decodeJwtPayload(accessToken) : {};
   const rawScope = typeof payload.scope === "string" ? payload.scope : "";
   const tokenPerms = accessToken ? extractPermissionsFromToken(accessToken) : [];
-  const adminPerms = tokenPerms.filter(
-    (permission) => permission.startsWith("manage:")
-  );
+  const grantedPerms = tokenPerms.filter((permission) => KNOWN_PERMISSION_SET.has(permission));
 
   let effectivePermissions: string[] = [];
   let usedRoleFallback = false;
 
   if (LOGTO_API_RESOURCE && accessToken) {
-    effectivePermissions = [...adminPerms];
+    effectivePermissions = [...grantedPerms];
     usedRoleFallback = false;
   } else {
     usedRoleFallback = true;
@@ -236,7 +235,7 @@ export async function getAuthScopeDebugInfo(): Promise<AuthScopeDebugInfo> {
     hasAccessToken: Boolean(accessToken),
     rawScope,
     tokenPermissions: tokenPerms,
-    adminPermissionsFromToken: adminPerms,
+    adminPermissionsFromToken: grantedPerms,
     resolvedRole: role,
     effectivePermissions,
     usedRoleFallback,
@@ -311,15 +310,13 @@ export async function getAuthUser(): Promise<{
       // Extract scopes from the token — these are exactly what Logto grants
       // based on the user's role permissions.
       const tokenPerms = extractPermissionsFromToken(accessToken);
-      permissions = tokenPerms.filter(
-        (p) => p.startsWith("manage:")
-      );
+      permissions = tokenPerms.filter((p) => KNOWN_PERMISSION_SET.has(p));
 
       console.log("[RBAC] Permissions from Logto token:", {
         sub: info.sub,
         role,
         tokenScopes: tokenPerms.length,
-        adminPerms: permissions,
+        grantedPerms: permissions,
       });
     } else {
       // No access token available — the user hasn't been granted access to

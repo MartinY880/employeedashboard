@@ -28,7 +28,7 @@ const SoundContext = createContext<SoundContextType>({
   playNotify: () => {},
   playSuccess: () => {},
   playPop: () => {},
-  muted: false,
+  muted: true,
   toggleMute: () => {},
 });
 
@@ -41,7 +41,7 @@ interface SoundProviderProps {
 }
 
 export function SoundProvider({ children }: SoundProviderProps) {
-  const [muted, setMuted] = useState(false);
+  const [muted, setMuted] = useState(true);
 
   // Read persisted preference after mount; force mute on mobile
   useEffect(() => {
@@ -51,8 +51,9 @@ export function SoundProvider({ children }: SoundProviderProps) {
       return;
     }
     try {
-      if (localStorage.getItem("proconnect-sound-muted") === "true") {
-        setMuted(true);
+      const storedMuted = localStorage.getItem("proconnect-sound-muted");
+      if (storedMuted === "true" || storedMuted === "false") {
+        setMuted(storedMuted === "true");
       }
     } catch {
       // localStorage unavailable

@@ -5,7 +5,7 @@ import { fetchAllUsersFromGraphUnfiltered, resolveManagerIds, type GraphUser } f
 import {
   isM2MConfigured,
   syncUserRole,
-  mapJobTitleToRoleName,
+  resolveJobTitleRoleTarget,
 } from "@/lib/logto-management";
 
 const SNAPSHOT_SYNC_TTL_MS = Number(process.env.DIRECTORY_SNAPSHOT_SYNC_TTL_MS || 15 * 60 * 1000);
@@ -325,8 +325,8 @@ export async function syncDirectorySnapshotFromGraph(): Promise<void> {
         void (async () => {
           for (const user of usersWithEmail) {
             try {
-              const targetRole = await mapJobTitleToRoleName(user.jobTitle);
-              if (targetRole.toLowerCase() === "employee") continue;
+              const target = await resolveJobTitleRoleTarget(user.jobTitle);
+              if (target.roleName.toLowerCase() === "employee" && !target.isExplicitMapping) continue;
               // syncUserRole checks Logto and skips writes if already correct
               const result = await syncUserRole(user.mail!, user.jobTitle);
               if (result.status === "error") {

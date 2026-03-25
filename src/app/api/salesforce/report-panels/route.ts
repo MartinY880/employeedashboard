@@ -7,12 +7,25 @@ import { getAuthUser } from "@/lib/logto";
 import { hasPermission, PERMISSIONS } from "@/lib/rbac";
 import { prisma } from "@/lib/prisma";
 import { executeReport } from "@/lib/salesforce-client";
+import { findUserByIdentity, getUserRoles, isM2MConfigured } from "@/lib/logto-management";
 import type { SfReportPanel, SfReportPanelsConfig, PanelData } from "@/types/salesforce-panels";
+import type { PipelineConfig, PipelinePanel } from "@/types/active-pipeline";
 import type { SfReportWidgetConfig } from "../report-widget/route";
 
 const PANELS_ID = "sf_report_panels";
 const CACHE_PREFIX = "sf_panel_cache_";
 const VIEW_AS_PREFIX = "pipeline_viewas_";
+const AUTO_VIEW_AS_ENABLED_PREFIX = "pipeline_viewas_auto_enabled_";
+const AUTO_VIEW_AS_NONCE_PREFIX = "pipeline_viewas_auto_nonce_";
+const AUTO_VIEW_AS_POOL_CACHE_ID = "active_pipeline_view_as_auto_pool_v1";
+const AUTO_VIEW_AS_POOL_TTL_MS = 6 * 60 * 60 * 1000;
+const AUTO_VIEW_AS_SOURCE_LIMIT = 120;
+const AUTO_VIEW_AS_POOL_SIZE = 40;
+const ACTIVE_PIPELINE_CONFIG_ID = "active_pipeline_config";
+
+function normalizeRoleToken(role: string): string {
+  return role.trim().toLowerCase().replace(/[\s-]+/g, "_");
+}
 
 // Legacy single-widget IDs (for migration)
 const LEGACY_SETTING_ID = "sf_report_widget";
@@ -23,6 +36,221 @@ interface CachedPanelData {
   columns: { name: string; label: string }[];
   rows: { cells: { label: string; value: string }[] }[];
   grandTotals?: { name: string; label: string; value: string }[];
+}
+
+interface ViewAsIdentity {
+  name: string;
+  email: string;
+  roles?: string[];
+}
+
+interface AutoViewAsPoolCache {
+  fetchedAt: string;
+  users: ViewAsIdentity[];
+}
+
+interface AutoViewAsEnabledData {
+  enabled: boolean;
+}
+
+interface AutoViewAsNonceData {
+  nonce: number;
+}
+
+function stableHash32(input: string): number {
+  let hash = 0;
+  for (let i = 0; i < input.length; i += 1) {
+    hash = ((hash << 5) - hash + input.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
+}
+
+function getHourBucket(nowMs: number): number {
+  return Math.floor(nowMs / 3_600_000);
+}
+
+function pickHourlyRotatingIdentity(
+  candidates: ViewAsIdentity[],
+  seed: string,
+  nowMs: number,
+): ViewAsIdentity | null {
+  if (candidates.length === 0) return null;
+  const bucket = getHourBucket(nowMs);
+  const idx = stableHash32(`${seed}:${bucket}`) % candidates.length;
+  return candidates[idx] ?? null;
+}
+
+function hasVisiblePipelinePanelForRoles(
+  panels: PipelinePanel[],
+  roles: string[],
+): boolean {
+  const normalizedRoles = new Set(roles.map(normalizeRoleToken));
+  return panels.some((p) => {
+    if (!p.enabled || !p.reportId || p.visibleToSuperAdminOnly) return false;
+    const hasReportFilters = p.reportFilters?.some((f) => f.replaceWithUser);
+    if (!hasReportFilters && !p.filterColumn) return false;
+    if (!p.visibleToRoles || p.visibleToRoles.length === 0) return true;
+    return p.visibleToRoles.some((r) => normalizedRoles.has(normalizeRoleToken(r)));
+  });
+}
+
+async function loadActivePipelineConfig(): Promise<PipelineConfig> {
+  const row = await prisma.calendarSetting.findUnique({ where: { id: ACTIVE_PIPELINE_CONFIG_ID } });
+  if (row?.data) {
+    try {
+      const parsed = JSON.parse(row.data) as PipelineConfig;
+      if (parsed.widgetVisible === undefined) parsed.widgetVisible = true;
+      return parsed;
+    } catch {
+      // fall through
+    }
+  }
+  return { widgetVisible: true, panels: [] };
+}
+
+async function loadAutoViewAsPool(): Promise<ViewAsIdentity[]> {
+  if (!isM2MConfigured) return [];
+
+  const cacheRow = await prisma.calendarSetting.findUnique({ where: { id: AUTO_VIEW_AS_POOL_CACHE_ID } });
+  if (cacheRow?.data) {
+    try {
+      const parsed = JSON.parse(cacheRow.data) as AutoViewAsPoolCache;
+      const isFresh = Date.now() - new Date(parsed.fetchedAt).getTime() < AUTO_VIEW_AS_POOL_TTL_MS;
+      if (isFresh && Array.isArray(parsed.users) && parsed.users.length > 0) {
+        return parsed.users;
+      }
+    } catch {
+      // Ignore malformed cache payload.
+    }
+  }
+
+  const snapshots = await prisma.directorySnapshot.findMany({
+    where: {
+      OR: [
+        { mail: { not: "" } },
+        { userPrincipalName: { not: "" } },
+      ],
+    },
+    select: {
+      displayName: true,
+      mail: true,
+      userPrincipalName: true,
+    },
+    orderBy: { displayName: "asc" },
+    take: AUTO_VIEW_AS_SOURCE_LIMIT,
+  });
+
+  const seenEmails = new Set<string>();
+  const users: ViewAsIdentity[] = [];
+
+  for (const row of snapshots) {
+    const email = (row.mail || row.userPrincipalName || "").trim();
+    if (!email) continue;
+
+    const emailKey = email.toLowerCase();
+    if (seenEmails.has(emailKey)) continue;
+
+    try {
+      const logtoUser = await findUserByIdentity(email, row.displayName);
+      if (!logtoUser) continue;
+
+      const roles = await getUserRoles(logtoUser.id);
+      const normalizedRoles = Array.from(new Set(
+        roles
+          .map((r) => normalizeRoleToken(r.name))
+          .filter(Boolean),
+      ));
+      if (normalizedRoles.length === 0) continue;
+
+      users.push({
+        name: row.displayName || email,
+        email,
+        roles: normalizedRoles,
+      });
+      seenEmails.add(emailKey);
+
+      if (users.length >= AUTO_VIEW_AS_POOL_SIZE) break;
+    } catch {
+      continue;
+    }
+  }
+
+  const payload: AutoViewAsPoolCache = {
+    fetchedAt: new Date().toISOString(),
+    users,
+  };
+
+  await prisma.calendarSetting.upsert({
+    where: { id: AUTO_VIEW_AS_POOL_CACHE_ID },
+    create: { id: AUTO_VIEW_AS_POOL_CACHE_ID, data: JSON.stringify(payload) },
+    update: { data: JSON.stringify(payload) },
+  });
+
+  return users;
+}
+
+async function resolveEffectiveViewAsRolesForUser(
+  user: NonNullable<Awaited<ReturnType<typeof getAuthUser>>["user"]>,
+): Promise<string[] | null> {
+  if (!hasPermission(user, PERMISSIONS.VIEW_AS_USER)) return null;
+
+  const manualRow = await prisma.calendarSetting.findUnique({
+    where: { id: `${VIEW_AS_PREFIX}${user.sub}` },
+  });
+  if (manualRow?.data) {
+    try {
+      const parsed = JSON.parse(manualRow.data);
+      if (Array.isArray(parsed.roles) && parsed.roles.length > 0) {
+        return parsed.roles;
+      }
+    } catch {
+      // ignore invalid payload
+    }
+  }
+
+  if (user.role !== "SUPER_ADMIN") return null;
+
+  let autoRotateEnabled = true;
+  const autoRotateRow = await prisma.calendarSetting.findUnique({
+    where: { id: `${AUTO_VIEW_AS_ENABLED_PREFIX}${user.sub}` },
+  });
+  if (autoRotateRow?.data) {
+    try {
+      const parsed = JSON.parse(autoRotateRow.data) as AutoViewAsEnabledData;
+      if (typeof parsed.enabled === "boolean") {
+        autoRotateEnabled = parsed.enabled;
+      }
+    } catch {
+      // ignore invalid setting payload
+    }
+  }
+
+  if (!autoRotateEnabled) return null;
+
+  let autoRotateNonce = 0;
+  const autoRotateNonceRow = await prisma.calendarSetting.findUnique({
+    where: { id: `${AUTO_VIEW_AS_NONCE_PREFIX}${user.sub}` },
+  });
+  if (autoRotateNonceRow?.data) {
+    try {
+      const parsed = JSON.parse(autoRotateNonceRow.data) as AutoViewAsNonceData;
+      if (Number.isFinite(parsed.nonce)) {
+        autoRotateNonce = parsed.nonce;
+      }
+    } catch {
+      // ignore invalid nonce payload
+    }
+  }
+
+  const pipelineConfig = await loadActivePipelineConfig();
+  const candidates = await loadAutoViewAsPool();
+  const eligibleCandidates = candidates.filter((c) =>
+    hasVisiblePipelinePanelForRoles(pipelineConfig.panels, c.roles ?? []),
+  );
+
+  const autoSeed = `${user.sub}:${autoRotateNonce}`;
+  const autoIdentity = pickHourlyRotatingIdentity(eligibleCandidates, autoSeed, Date.now());
+  return autoIdentity?.roles ?? null;
 }
 
 /** Load panels config, migrating from legacy single-widget if needed */
@@ -104,22 +332,12 @@ export async function GET(request: Request) {
     }
 
     // Check for "View As" impersonation (shared with active-pipeline)
-    let viewAsRoles: string[] | null = null;
-    if (user && hasPermission(user, PERMISSIONS.MANAGE_ACTIVE_PIPELINE)) {
-      const viewAsRow = await prisma.calendarSetting.findUnique({
-        where: { id: `${VIEW_AS_PREFIX}${user.sub}` },
-      });
-      if (viewAsRow?.data) {
-        try {
-          const parsed = JSON.parse(viewAsRow.data);
-          if (Array.isArray(parsed.roles) && parsed.roles.length > 0) {
-            viewAsRoles = parsed.roles;
-          }
-        } catch { /* ignore */ }
-      }
-    }
+    const viewAsRoles = user
+      ? await resolveEffectiveViewAsRolesForUser(user)
+      : null;
 
     const effectiveRoles = viewAsRoles ?? (user?.logtoRoles ?? []);
+    const normalizedEffectiveRoles = new Set(effectiveRoles.map(normalizeRoleToken));
 
     const enabledPanels = config.panels
       .filter((p) => p.enabled && p.reportId)
@@ -132,12 +350,12 @@ export async function GET(request: Request) {
         if (!p.visibleToRoles || p.visibleToRoles.length === 0) return true;
         // When impersonating with roles, use those instead of admin bypass
         if (viewAsRoles) {
-          return p.visibleToRoles.some((r) => effectiveRoles.includes(r));
+          return p.visibleToRoles.some((r) => normalizedEffectiveRoles.has(normalizeRoleToken(r)));
         }
         // Admins always see all panels
         if (user?.role === "SUPER_ADMIN" || user?.role === "ADMIN") return true;
         // Check if any of the user's Logto roles match
-        return p.visibleToRoles.some((r) => effectiveRoles.includes(r));
+        return p.visibleToRoles.some((r) => normalizedEffectiveRoles.has(normalizeRoleToken(r)));
       });
 
     if (enabledPanels.length === 0) {
@@ -203,7 +421,7 @@ function sanitizePanel(p: Record<string, unknown>, idx: number): SfReportPanel {
     id: String(p.id || crypto.randomUUID()),
     enabled: Boolean(p.enabled),
     title: String(p.title || "Report").slice(0, 200),
-    displayMode: p.displayMode === "stat" ? "stat" : "table",
+    displayMode: p.displayMode === "stat" ? "stat" : p.displayMode === "chart" ? "chart" : "table",
     reportUrl: String(p.reportUrl || ""),
     reportId: String(p.reportId || ""),
     reportName: String(p.reportName || ""),
@@ -221,6 +439,8 @@ function sanitizePanel(p: Record<string, unknown>, idx: number): SfReportPanel {
     highlightTopN: Math.max(0, Math.min(10, Number(p.highlightTopN) || (p.highlightTop3 ? 3 : 0))),
     statColumn: p.statColumn ? String(p.statColumn) : undefined,
     statLabel: p.statLabel ? String(p.statLabel).slice(0, 200) : undefined,
+    chartValueColumn: p.chartValueColumn ? String(p.chartValueColumn) : undefined,
+    chartLabelColumn: p.chartLabelColumn ? String(p.chartLabelColumn) : undefined,
     sortColumn: p.sortColumn ? String(p.sortColumn) : undefined,
     sortDirection: p.sortDirection === "desc" ? "desc" : "asc",
     visibleToRoles: Array.isArray(p.visibleToRoles) ? p.visibleToRoles.map(String).filter(Boolean) : [],
@@ -304,6 +524,23 @@ async function loadPanelData(panel: SfReportPanel): Promise<PanelData> {
     }
   }
 
+  let chartData: { label: string; value: number }[] | undefined;
+  if (panel.displayMode === "chart" && cached.rows.length > 0) {
+    const labelColIdx = panel.chartLabelColumn
+      ? cached.columns.findIndex((c) => c.name === panel.chartLabelColumn)
+      : 0;
+    const valueColIdx = panel.chartValueColumn
+      ? cached.columns.findIndex((c) => c.name === panel.chartValueColumn)
+      : cached.columns.length - 1;
+
+    chartData = cached.rows
+      .map((row) => ({
+        label: row.cells[Math.max(0, labelColIdx)]?.label || "Unknown",
+        value: Number(row.cells[Math.max(0, valueColIdx)]?.value) || 0,
+      }))
+      .filter((d) => d.value > 0);
+  }
+
   return {
     id: panel.id,
     title: panel.title,
@@ -315,6 +552,7 @@ async function loadPanelData(panel: SfReportPanel): Promise<PanelData> {
     maxRows: panel.maxRows,
     statValue,
     statLabel,
+    chartData,
     grandTotals: cached.grandTotals,
     fetchedAt: cached.fetchedAt,
   };
