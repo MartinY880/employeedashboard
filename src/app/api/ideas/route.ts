@@ -7,6 +7,7 @@ import { prisma, ensureDbUser } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/logto";
 import { hasPermission, PERMISSIONS } from "@/lib/rbac";
 import { createNotification } from "@/lib/notifications";
+import { extractMentions, mentionDisplayLength, stripMentionMarkup } from "@/lib/mentions";
 
 export async function GET(request: Request) {
   try {
@@ -62,6 +63,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Title and description are required" }, { status: 400 });
     }
 
+    if (title.trim().length > 120) {
+      return NextResponse.json({ error: "Title must be 120 characters or less" }, { status: 400 });
+    }
+
+    if (mentionDisplayLength(description.trim()) > 500) {
+      return NextResponse.json({ error: "Description must be 500 characters or less" }, { status: 400 });
+    }
+
     // Resolve DB user ID for authorId (instead of storing logtoId)
     let dbUserId = "anonymous";
     if (isAuthenticated && user) {
@@ -77,6 +86,50 @@ export async function POST(request: Request) {
         authorName: authorName?.trim() || (isAuthenticated && user ? user.name : "Anonymous"),
       },
     });
+
+    const ideaAuthorName = authorName?.trim() || (isAuthenticated && user ? user.name : "Anonymous");
+
+    try {
+      const mentions = extractMentions(description.trim());
+      const plainDescription = stripMentionMarkup(description.trim());
+      const truncatedDescription = plainDescription.length > 120
+        ? plainDescription.slice(0, 120) + "…"
+        : plainDescription;
+      const alreadyNotified = new Set<string>([dbUserId]);
+
+      for (const mention of mentions) {
+        const snapshot = await prisma.$queryRaw<
+          { mail: string | null; userPrincipalName: string }[]
+        >`
+          SELECT mail, user_principal_name AS "userPrincipalName"
+          FROM directory_snapshots WHERE id = ${mention.userId} LIMIT 1
+        `;
+
+        if (!snapshot[0]) continue;
+
+        const mentionEmail = (snapshot[0].mail || snapshot[0].userPrincipalName).toLowerCase();
+        const recipientUser = await prisma.user.findFirst({
+          where: { email: { equals: mentionEmail, mode: "insensitive" } },
+          select: { id: true },
+        });
+
+        if (!recipientUser || alreadyNotified.has(recipientUser.id)) {
+          continue;
+        }
+
+        alreadyNotified.add(recipientUser.id);
+        await createNotification({
+          recipientUserId: recipientUser.id,
+          type: "MENTION",
+          title: "You were mentioned in an idea",
+          message: `${ideaAuthorName} mentioned you in a Be Brilliant idea: "${truncatedDescription}"`,
+          metadata: { ideaId: idea.id },
+        });
+      }
+    } catch (err) {
+      console.error(`[Ideas] Mention notification error for ideaId=${idea.id}:`, err);
+    }
+
     return NextResponse.json({ idea }, { status: 201 });
   } catch {
     return NextResponse.json({ error: "Failed to create idea" }, { status: 500 });

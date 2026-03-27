@@ -4,7 +4,7 @@ export interface SfReportPanel {
   id: string;
   enabled: boolean;
   title: string;
-  displayMode: "table" | "stat" | "chart";
+  displayMode: "table" | "stat" | "chart" | "bar";
   reportUrl: string;
   reportId: string;
   reportName: string;
@@ -17,6 +17,10 @@ export interface SfReportPanel {
   statLabel?: string; // for stat mode: label above the big number
   chartValueColumn?: string; // for chart mode: which column provides slice values
   chartLabelColumn?: string; // for chart mode: which column provides labels
+  barXAxisColumn?: string; // for bar mode: which column provides x-axis categories
+  barYAxisColumn?: string; // for bar mode: which column provides y-axis numeric values
+  barUnits?: "currency" | "number" | "percent"; // for bar mode: how to format y-axis values
+  barLayout?: "vertical" | "horizontal"; // for bar mode: bar orientation (default vertical)
   sortColumn?: string; // column API name to sort rows by (empty = Salesforce default order)
   sortDirection?: "asc" | "desc"; // sort direction (default "asc")
   visibleToRoles?: string[]; // Logto role names that can see this section (empty = everyone)
@@ -32,7 +36,7 @@ export interface SfReportPanelsConfig {
 export interface PanelData {
   id: string;
   title: string;
-  displayMode: "table" | "stat" | "chart";
+  displayMode: "table" | "stat" | "chart" | "bar";
   highlightTopN: number;
   columns?: { name: string; label: string }[];
   rows?: { cells: { label: string; value: string }[] }[];
@@ -42,6 +46,8 @@ export interface PanelData {
   statLabel?: string;
   fetchedAt?: string;
   chartData?: { label: string; value: number }[];
+  barUnits?: "currency" | "number" | "percent";
+  barLayout?: "vertical" | "horizontal";
   grandTotals?: { name: string; label: string; value: string }[];
 }
 

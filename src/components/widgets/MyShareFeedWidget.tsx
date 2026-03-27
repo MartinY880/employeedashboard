@@ -7,7 +7,8 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { MentionInput, type MentionInputHandle } from "@/components/shared/MentionInput";
+import { mentionDisplayLength } from "@/lib/mentions";
 import {
   Plus,
   ImageIcon,
@@ -48,7 +49,7 @@ export function MyShareFeedWidget() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [showCount, setShowCount] = useState(4);
   const fileRef = useRef<HTMLInputElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const textareaRef = useRef<MentionInputHandle>(null);
 
   useEffect(() => {
     fetch("/api/me")
@@ -170,16 +171,18 @@ export function MyShareFeedWidget() {
           className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-3.5 space-y-3"
         >
           <div className="relative">
-            <Textarea
+            <MentionInput
               ref={textareaRef}
               placeholder="What's on your mind?"
               value={caption}
-              onChange={(e) => setCaption(e.target.value)}
-              className="text-[13px] min-h-[60px] resize-none border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 rounded-lg pb-6"
+              onChange={setCaption}
+              multiline
+              rows={3}
               maxLength={500}
+              className="text-[13px] min-h-[60px] resize-none border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 rounded-lg pb-6"
             />
-            <span className={`absolute bottom-1.5 right-2.5 text-[10px] ${caption.length >= 450 ? "text-red-500" : "text-gray-400"}`}>
-              {caption.length}/500
+            <span className={`absolute bottom-1.5 right-2.5 text-[10px] ${mentionDisplayLength(caption) >= 450 ? "text-red-500" : "text-gray-400"}`}>
+              {mentionDisplayLength(caption)}/500
             </span>
           </div>
 

@@ -4,6 +4,8 @@
 import { NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/logto";
 import { prisma } from "@/lib/prisma";
+import { createNotification } from "@/lib/notifications";
+import { extractMentions, mentionDisplayLength, stripMentionMarkup } from "@/lib/mentions";
 
 export async function GET(request: Request) {
   try {
@@ -99,7 +101,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const caption = typeof body.caption === "string" ? body.caption.trim().slice(0, 500) : null;
+    const caption = typeof body.caption === "string" ? body.caption.trim() : null;
     const mediaUrls: { fileUrl: string; mimeType: string; fileSize: number }[] =
       Array.isArray(body.media) ? body.media : [];
 
@@ -108,6 +110,10 @@ export async function POST(request: Request) {
         { error: "Post must have a caption or at least one image" },
         { status: 400 },
       );
+    }
+
+    if (caption && mentionDisplayLength(caption) > 500) {
+      return NextResponse.json({ error: "Caption must be 500 characters or less" }, { status: 400 });
     }
 
     const post = await prisma.mySharePost.create({
@@ -128,6 +134,58 @@ export async function POST(request: Request) {
         media: { orderBy: { sortOrder: "asc" } },
       },
     });
+
+    try {
+      const mentions = extractMentions(caption || "");
+      if (mentions.length > 0) {
+        const plainCaption = stripMentionMarkup(caption || "");
+        const truncatedCaption = plainCaption.length > 120
+          ? plainCaption.slice(0, 120) + "…"
+          : plainCaption;
+        const alreadyNotified = new Set<string>([dbUser.id]);
+
+        for (const mention of mentions) {
+          const snapshot = await prisma.$queryRaw<
+            { mail: string | null; userPrincipalName: string }[]
+          >`
+            SELECT mail, user_principal_name AS "userPrincipalName"
+            FROM directory_snapshots WHERE id = ${mention.userId} LIMIT 1
+          `;
+
+          if (!snapshot[0]) {
+            console.log(`[MyShare Feed] Mention: userId=${mention.userId} (${mention.displayName}) not found in directory — skipping`);
+            continue;
+          }
+
+          const mentionEmail = (snapshot[0].mail || snapshot[0].userPrincipalName).toLowerCase();
+          const recipientUser = await prisma.user.findFirst({
+            where: { email: { equals: mentionEmail, mode: "insensitive" } },
+            select: { id: true },
+          });
+
+          if (!recipientUser) {
+            console.log(`[MyShare Feed] Mention: no DB user for email=${mentionEmail} — skipping`);
+            continue;
+          }
+
+          if (alreadyNotified.has(recipientUser.id)) {
+            console.log(`[MyShare Feed] Mention: userId=${recipientUser.id} already notified — skipping`);
+            continue;
+          }
+
+          alreadyNotified.add(recipientUser.id);
+          await createNotification({
+            recipientUserId: recipientUser.id,
+            type: "MENTION",
+            title: "You were mentioned in a post",
+            message: `${post.author.displayName} mentioned you in a MyShare post: "${truncatedCaption}"`,
+            metadata: { postId: post.id },
+          });
+        }
+      }
+    } catch (err) {
+      console.error(`[MyShare Feed] Mention notification error for postId=${post.id}:`, err);
+    }
 
     return NextResponse.json({
       post: {

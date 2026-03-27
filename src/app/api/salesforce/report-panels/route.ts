@@ -421,7 +421,14 @@ function sanitizePanel(p: Record<string, unknown>, idx: number): SfReportPanel {
     id: String(p.id || crypto.randomUUID()),
     enabled: Boolean(p.enabled),
     title: String(p.title || "Report").slice(0, 200),
-    displayMode: p.displayMode === "stat" ? "stat" : p.displayMode === "chart" ? "chart" : "table",
+    displayMode:
+      p.displayMode === "stat"
+        ? "stat"
+        : p.displayMode === "chart"
+          ? "chart"
+          : p.displayMode === "bar"
+            ? "bar"
+            : "table",
     reportUrl: String(p.reportUrl || ""),
     reportId: String(p.reportId || ""),
     reportName: String(p.reportName || ""),
@@ -441,6 +448,10 @@ function sanitizePanel(p: Record<string, unknown>, idx: number): SfReportPanel {
     statLabel: p.statLabel ? String(p.statLabel).slice(0, 200) : undefined,
     chartValueColumn: p.chartValueColumn ? String(p.chartValueColumn) : undefined,
     chartLabelColumn: p.chartLabelColumn ? String(p.chartLabelColumn) : undefined,
+    barXAxisColumn: p.barXAxisColumn ? String(p.barXAxisColumn) : undefined,
+    barYAxisColumn: p.barYAxisColumn ? String(p.barYAxisColumn) : undefined,
+    barUnits: p.barUnits === "currency" || p.barUnits === "number" || p.barUnits === "percent" ? p.barUnits : undefined,
+    barLayout: p.barLayout === "horizontal" ? "horizontal" : "vertical",
     sortColumn: p.sortColumn ? String(p.sortColumn) : undefined,
     sortDirection: p.sortDirection === "desc" ? "desc" : "asc",
     visibleToRoles: Array.isArray(p.visibleToRoles) ? p.visibleToRoles.map(String).filter(Boolean) : [],
@@ -525,7 +536,7 @@ async function loadPanelData(panel: SfReportPanel): Promise<PanelData> {
   }
 
   let chartData: { label: string; value: number }[] | undefined;
-  if (panel.displayMode === "chart" && cached.rows.length > 0) {
+  if ((panel.displayMode === "chart" || panel.displayMode === "bar") && cached.rows.length > 0) {
     const labelColIdx = panel.chartLabelColumn
       ? cached.columns.findIndex((c) => c.name === panel.chartLabelColumn)
       : 0;
@@ -533,10 +544,24 @@ async function loadPanelData(panel: SfReportPanel): Promise<PanelData> {
       ? cached.columns.findIndex((c) => c.name === panel.chartValueColumn)
       : cached.columns.length - 1;
 
-    chartData = cached.rows
+    const barLabelColIdx = panel.barXAxisColumn
+      ? cached.columns.findIndex((c) => c.name === panel.barXAxisColumn)
+      : labelColIdx;
+    const barValueColIdx = panel.barYAxisColumn
+      ? cached.columns.findIndex((c) => c.name === panel.barYAxisColumn)
+      : valueColIdx;
+
+    const effectiveLabelColIdx = panel.displayMode === "bar" ? barLabelColIdx : labelColIdx;
+    const effectiveValueColIdx = panel.displayMode === "bar" ? barValueColIdx : valueColIdx;
+
+    const sourceRows = panel.displayMode === "bar"
+      ? sortRows(cached.rows, cached.columns, panel.sortColumn, panel.sortDirection).slice(0, panel.maxRows)
+      : cached.rows;
+
+    chartData = sourceRows
       .map((row) => ({
-        label: row.cells[Math.max(0, labelColIdx)]?.label || "Unknown",
-        value: Number(row.cells[Math.max(0, valueColIdx)]?.value) || 0,
+        label: row.cells[Math.max(0, effectiveLabelColIdx)]?.label || "Unknown",
+        value: Number(row.cells[Math.max(0, effectiveValueColIdx)]?.value) || 0,
       }))
       .filter((d) => d.value > 0);
   }
@@ -553,6 +578,8 @@ async function loadPanelData(panel: SfReportPanel): Promise<PanelData> {
     statValue,
     statLabel,
     chartData,
+    barUnits: panel.barUnits,
+    barLayout: panel.barLayout,
     grandTotals: cached.grandTotals,
     fetchedAt: cached.fetchedAt,
   };

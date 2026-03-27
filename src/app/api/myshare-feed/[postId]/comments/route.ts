@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/logto";
 import { prisma } from "@/lib/prisma";
 import { createNotification } from "@/lib/notifications";
+import { extractMentions, mentionDisplayLength, stripMentionMarkup } from "@/lib/mentions";
 
 export async function GET(
   request: Request,
@@ -71,7 +72,7 @@ export async function POST(
     const content = typeof body.content === "string" ? body.content.trim() : "";
     const parentId = body.parentId || null;
 
-    if (!content || content.length > 1000) {
+    if (!content || mentionDisplayLength(content) > 1000) {
       return NextResponse.json({ error: "Invalid comment" }, { status: 400 });
     }
 
@@ -96,6 +97,7 @@ export async function POST(
     });
 
     // Send notification to the post author (or parent comment author for replies)
+    const alreadyNotified = new Set<string>([dbUser.id]);
     try {
       if (parentId) {
         // Reply — notify the parent comment author
@@ -104,6 +106,7 @@ export async function POST(
           select: { authorId: true },
         });
         if (parentComment && parentComment.authorId !== dbUser.id) {
+          alreadyNotified.add(parentComment.authorId);
           void createNotification({
             recipientUserId: parentComment.authorId,
             type: "MYSHARE_REPLY",
@@ -119,6 +122,7 @@ export async function POST(
           select: { authorId: true },
         });
         if (post && post.authorId !== dbUser.id) {
+          alreadyNotified.add(post.authorId);
           void createNotification({
             recipientUserId: post.authorId,
             type: "MYSHARE_COMMENT",
@@ -130,6 +134,57 @@ export async function POST(
       }
     } catch (notifErr) {
       console.error("[MyShare Comments] Notification error:", notifErr);
+    }
+
+    try {
+      const mentions = extractMentions(content);
+      if (mentions.length > 0) {
+        const mentionDisplay = stripMentionMarkup(content);
+        const truncatedMention = mentionDisplay.length > 120
+          ? mentionDisplay.slice(0, 120) + "…"
+          : mentionDisplay;
+
+        for (const mention of mentions) {
+          const snapshot = await prisma.$queryRaw<
+            { mail: string | null; userPrincipalName: string }[]
+          >`
+            SELECT mail, user_principal_name AS "userPrincipalName"
+            FROM directory_snapshots WHERE id = ${mention.userId} LIMIT 1
+          `;
+
+          if (!snapshot[0]) {
+            console.log(`[MyShare Comments] Mention: userId=${mention.userId} (${mention.displayName}) not found in directory — skipping`);
+            continue;
+          }
+
+          const mentionEmail = (snapshot[0].mail || snapshot[0].userPrincipalName).toLowerCase();
+          const recipientUser = await prisma.user.findFirst({
+            where: { email: { equals: mentionEmail, mode: "insensitive" } },
+            select: { id: true },
+          });
+
+          if (!recipientUser) {
+            console.log(`[MyShare Comments] Mention: no DB user for email=${mentionEmail} — skipping`);
+            continue;
+          }
+
+          if (alreadyNotified.has(recipientUser.id)) {
+            console.log(`[MyShare Comments] Mention: userId=${recipientUser.id} already notified — skipping`);
+            continue;
+          }
+
+          alreadyNotified.add(recipientUser.id);
+          await createNotification({
+            recipientUserId: recipientUser.id,
+            type: "MENTION",
+            title: "You were mentioned in a comment",
+            message: `${dbUser.displayName} mentioned you in a MyShare comment: "${truncatedMention}"`,
+            metadata: { postId, commentId: comment.id },
+          });
+        }
+      }
+    } catch (err) {
+      console.error(`[MyShare Comments] Mention notification error for commentId=${comment.id}:`, err);
     }
 
     return NextResponse.json({

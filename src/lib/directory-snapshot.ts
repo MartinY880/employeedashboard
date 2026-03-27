@@ -440,6 +440,78 @@ export async function searchSnapshotUsers(search: string, limit = 10): Promise<G
   }));
 }
 
+export async function getSnapshotUserById(id: string): Promise<GraphUser | null> {
+  await ensureSnapshotTables();
+  const rows = await prisma.$queryRaw<SnapshotRow[]>`
+    SELECT
+      id,
+      display_name AS "displayName",
+      mail,
+      user_principal_name AS "userPrincipalName",
+      job_title AS "jobTitle",
+      employee_type AS "employeeType",
+      department,
+      office_location AS "officeLocation",
+      business_phone AS "businessPhone",
+      mobile_phone AS "mobilePhone",
+      fax_number AS "faxNumber",
+      manager_id AS "managerId"
+    FROM directory_snapshots
+    WHERE id = ${id}
+    LIMIT 1
+  `;
+  if (!rows[0]) return null;
+  const row = rows[0];
+
+  // Fetch direct reports so the profile dialog shows the same data as the directory page
+  const reportRows = await prisma.$queryRaw<SnapshotRow[]>`
+    SELECT
+      id,
+      display_name AS "displayName",
+      mail,
+      user_principal_name AS "userPrincipalName",
+      job_title AS "jobTitle",
+      employee_type AS "employeeType",
+      department,
+      office_location AS "officeLocation",
+      business_phone AS "businessPhone",
+      mobile_phone AS "mobilePhone",
+      fax_number AS "faxNumber",
+      manager_id AS "managerId"
+    FROM directory_snapshots
+    WHERE manager_id = ${id}
+    ORDER BY display_name
+  `;
+
+  return {
+    id: row.id,
+    displayName: row.displayName,
+    mail: row.mail,
+    userPrincipalName: row.userPrincipalName,
+    jobTitle: row.jobTitle,
+    employeeType: row.employeeType,
+    department: row.department,
+    officeLocation: row.officeLocation,
+    businessPhone: row.businessPhone,
+    mobilePhone: row.mobilePhone,
+    faxNumber: row.faxNumber,
+    directReports: reportRows.map((r) => ({
+      id: r.id,
+      displayName: r.displayName,
+      mail: r.mail,
+      userPrincipalName: r.userPrincipalName,
+      jobTitle: r.jobTitle,
+      employeeType: r.employeeType,
+      department: r.department,
+      officeLocation: r.officeLocation,
+      businessPhone: r.businessPhone,
+      mobilePhone: r.mobilePhone,
+      faxNumber: r.faxNumber,
+      directReports: [],
+    })),
+  };
+}
+
 export async function getSnapshotTreeUsers(): Promise<GraphUser[]> {
   await ensureSnapshotTables();
   // Org chart display: require (department + jobTitle) OR be a known root/managing partner

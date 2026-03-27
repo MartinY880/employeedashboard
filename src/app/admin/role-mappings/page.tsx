@@ -415,7 +415,7 @@ export default function AdminRoleMappingsPage() {
                 onChange={(e) => setFormJobTitle(e.target.value)}
               />
               <p className="text-xs text-gray-400 mt-1">
-                Matched case-insensitively against the directory job title (contains match)
+                Matched case-insensitively against the directory job title (exact match)
               </p>
             </div>
 

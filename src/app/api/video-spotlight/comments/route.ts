@@ -5,6 +5,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/logto";
 import { hasPermission, PERMISSIONS } from "@/lib/rbac";
+import { createNotification } from "@/lib/notifications";
+import { extractMentions, mentionDisplayLength, stripMentionMarkup } from "@/lib/mentions";
 
 export async function GET(request: Request) {
   try {
@@ -65,7 +67,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "videoId and content are required" }, { status: 400 });
     }
 
-    if (content.trim().length > 500) {
+    if (content.trim().length > 500 || mentionDisplayLength(content.trim()) > 500) {
       return NextResponse.json({ error: "Comment must be 500 characters or less" }, { status: 400 });
     }
 
@@ -86,6 +88,52 @@ export async function POST(request: Request) {
         parentId: parentId || null,
       },
     });
+
+    // ── @mention notifications ─────────────────────────────
+    try {
+      const mentions = extractMentions(content.trim());
+      if (mentions.length > 0) {
+        const commenterName = user.name || "Someone";
+        const plainContent = stripMentionMarkup(content.trim());
+        const truncated = plainContent.length > 120 ? plainContent.slice(0, 120) + "…" : plainContent;
+
+        // Resolve commenter's DB user ID so we can skip self-notifications
+        const commenterDbUser = await prisma.user.findFirst({
+          where: { logtoId: user.sub },
+          select: { id: true },
+        });
+        const alreadyNotified = new Set<string>();
+        if (commenterDbUser) alreadyNotified.add(commenterDbUser.id);
+
+        for (const mention of mentions) {
+          const snapshot = await prisma.$queryRaw<
+            { mail: string | null; userPrincipalName: string }[]
+          >`
+            SELECT mail, user_principal_name AS "userPrincipalName"
+            FROM directory_snapshots WHERE id = ${mention.userId} LIMIT 1
+          `;
+          if (!snapshot[0]) continue;
+
+          const mentionEmail = (snapshot[0].mail || snapshot[0].userPrincipalName).toLowerCase();
+          const recipientUser = await prisma.user.findFirst({
+            where: { email: { equals: mentionEmail, mode: "insensitive" } },
+            select: { id: true },
+          });
+          if (!recipientUser || alreadyNotified.has(recipientUser.id)) continue;
+
+          alreadyNotified.add(recipientUser.id);
+          await createNotification({
+            recipientUserId: recipientUser.id,
+            type: "MENTION",
+            title: "You were mentioned in a comment",
+            message: `${commenterName} mentioned you in a Video Spotlight comment: "${truncated}"`,
+            metadata: { videoId, commentId: comment.id },
+          });
+        }
+      }
+    } catch (err) {
+      console.error(`[VideoSpotlightComments] Mention notification error for commentId=${comment.id}:`, err);
+    }
 
     return NextResponse.json({ comment: { ...comment, userLiked: false, replies: [] } }, { status: 201 });
   } catch {
