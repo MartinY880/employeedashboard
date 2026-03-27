@@ -418,6 +418,8 @@ export default function SalesforceReportAdminPage() {
                     className={`flex h-8 w-8 items-center justify-center rounded-lg ${
                       section.displayMode === "stat"
                         ? "bg-emerald-50 text-emerald-500"
+                        : section.displayMode === "bar"
+                          ? "bg-orange-50 text-orange-500"
                         : section.displayMode === "chart"
                           ? "bg-purple-50 text-purple-500"
                           : "bg-blue-50 text-blue-500"
@@ -425,6 +427,8 @@ export default function SalesforceReportAdminPage() {
                   >
                     {section.displayMode === "stat" ? (
                       <TrendingUp className="w-4 h-4" />
+                    ) : section.displayMode === "bar" ? (
+                      <BarChart3 className="w-4 h-4" />
                     ) : section.displayMode === "chart" ? (
                       <PieChartIcon className="w-4 h-4" />
                     ) : (
@@ -445,7 +449,13 @@ export default function SalesforceReportAdminPage() {
                         {section.enabled ? "ON" : "OFF"}
                       </Badge>
                       <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                        {section.displayMode === "stat" ? "Stat" : section.displayMode === "chart" ? "Chart" : "Table"}
+                        {section.displayMode === "stat"
+                          ? "Stat"
+                          : section.displayMode === "chart"
+                            ? "Chart"
+                            : section.displayMode === "bar"
+                              ? "Bar"
+                              : "Table"}
                       </Badge>
 
                       {(section.visibleToRoles ?? []).length > 0 && (
@@ -678,11 +688,11 @@ export default function SalesforceReportAdminPage() {
 
                         {/* Display Mode + Column Span + Highlight Top N */}
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                          <div>
+                          <div className="sm:col-span-2">
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                               Display Mode
                             </label>
-                            <div className="flex gap-2">
+                            <div className="flex flex-wrap gap-2">
                               <button
                                 onClick={() => updateSection(section.id, { displayMode: "table" })}
                                 className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-all ${
@@ -712,6 +722,16 @@ export default function SalesforceReportAdminPage() {
                                 }`}
                               >
                                 <PieChartIcon className="w-4 h-4" /> Chart
+                              </button>
+                              <button
+                                onClick={() => updateSection(section.id, { displayMode: "bar" })}
+                                className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-all ${
+                                  section.displayMode === "bar"
+                                    ? "border-orange-500 bg-orange-50 text-gray-900 dark:text-gray-100 font-medium"
+                                    : "border-gray-200 dark:border-gray-700 text-gray-500"
+                                }`}
+                              >
+                                <BarChart3 className="w-4 h-4" /> Bar
                               </button>
                             </div>
                           </div>
@@ -825,6 +845,97 @@ export default function SalesforceReportAdminPage() {
                               </select>
                               <p className="text-xs text-brand-grey mt-1">
                                 Pie slice values should come from a numeric column.
+                              </p>
+                            </div>
+                          </div>
+                        )}
+
+                        {section.displayMode === "bar" && cols.length > 0 && (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                X-Axis Column
+                              </label>
+                              <select
+                                value={section.barXAxisColumn || ""}
+                                onChange={(e) =>
+                                  updateSection(section.id, {
+                                    barXAxisColumn: e.target.value || undefined,
+                                  })
+                                }
+                                className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm"
+                              >
+                                <option value="">First column (default)</option>
+                                {cols.map((c) => (
+                                  <option key={c.name} value={c.name}>
+                                    {c.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Y-Axis Column
+                              </label>
+                              <select
+                                value={section.barYAxisColumn || ""}
+                                onChange={(e) =>
+                                  updateSection(section.id, {
+                                    barYAxisColumn: e.target.value || undefined,
+                                  })
+                                }
+                                className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm"
+                              >
+                                <option value="">Last column (default)</option>
+                                {cols.map((c) => (
+                                  <option key={c.name} value={c.name}>
+                                    {c.label}
+                                  </option>
+                                ))}
+                              </select>
+                              <p className="text-xs text-brand-grey mt-1">
+                                Y-axis should be a numeric column.
+                              </p>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Units
+                              </label>
+                              <select
+                                value={section.barUnits || "currency"}
+                                onChange={(e) =>
+                                  updateSection(section.id, {
+                                    barUnits: (e.target.value || undefined) as "currency" | "number" | "percent" | undefined,
+                                  })
+                                }
+                                className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm"
+                              >
+                                <option value="currency">Currency ($)</option>
+                                <option value="number">Number</option>
+                                <option value="percent">Percent (%)</option>
+                              </select>
+                              <p className="text-xs text-brand-grey mt-1">
+                                How values are formatted on the Y-axis and tooltip.
+                              </p>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Layout
+                              </label>
+                              <select
+                                value={section.barLayout || "vertical"}
+                                onChange={(e) =>
+                                  updateSection(section.id, {
+                                    barLayout: e.target.value as "vertical" | "horizontal",
+                                  })
+                                }
+                                className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm"
+                              >
+                                <option value="vertical">Vertical</option>
+                                <option value="horizontal">Horizontal</option>
+                              </select>
+                              <p className="text-xs text-brand-grey mt-1">
+                                Direction the bars grow.
                               </p>
                             </div>
                           </div>

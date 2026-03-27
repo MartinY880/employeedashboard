@@ -27,7 +27,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -39,42 +38,43 @@ import {
 } from "@/components/ui/dialog";
 import { useIdeas } from "@/hooks/useIdeas";
 import { useSounds } from "@/components/shared/SoundProvider";
-// COMMENTED OUT FOR PRODUCTION — @mention feature disabled for now
-// import { MentionInput, type MentionInputHandle } from "@/components/shared/MentionInput";
+import { MentionInput, type MentionInputHandle } from "@/components/shared/MentionInput";
+import { MentionChip } from "@/components/shared/ProfileDialog";
+import { mentionDisplayLength } from "@/lib/mentions";
 import type { Idea, IdeaComment } from "@/types";
 
-/* ── Render comment content (mentions disabled) ────────── */
-// COMMENTED OUT FOR PRODUCTION — @mention rendering disabled for now
-// const MENTION_RENDER_REGEX = /@\[([^\]]+)\]\([^)]+\)/g;
-//
-// function renderCommentContent(content: string) {
-//   const parts: (string | React.ReactNode)[] = [];
-//   let lastIndex = 0;
-//   let match: RegExpExecArray | null;
-//   const regex = new RegExp(MENTION_RENDER_REGEX.source, "g");
-//   let key = 0;
-//
-//   while ((match = regex.exec(content)) !== null) {
-//     if (match.index > lastIndex) {
-//       parts.push(content.slice(lastIndex, match.index));
-//     }
-//     parts.push(
-//       <span key={key++} className="text-brand-blue font-semibold">
-//         @{match[1]}
-//       </span>,
-//     );
-//     lastIndex = match.index + match[0].length;
-//   }
-//
-//   if (lastIndex < content.length) {
-//     parts.push(content.slice(lastIndex));
-//   }
-//
-//   return parts.length > 0 ? parts : content;
-// }
+// Captures both displayName (group 1) and userId (group 2)
+const MENTION_RENDER_REGEX = /@\[([^\]]+)\]\(([^)]+)\)/g;
+
 function renderCommentContent(content: string) {
-  return content;
+  const parts: (string | React.ReactNode)[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  const regex = new RegExp(MENTION_RENDER_REGEX.source, "g");
+  let key = 0;
+
+  while ((match = regex.exec(content)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(content.slice(lastIndex, match.index));
+    }
+    parts.push(
+      <MentionChip
+        key={key++}
+        userId={match[2]}
+        displayName={match[1]}
+      />,
+    );
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < content.length) {
+    parts.push(content.slice(lastIndex));
+  }
+
+  return parts.length > 0 ? parts : content;
 }
+
+const renderMentionContent = renderCommentContent;
 
 const TRENDING_THRESHOLD = 15;
 
@@ -161,7 +161,7 @@ function CommentThread({ ideaId, commentCount }: { ideaId: string; commentCount:
   const [localCount, setLocalCount] = useState(commentCount);
   const [replyTo, setReplyTo] = useState<{ id: string; name: string } | null>(null);
   const { playClick, playSuccess } = useSounds();
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<MentionInputHandle>(null);
 
   // Keep localCount in sync when parent re-renders with new data
   useEffect(() => { setLocalCount(commentCount); }, [commentCount]);
@@ -362,12 +362,11 @@ function CommentThread({ ideaId, commentCount }: { ideaId: string; commentCount:
           <div className="shrink-0 w-6 h-6 rounded-full bg-brand-blue/20 dark:bg-brand-blue/30 flex items-center justify-center">
             <MessageCircle className="w-3 h-3 text-brand-blue" />
           </div>
-          {/* MentionInput commented out for production — using plain Input */}
-          <Input
+          <MentionInput
             ref={inputRef}
             placeholder={replyTo ? `Reply to ${replyTo.name}…` : "Write a comment…"}
             value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
+            onChange={setNewComment}
             maxLength={500}
             className="h-7 text-[11px] bg-gray-50 dark:bg-gray-900 dark:border-gray-700 border-gray-200 rounded-full px-3"
           />
@@ -504,7 +503,7 @@ function IdeaCard({
           )}
         </div>
         <p className="text-xs text-brand-grey leading-relaxed mb-1.5 whitespace-pre-wrap break-words">
-          {idea.description}
+          {renderMentionContent(idea.description)}
         </p>
         <div className="flex items-center gap-2 text-[11px] text-gray-400 dark:text-gray-500">
           <span className="font-medium text-gray-500 dark:text-gray-400">{idea.authorName}</span>
@@ -576,7 +575,7 @@ function SelectedIdeaRow({ idea }: { idea: Idea }) {
           </Badge>
         </div>
         <p className="text-xs text-brand-grey leading-relaxed mb-1.5 whitespace-pre-wrap break-words">
-          {idea.description}
+          {renderMentionContent(idea.description)}
         </p>
         <div className="flex items-center gap-2 text-[11px] text-gray-400 dark:text-gray-500">
           <span className="font-medium text-gray-500 dark:text-gray-400">{idea.authorName}</span>
@@ -604,6 +603,7 @@ function SubmitIdeaForm({
   const [description, setDescription] = useState("");
   const [isSending, setIsSending] = useState(false);
   const titleRef = useRef<HTMLInputElement>(null);
+  const descriptionLength = mentionDisplayLength(description);
 
   useEffect(() => {
     titleRef.current?.focus();
@@ -655,18 +655,19 @@ function SubmitIdeaForm({
         maxLength={120}
       />
       <div className="relative">
-        <Textarea
+        <MentionInput
           placeholder="Brief description..."
           value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          onChange={setDescription}
+          multiline
           className="text-sm bg-white dark:bg-gray-900 dark:border-gray-700 min-h-[60px] resize-none pb-5"
           maxLength={500}
           rows={3}
         />
         <span className={`absolute bottom-1.5 right-2 text-[10px] tabular-nums ${
-          description.length >= 480 ? "text-red-400" : description.length >= 400 ? "text-amber-400" : "text-gray-300 dark:text-gray-600"
+          descriptionLength >= 480 ? "text-red-400" : descriptionLength >= 400 ? "text-amber-400" : "text-gray-300 dark:text-gray-600"
         }`}>
-          {description.length}/500
+          {descriptionLength}/500
         </span>
       </div>
       {error && (

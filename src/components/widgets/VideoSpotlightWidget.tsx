@@ -5,7 +5,7 @@
 
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, type ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Video,
@@ -26,8 +26,26 @@ import {
   Minimize,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { MentionInput, type MentionInputHandle } from "@/components/shared/MentionInput";
+import { MentionChip } from "@/components/shared/ProfileDialog";
 import type { VideoSpotlightComment, VideoReactions } from "@/types";
+
+const MENTION_RENDER_REGEX = /@\[([^\]]+)\]\(([^)]+)\)/g;
+
+function renderMentionContent(content: string) {
+  const parts: (string | ReactNode)[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  const regex = new RegExp(MENTION_RENDER_REGEX.source, "g");
+  let key = 0;
+  while ((match = regex.exec(content)) !== null) {
+    if (match.index > lastIndex) parts.push(content.slice(lastIndex, match.index));
+    parts.push(<MentionChip key={key++} userId={match[2]} displayName={match[1]} />);
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < content.length) parts.push(content.slice(lastIndex));
+  return parts.length > 0 ? parts : content;
+}
 
 interface SpotlightVideo {
   id: string;
@@ -90,7 +108,7 @@ function VideoCommentBubble({
         <div className="flex-1 min-w-0">
           <div className="inline-block bg-gray-100 dark:bg-gray-800 rounded-2xl px-3 py-1.5 max-w-[90%]">
             <span className="font-semibold text-[12px] text-gray-800 dark:text-gray-200 block leading-tight">{comment.authorName}</span>
-            <p className="text-[12px] text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words leading-relaxed mt-0.5">{comment.content}</p>
+            <p className="text-[12px] text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words leading-relaxed mt-0.5">{renderMentionContent(comment.content)}</p>
           </div>
           <div className="flex items-center gap-2.5 mt-0.5 ml-2 text-[11px]">
             <button
@@ -143,7 +161,7 @@ function VideoCommentThread({ videoId, commentCount }: { videoId: string; commen
   const [sending, setSending] = useState(false);
   const [localCount, setLocalCount] = useState(commentCount);
   const [replyTo, setReplyTo] = useState<{ id: string; name: string } | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<MentionInputHandle>(null);
 
   useEffect(() => { setLocalCount(commentCount); }, [commentCount]);
 
@@ -336,13 +354,13 @@ function VideoCommentThread({ videoId, commentCount }: { videoId: string; commen
                 <div className="shrink-0 w-6 h-6 rounded-full bg-brand-blue/20 dark:bg-brand-blue/30 flex items-center justify-center">
                   <MessageCircle className="w-3 h-3 text-brand-blue" />
                 </div>
-                <Input
+                <MentionInput
                   ref={inputRef}
                   placeholder={replyTo ? `Reply to ${replyTo.name}…` : "Write a comment…"}
                   value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
-                  className="h-7 text-[11px] bg-gray-50 dark:bg-gray-900 dark:border-gray-700 border-gray-200 rounded-full flex-1 px-3"
+                  onChange={setNewComment}
                   maxLength={500}
+                  className="h-7 text-[11px] bg-gray-50 dark:bg-gray-900 dark:border-gray-700 border-gray-200 rounded-full flex-1 px-3"
                 />
                 <Button
                   type="submit"

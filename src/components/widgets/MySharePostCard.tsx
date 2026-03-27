@@ -3,12 +3,13 @@
 
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { MentionInput, type MentionInputHandle } from "@/components/shared/MentionInput";
+import { MentionChip } from "@/components/shared/ProfileDialog";
 import {
   Heart,
   MessageCircle,
@@ -51,6 +52,36 @@ function getPhotoUrl(authorEmail: string | undefined, authorName: string): strin
   return `/api/directory/photo?name=${encodeURIComponent(authorName)}&size=120x120`;
 }
 
+const MENTION_RENDER_REGEX = /@\[([^\]]+)\]\(([^)]+)\)/g;
+
+function renderMentionContent(content: string) {
+  const parts: (string | ReactNode)[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  const regex = new RegExp(MENTION_RENDER_REGEX.source, "g");
+  let key = 0;
+
+  while ((match = regex.exec(content)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(content.slice(lastIndex, match.index));
+    }
+    parts.push(
+      <MentionChip
+        key={key++}
+        userId={match[2]}
+        displayName={match[1]}
+      />,
+    );
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < content.length) {
+    parts.push(content.slice(lastIndex));
+  }
+
+  return parts.length > 0 ? parts : content;
+}
+
 /* ─── Media Lightbox (fullscreen overlay) ──────────────── */
 
 function MediaLightbox({
@@ -80,7 +111,7 @@ function MediaLightbox({
   const [newComment, setNewComment] = useState("");
   const [sending, setSending] = useState(false);
   const [replyTo, setReplyTo] = useState<{ id: string; name: string } | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<MentionInputHandle>(null);
   const { playClick, playSuccess } = useSounds();
   const touchStartX = useRef(0);
 
@@ -287,7 +318,7 @@ function MediaLightbox({
                   <div className="px-5 py-2.5 border-b border-gray-50 dark:border-gray-800/50 shrink-0">
                     <p className="text-[13px] text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap break-words">
                       <span className="font-bold text-gray-900 dark:text-gray-100 mr-1.5">{post.authorName}</span>
-                      {post.caption}
+                      {renderMentionContent(post.caption)}
                     </p>
                   </div>
                 )}
@@ -327,11 +358,11 @@ function MediaLightbox({
                     </div>
                   )}
                   <form onSubmit={handleSubmit} className="flex gap-2 items-center">
-                    <Input
+                    <MentionInput
                       ref={inputRef}
                       placeholder={replyTo ? `Reply to ${replyTo.name}…` : "Add a comment…"}
                       value={newComment}
-                      onChange={(e) => setNewComment(e.target.value)}
+                      onChange={setNewComment}
                       className="h-9 text-[13px] bg-gray-50 dark:bg-gray-800 dark:border-gray-700 border-gray-200 rounded-full flex-1 px-4"
                       maxLength={1000}
                     />
@@ -413,7 +444,7 @@ function MediaLightbox({
               <div className="px-4 py-3 border-b border-gray-50 dark:border-gray-800/50">
                 <p className="text-[13px] text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap break-words">
                   <span className="font-bold text-gray-900 dark:text-gray-100 mr-1.5">{post.authorName}</span>
-                  {post.caption}
+                  {renderMentionContent(post.caption)}
                 </p>
               </div>
             )}
@@ -475,11 +506,11 @@ function MediaLightbox({
               </div>
             )}
             <form onSubmit={handleSubmit} className="flex gap-2 items-center">
-              <Input
+              <MentionInput
                 ref={inputRef}
                 placeholder={replyTo ? `Reply to ${replyTo.name}…` : "Add a comment…"}
                 value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
+                onChange={setNewComment}
                 className="h-8 text-[12px] bg-gray-50 dark:bg-gray-800 dark:border-gray-700 border-gray-200 rounded-full flex-1 px-3"
                 maxLength={1000}
               />
@@ -671,7 +702,7 @@ function CommentRow({
           <span className="font-bold text-gray-900 dark:text-gray-100 mr-1">
             {comment.authorName}
           </span>
-          {comment.content}
+          {renderMentionContent(comment.content)}
         </p>
         {comment.likes > 0 && (
           <button
@@ -824,7 +855,7 @@ function CommentsSheet({
   const [replyTo, setReplyTo] = useState<{ id: string; name: string } | null>(null);
   const [container, setContainer] = useState<Element | null>(null);
   const { playClick, playSuccess } = useSounds();
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<MentionInputHandle>(null);
 
   // Find the Highlights widget container to portal into
   useEffect(() => {
@@ -964,7 +995,7 @@ function CommentsSheet({
               <div className="px-5 py-3 border-b border-gray-50 dark:border-gray-800/50 shrink-0">
                 <p className="text-[13px] text-gray-700 dark:text-gray-300 leading-relaxed">
                   <span className="font-bold text-gray-900 dark:text-gray-100 mr-1.5">{postAuthorName}</span>
-                  {postCaption}
+                  {renderMentionContent(postCaption)}
                 </p>
               </div>
             )}
@@ -1013,11 +1044,11 @@ function CommentsSheet({
                 </div>
               )}
               <form onSubmit={handleSubmit} className="flex gap-2 items-center">
-                <Input
+                <MentionInput
                   ref={inputRef}
                   placeholder={replyTo ? `Reply to ${replyTo.name}…` : "Add a comment…"}
                   value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
+                  onChange={setNewComment}
                   className="h-9 text-[13px] bg-gray-50 dark:bg-gray-800 dark:border-gray-700 border-gray-200 rounded-full flex-1 px-4"
                   maxLength={1000}
                 />
@@ -1067,7 +1098,7 @@ function MyShareCommentBubble({
         <div className="flex-1 min-w-0">
           <div className="inline-block bg-gray-100 dark:bg-gray-800 rounded-2xl px-3 py-1.5 max-w-[90%]">
             <span className="font-semibold text-[12px] text-gray-800 dark:text-gray-200 block leading-tight">{comment.authorName}</span>
-            <p className="text-[12px] text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words leading-relaxed mt-0.5">{comment.content}</p>
+            <p className="text-[12px] text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words leading-relaxed mt-0.5">{renderMentionContent(comment.content)}</p>
           </div>
           <div className="flex items-center gap-2.5 mt-0.5 ml-2 text-[11px]">
             <button
@@ -1134,7 +1165,7 @@ function InlineCommentThread({
   const [localCount, setLocalCount] = useState(commentCount);
   const [replyTo, setReplyTo] = useState<{ id: string; name: string } | null>(null);
   const { playClick, playSuccess } = useSounds();
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<MentionInputHandle>(null);
 
   useEffect(() => { setLocalCount(commentCount); }, [commentCount]);
 
@@ -1268,11 +1299,11 @@ function InlineCommentThread({
           <div className="shrink-0 w-6 h-6 rounded-full bg-brand-blue/20 dark:bg-brand-blue/30 flex items-center justify-center">
             <MessageCircle className="w-3 h-3 text-brand-blue" />
           </div>
-          <Input
+          <MentionInput
             ref={inputRef}
             placeholder={replyTo ? `Reply to ${replyTo.name}…` : "Write a comment…"}
             value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
+            onChange={setNewComment}
             className="h-7 text-[11px] bg-gray-50 dark:bg-gray-900 dark:border-gray-700 border-gray-200 rounded-full flex-1 px-3"
             maxLength={1000}
           />
@@ -1396,7 +1427,7 @@ export function MySharePostCard({
                 ref={captionRef}
                 className={`text-[12px] text-gray-700 dark:text-gray-300 leading-snug whitespace-pre-wrap break-words ${!captionExpanded ? "line-clamp-3" : ""}`}
               >
-                {post.caption}
+                {renderMentionContent(post.caption)}
               </p>
               {captionClamped && !captionExpanded && (
                 <button
@@ -1444,7 +1475,7 @@ export function MySharePostCard({
                 {post.previewComments!.map((c) => (
                   <p key={c.id} className="text-[11px] text-gray-600 dark:text-gray-400 leading-snug truncate">
                     <span className="font-bold text-gray-800 dark:text-gray-200 mr-1">{c.authorName}</span>
-                    {c.content}
+                    {renderMentionContent(c.content)}
                   </p>
                 ))}
               </div>

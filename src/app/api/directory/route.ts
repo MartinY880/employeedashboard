@@ -8,6 +8,7 @@ import {
   getSnapshotFlatUsers,
   getSnapshotSyncMeta,
   getSnapshotTreeUsers,
+  getSnapshotUserById,
   getSnapshotUserCount,
   searchSnapshotUsers,
   syncDirectorySnapshotFromGraph,
@@ -154,6 +155,22 @@ export async function GET(request: Request) {
     const mode = searchParams.get("mode") || "tree"; // "tree" | "flat"
     const countOnly = searchParams.get("count") === "true";
     const search = searchParams.get("search")?.toLowerCase().trim();
+    const userId = searchParams.get("userId");
+
+    // ── Single user lookup (used by mention profile dialogs) ────────
+    if (userId) {
+      if (!isGraphConfigured) {
+        const flat = flattenTree(DEMO_USERS);
+        const found = flat.find((u) => u.id === userId) ?? null;
+        if (!found) return NextResponse.json({ user: null }, { status: 404 });
+        injectPhotos([found]);
+        return NextResponse.json({ user: found }, { headers: DIRECTORY_RESPONSE_HEADERS });
+      }
+      const found = await getSnapshotUserById(userId);
+      if (!found) return NextResponse.json({ user: null }, { status: 404 });
+      injectPhotos([found]);
+      return NextResponse.json({ user: found }, { headers: DIRECTORY_RESPONSE_HEADERS });
+    }
 
     console.log("[Directory API] Request", { mode, countOnly, hasSearch: !!search, graphConfigured: isGraphConfigured });
 

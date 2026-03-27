@@ -6,21 +6,12 @@
 
 import { useState, useMemo, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, X, Mail, Phone, Smartphone, Printer, Users } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useDirectory, type DirectoryNode } from "@/hooks/useDirectory";
 import { useSounds } from "@/components/shared/SoundProvider";
-import { NMLSIcon } from "@/components/shared/icons/NMLSIcon";
+import { PersonLightbox, getInitials } from "@/components/shared/ProfileDialog";
 import Link from "next/link";
-
-function getInitials(name: string): string {
-  return name
-    .split(" ")
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
-}
 
 function flattenTree(nodes: DirectoryNode[]): DirectoryNode[] {
   const flat: DirectoryNode[] = [];
@@ -158,119 +149,11 @@ export function DirectorySearchBar() {
         </AnimatePresence>
       </div>
 
-      {/* Person Detail Lightbox */}
-      <AnimatePresence>
-        {selectedPerson && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
-            onClick={() => setSelectedPerson(null)}
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.92, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.92, y: 20 }}
-              transition={{ type: "spring", stiffness: 400, damping: 30 }}
-              className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Header band */}
-              <div className="bg-brand-blue px-6 pt-6 pb-10 relative">
-                <button
-                  onClick={() => setSelectedPerson(null)}
-                  className="absolute top-3 right-3 text-white/70 hover:text-white"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Avatar overlap */}
-              <div className="relative -mt-8 flex justify-center">
-                <Avatar className="h-16 w-16 ring-4 ring-white dark:ring-gray-900 shadow-lg">
-                  <AvatarImage
-                    src={`/api/directory/photo?userId=${encodeURIComponent(selectedPerson.id)}&name=${encodeURIComponent(selectedPerson.displayName)}&size=120x120`}
-                    alt={selectedPerson.displayName}
-                  />
-                  <AvatarFallback className="bg-brand-blue text-white text-lg font-bold">
-                    {getInitials(selectedPerson.displayName)}
-                  </AvatarFallback>
-                </Avatar>
-              </div>
-
-              {/* Info */}
-              <div className="px-6 pt-3 pb-6 text-center">
-                <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">
-                  {selectedPerson.displayName}
-                </h2>
-                <p className="text-sm text-brand-grey mt-0.5">
-                  {selectedPerson.jobTitle || "Team Member"}
-                </p>
-
-                <div className="mt-5 space-y-3 text-left">
-                  {selectedPerson.mail && (
-                    <div className="flex items-center gap-3 text-sm">
-                      <Mail className="w-4 h-4 text-brand-blue shrink-0" />
-                      <a
-                        href={`mailto:${selectedPerson.mail}`}
-                        className="text-brand-blue hover:underline truncate"
-                      >
-                        {selectedPerson.mail}
-                      </a>
-                    </div>
-                  )}
-                  {selectedPerson.officeLocation && (
-                    <div className="flex items-center gap-3 text-sm">
-                      <NMLSIcon className="w-4 h-4 text-brand-grey shrink-0" />
-                      <span className="text-gray-700 dark:text-gray-300">{selectedPerson.officeLocation}</span>
-                    </div>
-                  )}
-                  {selectedPerson.businessPhone && (
-                    <div className="flex items-center gap-3 text-sm">
-                      <Phone className="w-4 h-4 text-brand-grey shrink-0" />
-                      <span className="text-gray-700 truncate">
-                        {selectedPerson.businessPhone}
-                      </span>
-                    </div>
-                  )}
-                  {selectedPerson.mobilePhone && (
-                    <div className="flex items-center gap-3 text-sm">
-                      <Smartphone className="w-4 h-4 text-brand-grey shrink-0" />
-                      <span className="text-gray-700 truncate">
-                        {selectedPerson.mobilePhone}
-                      </span>
-                    </div>
-                  )}
-                  {selectedPerson.faxNumber && (
-                    <div className="flex items-center gap-3 text-sm">
-                      <Printer className="w-4 h-4 text-brand-grey shrink-0" />
-                      <span className="text-gray-700 truncate">
-                        {selectedPerson.faxNumber}
-                      </span>
-                    </div>
-                  )}
-                  {selectedPerson.directReports && selectedPerson.directReports.length > 0 && (
-                    <div className="flex items-center gap-3 text-sm">
-                      <Users className="w-4 h-4 text-brand-grey shrink-0" />
-                      <span className="text-gray-700">
-                        {selectedPerson.directReports.length} direct report{selectedPerson.directReports.length !== 1 ? "s" : ""}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                <button
-                  onClick={() => setSelectedPerson(null)}
-                  className="mt-6 w-full py-2.5 bg-brand-blue text-white text-sm font-medium rounded-lg hover:bg-brand-blue/90 transition-colors"
-                >
-                  Close
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <PersonLightbox
+        user={selectedPerson}
+        open={!!selectedPerson}
+        onClose={() => setSelectedPerson(null)}
+      />
     </>
   );
 }

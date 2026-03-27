@@ -196,13 +196,13 @@ export async function removeRoles(userId: string, roleIds: string[]): Promise<vo
 // ─── Job title → Logto role mapping ──────────────────────
 
 /** Map a directory job title to the desired Logto role name.
- *  Reads from the role_mappings table (case-insensitive contains match).
+ *  Reads from the role_mappings table (case-insensitive exact match).
  *  Falls back to "Employee" when no mapping matches. */
 export async function resolveJobTitleRoleTarget(
   jobTitle: string | null | undefined,
 ): Promise<{ roleName: string; isExplicitMapping: boolean }> {
   if (!jobTitle) return { roleName: "Employee", isExplicitMapping: false };
-  const t = jobTitle.trim();
+  const t = jobTitle.replace(/\s+/g, " ").trim();
   if (!t) return { roleName: "Employee", isExplicitMapping: false };
 
   // Look for an exact match first (case-insensitive)
@@ -213,17 +213,15 @@ export async function resolveJobTitleRoleTarget(
     return { roleName: exactMatch.logtoRoleName, isExplicitMapping: true };
   }
 
-  // Fallback: check if any mapping's jobTitle appears as a whole-word match
-  // in the user's title.  Sort longest-first so "Sales Director" is tested
-  // before "Director", preventing short keywords from matching too broadly
-  // (e.g. "Director" should NOT match "Director of Engagement").
-  const allMappings = await prisma.roleMapping.findMany();
-  allMappings.sort((a, b) => b.jobTitle.length - a.jobTitle.length);
-  const lower = t.toLowerCase();
+  // Fallback exact match with normalized spaces on DB values.
+  // This preserves exact semantics while ignoring extra internal whitespace.
+  const allMappings = await prisma.roleMapping.findMany({
+    select: { jobTitle: true, logtoRoleName: true },
+  });
+  const normalizedInput = t.toLowerCase();
   for (const mapping of allMappings) {
-    const escaped = mapping.jobTitle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const re = new RegExp(`\\b${escaped}\\b`, "i");
-    if (re.test(lower)) {
+    const normalizedMappingTitle = mapping.jobTitle.replace(/\s+/g, " ").trim().toLowerCase();
+    if (normalizedMappingTitle === normalizedInput) {
       return { roleName: mapping.logtoRoleName, isExplicitMapping: true };
     }
   }

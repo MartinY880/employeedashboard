@@ -19,6 +19,7 @@ import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 export interface MentionUser {
   id: string;
@@ -35,6 +36,8 @@ interface MentionInputProps {
   maxLength?: number;
   disabled?: boolean;
   className?: string;
+  multiline?: boolean;
+  rows?: number;
 }
 
 export interface MentionInputHandle {
@@ -125,22 +128,42 @@ function adjustChips(
 
 export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
   function MentionInput(
-    { value, onChange, placeholder, maxLength, disabled, className },
+    { value, onChange, placeholder, maxLength, disabled, className, multiline = false, rows },
     ref,
   ) {
-    const inputRef = useRef<HTMLInputElement>(null);
+    const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
     const wrapperRef = useRef<HTMLDivElement>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const abortRef = useRef<AbortController | null>(null);
     const cacheRef = useRef<Map<string, MentionUser[]>>(new Map());
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const pendingCaretPosRef = useRef<number | null>(null);
 
-    // Suppresses the synthetic onChange React fires when it reconciles the
-    // controlled input after selectMention programmatically updates the value.
-    const justSelectedRef = useRef(false);
+    // Suppresses only the reconciliation change for the exact display value
+    // we just wrote after inserting a mention, without swallowing the next
+    // real keystroke if React never emits that reconciliation event.
+    const ignoredChangeValueRef = useRef<string | null>(null);
 
     const displayText = useMemo(() => toDisplayText(value), [value]);
     const chips = useMemo(() => deriveChips(value), [value]);
+
+    const restoreCaret = useCallback((pos: number) => {
+      const el = inputRef.current;
+      if (!el) return;
+
+      el.focus();
+      el.setSelectionRange(pos, pos);
+
+      // Browsers do not always auto-scroll controlled inputs/textareas
+      // after programmatic mention insertion, especially when the caret
+      // lands at the end of the field.
+      if (pos >= el.value.length - 1) {
+        el.scrollLeft = el.scrollWidth;
+        if (el instanceof HTMLTextAreaElement) {
+          el.scrollTop = el.scrollHeight;
+        }
+      }
+    }, []);
 
     const [mentionQuery, setMentionQuery] = useState<string | null>(null);
     const [mentionStart, setMentionStart] = useState(0);
@@ -299,8 +322,7 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
         const all = [...kept, newChip].sort((a, b) => a.start - b.start);
         const newReal = buildRealValue(newDisplay, all);
 
-        // Mark that the next onChange is a reconciliation artifact, not a keystroke
-        justSelectedRef.current = true;
+        ignoredChangeValueRef.current = newDisplay;
 
         onChange(newReal);
         setShowDropdown(false);
@@ -308,24 +330,19 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
         setResults([]);
         setHasMore(false);
 
-        requestAnimationFrame(() => {
-          const pos = mentionStart + tag.length + 1;
-          inputRef.current?.setSelectionRange(pos, pos);
-          inputRef.current?.focus();
-        });
+        pendingCaretPosRef.current = mentionStart + tag.length + 1;
       },
       [displayText, mentionStart, chips, onChange],
     );
 
     // ── onChange handler ─────────────────────────────────────
     const handleChange = useCallback(
-      (e: React.ChangeEvent<HTMLInputElement>) => {
-        // Drop the reconciliation event React fires after selectMention
-        // programmatically updates the controlled value
-        if (justSelectedRef.current) {
-          justSelectedRef.current = false;
+      (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        if (ignoredChangeValueRef.current === e.target.value) {
+          ignoredChangeValueRef.current = null;
           return;
         }
+        ignoredChangeValueRef.current = null;
 
         const newDisplay = e.target.value;
         const newChips = adjustChips(displayText, newDisplay, chips);
@@ -347,7 +364,6 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
     // instead of using the memos, which may be one render stale
     // when this fires right after selectMention updates the value.
     const handleSelect = useCallback(() => {
-      if (justSelectedRef.current) return;
       const cursor = inputRef.current?.selectionStart ?? 0;
       const latestDisplay = toDisplayText(value);
       const latestChips = deriveChips(value);
@@ -356,7 +372,7 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
 
     // ── Keyboard navigation ─────────────────────────────────
     const handleKeyDown = useCallback(
-      (e: React.KeyboardEvent<HTMLInputElement>) => {
+      (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         if (!showDropdown || results.length === 0) return;
 
         switch (e.key) {
@@ -422,19 +438,46 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
       setDropdownPos({ top: rect.top - h, left: rect.left, width: rect.width });
     }, [showDropdown, results, loading, mentionQuery]);
 
+    useLayoutEffect(() => {
+      const pos = pendingCaretPosRef.current;
+      if (pos === null) return;
+
+      pendingCaretPosRef.current = null;
+      restoreCaret(pos);
+
+      requestAnimationFrame(() => {
+        restoreCaret(pos);
+      });
+    }, [displayText, restoreCaret]);
+
     return (
       <div ref={wrapperRef} className="relative flex-1">
-        <Input
-          ref={inputRef}
-          placeholder={placeholder}
-          value={displayText}
-          onChange={handleChange}
-          onKeyDown={handleKeyDown}
-          onSelect={handleSelect}
-          disabled={disabled}
-          className={className}
-          autoComplete="off"
-        />
+        {multiline ? (
+          <Textarea
+            ref={inputRef as React.Ref<HTMLTextAreaElement>}
+            placeholder={placeholder}
+            value={displayText}
+            onChange={handleChange}
+            onKeyDown={handleKeyDown}
+            onSelect={handleSelect}
+            disabled={disabled}
+            className={className}
+            autoComplete="off"
+            rows={rows}
+          />
+        ) : (
+          <Input
+            ref={inputRef as React.Ref<HTMLInputElement>}
+            placeholder={placeholder}
+            value={displayText}
+            onChange={handleChange}
+            onKeyDown={handleKeyDown}
+            onSelect={handleSelect}
+            disabled={disabled}
+            className={className}
+            autoComplete="off"
+          />
+        )}
 
         {showDropdown &&
           dropdownPos &&

@@ -4,13 +4,14 @@
 
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, type ReactNode } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useSounds } from "@/components/shared/SoundProvider";
 import { motion } from "framer-motion";
 import { AnimatePresence } from "framer-motion";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { MentionInput, type MentionInputHandle } from "@/components/shared/MentionInput";
+import { MentionChip } from "@/components/shared/ProfileDialog";
 import { Loader2, MessageCircle, ChevronDown, Reply, X, Trash2, ThumbsUp, Send } from "lucide-react";
 import type { PropsComment } from "@/types";
 
@@ -104,6 +105,36 @@ type ReactionKey = (typeof REACTIONS)[number]["key"];
 const CHIP_BASE_CLASS = "inline-flex h-7 shrink-0 items-center gap-0.5 rounded-full border px-2 py-0 text-[11px] font-medium shadow-sm transition-all";
 const CHIP_IDLE_CLASS = "border-gray-200/80 dark:border-gray-700/80 bg-white/90 dark:bg-gray-800/90 text-gray-600 dark:text-gray-300 hover:border-brand-blue/30 hover:bg-white dark:hover:bg-gray-800";
 
+const MENTION_RENDER_REGEX = /@\[([^\]]+)\]\(([^)]+)\)/g;
+
+function renderMentionContent(content: string) {
+  const parts: (string | ReactNode)[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  const regex = new RegExp(MENTION_RENDER_REGEX.source, "g");
+  let key = 0;
+
+  while ((match = regex.exec(content)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(content.slice(lastIndex, match.index));
+    }
+    parts.push(
+      <MentionChip
+        key={key++}
+        userId={match[2]}
+        displayName={match[1]}
+      />,
+    );
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < content.length) {
+    parts.push(content.slice(lastIndex));
+  }
+
+  return parts.length > 0 ? parts : content;
+}
+
 function CommentBubble({
   comment,
   onDelete,
@@ -126,7 +157,7 @@ function CommentBubble({
         <div className="flex-1 min-w-0">
           <div className="inline-block bg-gray-100 dark:bg-gray-800 rounded-2xl px-3 py-1.5 max-w-[90%]">
             <span className="font-semibold text-[12px] text-gray-800 dark:text-gray-200 block leading-tight">{comment.authorName}</span>
-            <p className="text-[12px] text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words leading-relaxed mt-0.5">{comment.content}</p>
+            <p className="text-[12px] text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words leading-relaxed mt-0.5">{renderMentionContent(comment.content)}</p>
           </div>
           <div className="flex items-center gap-2.5 mt-0.5 ml-2 text-[11px]">
             <button
@@ -188,7 +219,7 @@ function PropsCommentThread({
   const [localCount, setLocalCount] = useState(commentCount);
   const [replyTo, setReplyTo] = useState<{ id: string; name: string } | null>(null);
   const { playClick, playSuccess } = useSounds();
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<MentionInputHandle>(null);
 
   useEffect(() => {
     setLocalCount(commentCount);
@@ -392,11 +423,11 @@ function PropsCommentThread({
                 <div className="shrink-0 w-6 h-6 rounded-full bg-brand-blue/20 dark:bg-brand-blue/30 flex items-center justify-center">
                   <MessageCircle className="w-3 h-3 text-brand-blue" />
                 </div>
-                <Input
+                <MentionInput
                   ref={inputRef}
                   placeholder={replyTo ? `Reply to ${replyTo.name}…` : "Write a comment…"}
                   value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
+                  onChange={setNewComment}
                   className="h-7 text-[11px] bg-gray-50 dark:bg-gray-900 dark:border-gray-700 border-gray-200 rounded-full flex-1 px-3"
                   maxLength={500}
                 />
