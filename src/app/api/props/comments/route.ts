@@ -39,14 +39,27 @@ export async function GET(request: Request) {
 
     const canDeleteAny = isAuthenticated && user?.role === "SUPER_ADMIN";
 
+    // Enrich to UnifiedComment shape
     const enriched = comments.map((c) => ({
-      ...c,
+      id: c.id,
+      authorId: c.authorId,
+      authorName: c.authorName,
+      content: c.content,
+      parentId: c.parentId,
+      likes: c.likes,
       userLiked: userLikedIds.has(c.id),
       canDelete: canDeleteAny || (isAuthenticated && user?.sub === c.authorId),
+      createdAt: c.createdAt,
       replies: c.replies.map((r) => ({
-        ...r,
+        id: r.id,
+        authorId: r.authorId,
+        authorName: r.authorName,
+        content: r.content,
+        parentId: r.parentId,
+        likes: r.likes,
         userLiked: userLikedIds.has(r.id),
         canDelete: canDeleteAny || (isAuthenticated && user?.sub === r.authorId),
+        createdAt: r.createdAt,
         replies: [],
       })),
     }));
@@ -92,25 +105,56 @@ export async function POST(request: Request) {
       },
     });
 
+    // ── Reply + @mention notifications ─────────────────────
+    const commenterName = user.name || "Someone";
+    const plainContent = stripMentionMarkup(content.trim());
+    const truncatedContent = plainContent.length > 120
+      ? plainContent.slice(0, 120) + "…"
+      : plainContent;
+
+    const commenterDbUser = await prisma.user.findFirst({
+      where: { logtoId: user.sub },
+      select: { id: true },
+    });
+
+    const alreadyNotified = new Set<string>();
+    if (commenterDbUser) {
+      alreadyNotified.add(commenterDbUser.id);
+    }
+
+    // Reply — notify parent comment author
+    try {
+      if (parentId) {
+        const parentComment = await prisma.propsComment.findUnique({
+          where: { id: parentId },
+          select: { authorId: true },
+        });
+        if (parentComment) {
+          // Props authorId is Logto sub — resolve to DB user
+          const parentAuthor = await prisma.user.findFirst({
+            where: { logtoId: parentComment.authorId },
+            select: { id: true },
+          });
+          if (parentAuthor && !alreadyNotified.has(parentAuthor.id)) {
+            alreadyNotified.add(parentAuthor.id);
+            await createNotification({
+              recipientUserId: parentAuthor.id,
+              type: "MENTION",
+              title: "New reply on your comment",
+              message: `${commenterName} replied to your comment on a Props post: "${truncatedContent}"`,
+              metadata: { propsId, commentId: comment.id },
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.error(`[PropsComments] Reply notification error for commentId=${comment.id}:`, err);
+    }
+
+    // @mention notifications
     try {
       const mentions = extractMentions(content.trim());
       if (mentions.length > 0) {
-        const commenterName = user.name || "Someone";
-        const plainContent = stripMentionMarkup(content.trim());
-        const truncatedContent = plainContent.length > 120
-          ? plainContent.slice(0, 120) + "…"
-          : plainContent;
-
-        const commenterDbUser = await prisma.user.findFirst({
-          where: { logtoId: user.sub },
-          select: { id: true },
-        });
-
-        const alreadyNotified = new Set<string>();
-        if (commenterDbUser) {
-          alreadyNotified.add(commenterDbUser.id);
-        }
-
         for (const mention of mentions) {
           const snapshot = await prisma.$queryRaw<
             { mail: string | null; userPrincipalName: string }[]

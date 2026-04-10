@@ -1,17 +1,15 @@
-// ProConnect — Celebrations Banner Widget
-// Premium 3D rotating carousel for employee celebrations.
-// Shows birthdays, anniversaries, and exam passes with category filters.
+// ProConnect — Celebrations Widget
+// List-style feed for employee celebrations (birthdays, anniversaries, exam passes).
+// Mimics the compact card style of MyShare.
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Cake, CalendarHeart, GraduationCap, Sparkles } from "lucide-react";
-import {
-  ThreeDImageCarousel,
-  type CarouselItem,
-} from "@/components/ui/three-d-image-carousel";
 import { cn } from "@/lib/utils";
+import { CommentSection } from "@/components/shared/CommentSection";
+import type { UnifiedComment } from "@/types";
 
 interface CelebrationItem {
   id: string;
@@ -20,6 +18,7 @@ interface CelebrationItem {
   employeeId: string | null;
   email: string;
   detail: string;
+  commentCount: number;
 }
 
 interface CelebrationsData {
@@ -44,7 +43,7 @@ const FILTERS: { key: FilterType; label: string; icon: typeof Sparkles; color: s
   { key: "all", label: "All", icon: Sparkles, color: "#06427F" },
   { key: "birthday", label: "Birthdays", icon: Cake, color: "#db2777" },
   { key: "anniversary", label: "Anniversaries", icon: CalendarHeart, color: "#059669" },
-  { key: "exam", label: "Exams Passed", icon: GraduationCap, color: "#d97706" },
+  { key: "exam", label: "Exams", icon: GraduationCap, color: "#d97706" },
 ];
 
 function getInitials(name: string): string {
@@ -56,28 +55,68 @@ function getInitials(name: string): string {
     .slice(0, 2);
 }
 
-function CelebrationCard({ item }: { item: CelebrationItem }) {
-  const { accent, accentLight, label, icon: Icon } = TYPE_CONFIG[item.type];
+/* ─── Comment Thread for Celebration ─────────────────── */
+
+function CelebrationCommentThread({ celebrationId, commentCount }: { celebrationId: string; commentCount: number }) {
+  const fetchComments = useCallback(async (entityId: string): Promise<UnifiedComment[]> => {
+    const res = await fetch(`/api/celebrations/comments?celebrationId=${entityId}`);
+    const data = await res.json();
+    return data.comments || [];
+  }, []);
+
+  const submitComment = useCallback(async (entityId: string, content: string, parentId?: string): Promise<UnifiedComment> => {
+    const res = await fetch("/api/celebrations/comments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ celebrationId: entityId, content, parentId: parentId || null }),
+    });
+    const data = await res.json();
+    return data.comment;
+  }, []);
+
+  const likeComment = useCallback(async (_entityId: string, commentId: string): Promise<void> => {
+    await fetch("/api/celebrations/comments", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ commentId }),
+    });
+  }, []);
+
+  const deleteComment = useCallback(async (_entityId: string, commentId: string): Promise<void> => {
+    await fetch(`/api/celebrations/comments?id=${commentId}`, { method: "DELETE" });
+  }, []);
 
   return (
-    <div className="w-[150px]">
-      <div
-        className="relative rounded-2xl overflow-hidden bg-white dark:bg-gray-800/80 border border-gray-100 dark:border-gray-700/60 p-3.5 pb-3 flex flex-col items-center text-center transition-all duration-200"
-        style={{
-          boxShadow: `0 1px 3px rgba(0,0,0,0.06), 0 6px 16px ${accent}12`,
-        }}
-      >
-        {/* Top accent bar */}
-        <div
-          className="absolute top-0 inset-x-0 h-[3px]"
-          style={{ background: `linear-gradient(90deg, ${accent}00, ${accent}, ${accent}00)` }}
-        />
+    <CommentSection
+      entityId={celebrationId}
+      commentCount={commentCount}
+      compact
+      onFetchComments={fetchComments}
+      onSubmit={submitComment}
+      onLike={likeComment}
+      onDelete={deleteComment}
+    />
+  );
+}
 
+function CelebrationRow({ item }: { item: CelebrationItem }) {
+  const { accent, icon: Icon } = TYPE_CONFIG[item.type];
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -6 }}
+      transition={{ duration: 0.15 }}
+      className="px-3.5 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+    >
+      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-1">
         {/* Photo */}
-        <div className="relative mb-2.5">
+        <div className="relative shrink-0">
           <div
-            className="h-16 w-16 rounded-full overflow-hidden ring-2 ring-offset-2 ring-offset-white dark:ring-offset-gray-800"
-            style={{ ["--tw-ring-color" as string]: `${accent}40` }}
+            className="h-14 w-14 rounded-full overflow-hidden ring-[1.5px] ring-offset-1 ring-offset-white dark:ring-offset-gray-900"
+            style={{ ["--tw-ring-color" as string]: `${accent}50` }}
           >
             {item.employeeId ? (
               <img
@@ -87,154 +126,147 @@ function CelebrationCard({ item }: { item: CelebrationItem }) {
               />
             ) : (
               <div
-                className="h-full w-full flex items-center justify-center text-sm font-bold text-white"
+                className="h-full w-full flex items-center justify-center text-xs font-bold text-white"
                 style={{ background: `linear-gradient(135deg, ${accent}, ${accent}cc)` }}
               >
                 {getInitials(item.employeeName)}
               </div>
             )}
           </div>
-          {/* Category badge */}
+          {/* Type badge */}
           <div
-            className="absolute -bottom-0.5 -right-0.5 h-5 w-5 rounded-full flex items-center justify-center shadow-sm border-2 border-white dark:border-gray-800"
+            className="absolute -bottom-0.5 -right-0.5 h-[18px] w-[18px] rounded-full flex items-center justify-center border-[1.5px] border-white dark:border-gray-900"
             style={{ backgroundColor: accent }}
           >
             <Icon className="h-2.5 w-2.5 text-white" />
           </div>
         </div>
 
-        {/* Name */}
-        <p className="text-[13px] font-semibold text-gray-900 dark:text-gray-50 leading-snug truncate w-full">
-          {item.employeeName}
-        </p>
-
-        {/* Detail */}
-        <p
-          className="text-[11px] font-medium leading-snug mt-0.5 truncate w-full"
-          style={{ color: accent }}
-        >
-          {item.detail}
-        </p>
-
-        {/* Category pill */}
-        <div
-          className="mt-1.5 px-2 py-0.5 rounded-full text-[9px] font-semibold uppercase tracking-wider"
-          style={{ backgroundColor: accentLight, color: accent }}
-        >
-          {label}
+        {/* Info */}
+        <div className="min-w-0">
+          <p className="text-[12.5px] font-semibold text-gray-900 dark:text-gray-50 leading-tight truncate">
+            {item.employeeName}
+          </p>
+          <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-tight mt-0.5 truncate">
+            {item.detail}
+          </p>
         </div>
+
+        {/* Comment chip — right */}
+        <CelebrationCommentThread celebrationId={item.id} commentCount={item.commentCount ?? 0} />
       </div>
-    </div>
+    </motion.div>
   );
 }
 
-export function CelebrationsBanner() {
+export function CelebrationsBanner({ selectedDate, onDateChange }: { selectedDate?: string; onDateChange?: (date: string) => void }) {
   const [data, setData] = useState<CelebrationsData | null>(null);
   const [filter, setFilter] = useState<FilterType>("all");
+  const [showCount, setShowCount] = useState(6);
+
+  // Determine if viewing today
+  const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" }); // YYYY-MM-DD
+  const dateToFetch = selectedDate || todayStr;
+  const isToday = dateToFetch === todayStr;
 
   useEffect(() => {
-    fetch("/api/celebrations")
+    const url = isToday ? "/api/celebrations" : `/api/celebrations?date=${dateToFetch}`;
+    fetch(url)
       .then((r) => r.json())
       .then((d: CelebrationsData) => {
         if (d?.items) setData(d);
+        else setData({ items: [], hasBirthdays: false, hasAnniversaries: false, hasExams: false });
       })
       .catch(() => {});
-  }, []);
+    setFilter("all");
+    setShowCount(6);
+  }, [dateToFetch, isToday]);
 
-  if (!data || data.items.length === 0) return null;
+  if (!data || data.items.length === 0) return (
+    <div className="px-3.5 py-6 text-center text-xs text-gray-400">
+      No celebrations{isToday ? " today" : ` on ${dateToFetch}`}.
+    </div>
+  );
 
-  // Build available filters
+  // Build available filters (hide Exams for past dates since they're ephemeral)
   const availableFilters = FILTERS.filter(
     (f) =>
       f.key === "all" ||
       (f.key === "birthday" && data.hasBirthdays) ||
       (f.key === "anniversary" && data.hasAnniversaries) ||
-      (f.key === "exam" && data.hasExams)
+      (f.key === "exam" && data.hasExams && isToday)
   );
 
   // Filter items
   const filtered =
     filter === "all" ? data.items : data.items.filter((i) => i.type === filter);
 
-  // Convert to carousel items
-  const carouselItems: CarouselItem[] = filtered.map((item) => ({
-    id: item.id,
-    content: <CelebrationCard item={item} />,
-  }));
+  const visible = filtered.slice(0, showCount);
+  const hasMore = filtered.length > showCount;
 
   return (
-    <section className="mb-5">
-      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
-        {/* Header */}
-        <div className="px-4 py-2.5 bg-gradient-to-r from-slate-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 border-t-[3px] border-t-brand-blue flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-brand-blue" />
-            <h3 className="text-sm font-bold text-brand-blue tracking-wide uppercase">
-              Celebrations
-            </h3>
+    <div className="divide-y divide-gray-100 dark:divide-gray-800">
+      {/* Filter tabs */}
+      {availableFilters.length > 1 && (
+        <div className="px-3.5 py-2 flex items-center gap-0.5">
+          <div className="flex items-center gap-0.5 bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
+            {availableFilters.map((f) => {
+              const FIcon = f.icon;
+              const isActive = filter === f.key;
+              return (
+                <motion.button
+                  key={f.key}
+                  onClick={() => { setFilter(f.key); setShowCount(6); }}
+                  whileTap={{ scale: 0.97 }}
+                  className={cn(
+                    "relative flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors duration-150",
+                    isActive
+                      ? "text-white shadow-sm"
+                      : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                  )}
+                >
+                  {isActive && (
+                    <motion.div
+                      layoutId="celebrations-filter-bg"
+                      className="absolute inset-0 rounded-md"
+                      style={{ backgroundColor: f.color }}
+                      transition={{ type: "spring", bounce: 0.15, duration: 0.4 }}
+                    />
+                  )}
+                  <FIcon className="h-3 w-3 relative z-10" />
+                  <span className="relative z-10 hidden sm:inline">{f.label}</span>
+                </motion.button>
+              );
+            })}
           </div>
+        </div>
+      )}
 
-          {/* Filter tabs */}
-          {availableFilters.length > 1 && (
-            <div className="flex items-center gap-0.5 bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
-              {availableFilters.map((f) => {
-                const Icon = f.icon;
-                const isActive = filter === f.key;
-                return (
-                  <motion.button
-                    key={f.key}
-                    onClick={() => setFilter(f.key)}
-                    whileTap={{ scale: 0.97 }}
-                    className={cn(
-                      "relative flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors duration-150",
-                      isActive
-                        ? "text-white shadow-sm"
-                        : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
-                    )}
-                  >
-                    {isActive && (
-                      <motion.div
-                        layoutId="celebrations-filter-bg"
-                        className="absolute inset-0 rounded-md"
-                        style={{ backgroundColor: f.color }}
-                        transition={{ type: "spring", bounce: 0.15, duration: 0.4 }}
-                      />
-                    )}
-                    <Icon className="h-3 w-3 relative z-10" />
-                    <span className="relative z-10 hidden sm:inline">{f.label}</span>
-                  </motion.button>
-                );
-              })}
-            </div>
+      {/* List */}
+      <div className="divide-y divide-gray-50 dark:divide-gray-800/60">
+        <AnimatePresence mode="popLayout">
+          {visible.length > 0 ? (
+            visible.map((item) => (
+              <CelebrationRow key={item.id} item={item} />
+            ))
+          ) : (
+            <p className="text-center text-xs text-gray-400 py-6">
+              No celebrations for this filter.
+            </p>
           )}
-        </div>
-
-        {/* 3D Carousel */}
-        <div className="px-2 pt-3 pb-2.5">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={filter}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.2 }}
-            >
-              {carouselItems.length > 0 ? (
-                <ThreeDImageCarousel
-                  items={carouselItems}
-                  autoRotate
-                  autoRotateInterval={4000}
-                  height={200}
-                />
-              ) : (
-                <p className="text-center text-xs text-gray-400 py-6">
-                  No celebrations for this filter.
-                </p>
-              )}
-            </motion.div>
-          </AnimatePresence>
-        </div>
+        </AnimatePresence>
       </div>
-    </section>
+
+      {/* View More */}
+      {hasMore && (
+        <button
+          type="button"
+          onClick={() => setShowCount((c) => c + 6)}
+          className="w-full py-2 text-[11px] font-medium text-gray-500 dark:text-gray-400 hover:text-brand-blue dark:hover:text-brand-blue transition-colors"
+        >
+          View More ({filtered.length - showCount} remaining)
+        </button>
+      )}
+    </div>
   );
 }

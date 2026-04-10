@@ -95,6 +95,28 @@ function extractPermissionsFromToken(accessToken: string): string[] {
 }
 
 
+// ─── Per-process userinfo cache ─────────────────────────────
+// Avoids calling Logto /oidc/userinfo on every SSR page load.
+// Cache TTL: 60s — role changes propagate within 1 minute, no sign-out required.
+const USERINFO_CACHE_TTL_MS = 60_000;
+const _userInfoCache = new Map<string, { data: Record<string, unknown>; expiresAt: number }>();
+
+function _getCachedUserInfo(sub: string): Record<string, unknown> | null {
+  const entry = _userInfoCache.get(sub);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) { _userInfoCache.delete(sub); return null; }
+  return entry.data;
+}
+
+function _setCachedUserInfo(sub: string, data: Record<string, unknown>): void {
+  _userInfoCache.set(sub, { data, expiresAt: Date.now() + USERINFO_CACHE_TTL_MS });
+  // Prevent unbounded growth with many unique users
+  if (_userInfoCache.size > 1000) {
+    const oldest = _userInfoCache.keys().next().value;
+    if (oldest) _userInfoCache.delete(oldest);
+  }
+}
+
 // ─── Feature flag: is Logto configured? ───────────────────
 export const isLogtoConfigured =
   !!process.env.LOGTO_ENDPOINT && !!process.env.LOGTO_APP_ID;
@@ -254,27 +276,43 @@ export async function getAuthUser(): Promise<{
 
   const { getLogtoContext } = await import("@logto/next/server-actions");
 
-  // fetchUserInfo: true → calls Logto /oidc/userinfo on every request
-  // so role changes take effect immediately (no sign-out needed)
-  let context: Awaited<ReturnType<typeof getLogtoContext>>;
+  // ── Step 1: Fast path — reads session cookie only, no network call ──
+  let fastContext: Awaited<ReturnType<typeof getLogtoContext>>;
   try {
-    context = await getLogtoContext(logtoConfig, { fetchUserInfo: true });
+    fastContext = await getLogtoContext(logtoConfig, { fetchUserInfo: false });
   } catch (err) {
-    // Treat ALL getLogtoContext errors as signed-out rather than crashing.
-    // Covers: expired/revoked refresh tokens, cookie decryption failures
-    // (e.g. stale cookies after deploy), and any other Logto SDK errors.
     const msg = err instanceof Error ? err.message : String(err);
     console.warn("[Auth] Session error — treating as signed out:", msg);
     return { isAuthenticated: false, user: null };
   }
 
-  if (!context.isAuthenticated) {
+  if (!fastContext.isAuthenticated) {
     return { isAuthenticated: false, user: null };
   }
 
-  // Prefer userInfo (fresh from server) over cached claims
-  const claims = (context.claims as Record<string, unknown>) ?? {};
-  const userInfo = (context.userInfo as Record<string, unknown>) ?? {};
+  const claims = (fastContext.claims as Record<string, unknown>) ?? {};
+  const sub = claims.sub as string;
+
+  // ── Step 2: Get userInfo from cache or fetch live from Logto ──
+  // Cache hit → instant. Cache miss → one network call, result cached for 60s.
+  let freshUserInfo = sub ? _getCachedUserInfo(sub) : null;
+
+  if (!freshUserInfo) {
+    try {
+      const fullContext = await getLogtoContext(logtoConfig, { fetchUserInfo: true });
+      freshUserInfo = (fullContext.userInfo as Record<string, unknown>) ?? {};
+      if (sub && Object.keys(freshUserInfo).length > 0) {
+        _setCachedUserInfo(sub, freshUserInfo);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn("[Auth] fetchUserInfo failed, using cached claims:", msg);
+      freshUserInfo = {};
+    }
+  }
+
+  // Prefer userInfo (fresh/cached from Logto) over ID token claims
+  const userInfo = freshUserInfo ?? {};
   const info: Record<string, unknown> = {
     ...claims,
     ...userInfo,

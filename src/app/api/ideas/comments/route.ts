@@ -48,15 +48,27 @@ export async function GET(request: Request) {
       currentDbUserId = dbUser?.id ?? null;
     }
 
-    // Enrich with userLiked + canDelete
+    // Enrich to UnifiedComment shape
     const enriched = comments.map((c) => ({
-      ...c,
+      id: c.id,
+      authorId: c.authorId,
+      authorName: c.authorName,
+      content: c.content,
+      parentId: c.parentId,
+      likes: c.likes,
       userLiked: userLikedIds.has(c.id),
       canDelete: canDeleteAny || (!!currentDbUserId && currentDbUserId === c.authorId),
+      createdAt: c.createdAt,
       replies: c.replies.map((r) => ({
-        ...r,
+        id: r.id,
+        authorId: r.authorId,
+        authorName: r.authorName,
+        content: r.content,
+        parentId: r.parentId,
+        likes: r.likes,
         userLiked: userLikedIds.has(r.id),
         canDelete: canDeleteAny || (!!currentDbUserId && currentDbUserId === r.authorId),
+        createdAt: r.createdAt,
         replies: [],
       })),
     }));

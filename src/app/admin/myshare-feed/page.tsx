@@ -18,6 +18,8 @@ import {
   Search,
   RotateCcw,
   AlertTriangle,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -78,6 +80,8 @@ export default function AdminMyShareFeedPage() {
   const [posts, setPosts] = useState<AdminPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [widgetVisible, setWidgetVisible] = useState(true);
+  const [toggling, setToggling] = useState(false);
   const [expandedPost, setExpandedPost] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ type: "post" | "comment"; id: string; postId?: string; label: string; hard?: boolean } | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -98,7 +102,30 @@ export default function AdminMyShareFeedPage() {
 
   useEffect(() => {
     fetchPosts();
+    fetch("/api/dashboard-settings/visibility")
+      .then((r) => r.json())
+      .then((d) => setWidgetVisible(d.showMyShare !== false))
+      .catch(() => {});
   }, [fetchPosts]);
+
+  const toggleVisibility = async () => {
+    setToggling(true);
+    const newValue = !widgetVisible;
+    try {
+      const res = await fetch("/api/dashboard-settings/visibility", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ showMyShare: newValue }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      setWidgetVisible(newValue);
+      playSuccess();
+    } catch {
+      // silent
+    } finally {
+      setToggling(false);
+    }
+  };
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -229,12 +256,28 @@ export default function AdminMyShareFeedPage() {
             <ArrowLeft className="w-4 h-4" /> Back
           </Button>
         </Link>
-        <div>
+        <div className="flex-1">
           <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">MyShare Feed Management</h1>
           <p className="text-sm text-gray-500 mt-0.5">
             {posts.length} post{posts.length !== 1 && "s"} · {posts.reduce((a, p) => a + p.commentCount, 0)} comment{posts.reduce((a, p) => a + p.commentCount, 0) !== 1 && "s"}
           </p>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={toggleVisibility}
+          disabled={toggling}
+          className={`gap-1.5 ${widgetVisible ? "text-green-600 border-green-300 hover:bg-green-50" : "text-gray-400 border-gray-200 hover:bg-gray-50"}`}
+        >
+          {toggling ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : widgetVisible ? (
+            <Eye className="w-4 h-4" />
+          ) : (
+            <EyeOff className="w-4 h-4" />
+          )}
+          {widgetVisible ? "Visible on Dashboard" : "Hidden from Dashboard"}
+        </Button>
       </div>
 
       {/* Search */}

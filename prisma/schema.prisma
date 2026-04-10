@@ -32,6 +32,14 @@ model User {
   myShareComments     MyShareComment[]      @relation("MyShareCommentAuthor")
   myShareCommentLikes MyShareCommentLike[]  @relation("MyShareCommentLikes")
 
+  videoSpotlights         VideoSpotlight[]         @relation("VideoSpotlightAuthor")
+  videoSpotlightReactions VideoSpotlightReaction[] @relation("VideoSpotlightReactionUser")
+  videoSpotlightComments  VideoSpotlightComment[]  @relation("VideoSpotlightCommentAuthor")
+  videoSpotlightCommentLikes VideoSpotlightCommentLike[] @relation("VideoSpotlightCommentLikeUser")
+
+  celebrationComments     CelebrationComment[]     @relation("CelebrationCommentAuthor")
+  celebrationCommentLikes CelebrationCommentLike[] @relation("CelebrationCommentLikeUser")
+
   @@map("users")
 }
 
@@ -332,6 +340,8 @@ enum NotificationType {
   IDEA_REPLY
   MYSHARE_COMMENT
   MYSHARE_REPLY
+  CELEBRATION_COMMENT
+  CELEBRATION_REPLY
   MENTION
 }
 
@@ -542,8 +552,8 @@ model VideoSpotlight {
   mimeType    String   @default("video/webm")
   fileSize    Int      @default(0) // bytes
   duration    Float?               // seconds
-  authorId    String?              // user who recorded/uploaded
-  authorName  String?
+  authorId    String?              // FK to users.id
+  author      User?    @relation("VideoSpotlightAuthor", fields: [authorId], references: [id])
   featured    Boolean  @default(false)
   playCount   Int      @default(0)
   sortOrder   Int      @default(0)
@@ -562,13 +572,15 @@ model VideoSpotlight {
 model VideoSpotlightReaction {
   id           String         @id @default(cuid())
   videoId      String
-  userLogtoId  String
+  userId       String         @map("userLogtoId")
   type         String         // "like" | "dislike"
   createdAt    DateTime       @default(now())
   video        VideoSpotlight @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  user         User?          @relation("VideoSpotlightReactionUser", fields: [userId], references: [id])
 
-  @@unique([videoId, userLogtoId])
+  @@unique([videoId, userId])
   @@index([videoId])
+  @@index([userId])
   @@map("video_spotlight_reactions")
 }
 
@@ -576,12 +588,12 @@ model VideoSpotlightComment {
   id           String                       @id @default(cuid())
   videoId      String
   authorId     String
-  authorName   String
   content      String
   parentId     String?
   likes        Int                          @default(0)
   createdAt    DateTime                     @default(now())
   video        VideoSpotlight               @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  author       User?                        @relation("VideoSpotlightCommentAuthor", fields: [authorId], references: [id])
   parent       VideoSpotlightComment?       @relation("VideoCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
   replies      VideoSpotlightComment[]      @relation("VideoCommentReplies")
   likedBy      VideoSpotlightCommentLike[]
@@ -594,12 +606,13 @@ model VideoSpotlightComment {
 model VideoSpotlightCommentLike {
   id           String                @id @default(cuid())
   commentId    String
-  voterLogtoId String
+  userId       String                @map("voterLogtoId")
   createdAt    DateTime              @default(now())
   comment      VideoSpotlightComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user         User?                 @relation("VideoSpotlightCommentLikeUser", fields: [userId], references: [id])
 
-  @@unique([commentId, voterLogtoId])
-  @@index([voterLogtoId])
+  @@unique([commentId, userId])
+  @@index([userId])
   @@map("video_spotlight_comment_likes")
 }
 
@@ -648,7 +661,8 @@ model SalesforceDirectory {
   syncedAt            DateTime  @default(now()) @map("synced_at")
   updatedAt           DateTime  @updatedAt
 
-  examPassRecord ExamPassRecord?
+  examPassRecord    ExamPassRecord?
+  celebrationEvents CelebrationEvent[]
 
   @@index([email])
   @@index([birthday])
@@ -769,4 +783,59 @@ model RoleMappingExclusion {
   createdAt   DateTime @default(now())
 
   @@map("role_mapping_exclusions")
+}
+
+// ─── Celebration Events & Comments ───────────────────────
+
+model CelebrationEvent {
+  id           String   @id @default(cuid())
+  type         String
+  email        String
+  eventDate    DateTime @db.Date @map("event_date")
+  employeeName String   @map("employee_name")
+  detail       String
+  commentCount Int      @default(0) @map("comment_count")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  employee     SalesforceDirectory @relation(fields: [email], references: [email], onDelete: Cascade)
+  comments     CelebrationComment[]
+
+  @@unique([type, email, eventDate])
+  @@index([eventDate])
+  @@map("celebration_events")
+}
+
+model CelebrationComment {
+  id            String   @id @default(cuid())
+  celebrationId String   @map("celebration_id")
+  authorId      String   @map("author_id")
+  authorName    String   @map("author_name")
+  content       String
+  parentId      String?  @map("parent_id")
+  likes         Int      @default(0)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  celebration   CelebrationEvent        @relation(fields: [celebrationId], references: [id], onDelete: Cascade)
+  author        User                    @relation("CelebrationCommentAuthor", fields: [authorId], references: [id])
+  parent        CelebrationComment?     @relation("CelebrationCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies       CelebrationComment[]    @relation("CelebrationCommentReplies")
+  likedBy       CelebrationCommentLike[]
+
+  @@index([celebrationId, createdAt])
+  @@index([parentId])
+  @@map("celebration_comments")
+}
+
+model CelebrationCommentLike {
+  id        String   @id @default(cuid())
+  commentId String   @map("comment_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  comment   CelebrationComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user      User               @relation("CelebrationCommentLikeUser", fields: [userId], references: [id])
+
+  @@unique([commentId, userId])
+  @@index([userId])
+  @@map("celebration_comment_likes")
 }

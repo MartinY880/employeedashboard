@@ -67,6 +67,7 @@ export async function listVideoSpotlights(options?: {
 
   const rows = await prisma.videoSpotlight.findMany({
     where,
+    include: { author: { select: { displayName: true } } },
     orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
   });
 
@@ -74,7 +75,10 @@ export async function listVideoSpotlights(options?: {
 }
 
 export async function getVideoSpotlightById(id: string) {
-  const row = await prisma.videoSpotlight.findUnique({ where: { id } });
+  const row = await prisma.videoSpotlight.findUnique({
+    where: { id },
+    include: { author: { select: { displayName: true } } },
+  });
   return row ? serializeVideoSpotlight(row) : null;
 }
 
@@ -86,7 +90,6 @@ export async function createVideoSpotlight(data: {
   fileSize?: number;
   duration?: number | null;
   authorId?: string | null;
-  authorName?: string | null;
 }): Promise<VideoSpotlightItem> {
   const row = await prisma.videoSpotlight.create({
     data: {
@@ -97,8 +100,8 @@ export async function createVideoSpotlight(data: {
       fileSize: data.fileSize ?? 0,
       duration: data.duration ?? null,
       authorId: data.authorId ?? null,
-      authorName: data.authorName ?? null,
     },
+    include: { author: { select: { displayName: true } } },
   });
   return serializeVideoSpotlight(row);
 }
@@ -117,6 +120,7 @@ export async function updateVideoSpotlight(
     const row = await prisma.videoSpotlight.update({
       where: { id },
       data,
+      include: { author: { select: { displayName: true } } },
     });
     return serializeVideoSpotlight(row);
   } catch {

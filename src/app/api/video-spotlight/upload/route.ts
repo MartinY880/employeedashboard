@@ -93,7 +93,6 @@ export async function POST(request: Request) {
       fileSize: file.size,
       duration: null, // set later via admin or client-side metadata extraction
       authorId: dbUser.id,
-      authorName: dbUser.displayName,
     });
 
     return NextResponse.json({ video }, { status: 201 });

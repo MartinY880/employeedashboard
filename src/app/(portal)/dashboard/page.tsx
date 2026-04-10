@@ -28,6 +28,7 @@ const DEFAULT_VIS = {
   showImportantDates: true,
   showLenderAccountExecutives: true,
   showCelebrations: true,
+  showMyShare: true,
 };
 const DEFAULT_SLIDER_CONFIG: SliderConfig = {
   enabled: false,
@@ -60,6 +61,7 @@ export default async function DashboardPage() {
           showImportantDates: parsed.showImportantDates !== false,
           showLenderAccountExecutives: parsed.showLenderAccountExecutives !== false,
           showCelebrations: parsed.showCelebrations !== false,
+          showMyShare: parsed.showMyShare !== false,
         };
       } catch {
         /* keep defaults */

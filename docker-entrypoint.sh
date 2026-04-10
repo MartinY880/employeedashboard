@@ -70,22 +70,44 @@ if [ "$RETRIES" -lt "$MAX_RETRIES" ]; then
     const { Client } = require('pg');
     const c = new Client({ connectionString: '$DATABASE_URL' });
     c.connect()
-      .then(() => c.query(\"DELETE FROM _prisma_migrations WHERE rolled_back_at IS NOT NULL OR (finished_at IS NULL AND started_at < NOW() - INTERVAL '5 minutes')\"))
+      .then(() => c.query(\"DELETE FROM _prisma_migrations WHERE rolled_back_at IS NOT NULL OR (finished_at IS NULL AND applied_steps_count = 0)\"))
       .then(r => { if (r.rowCount > 0) console.log('  Removed ' + r.rowCount + ' failed migration(s)'); c.end(); })
       .catch(() => c.end());
   " 2>/dev/null
 
-  # Apply Prisma migrations first, then heal any missing objects with additive SQL.
+  # Apply Prisma migrations first.
+  # In production, a Prisma migration failure exits by default.
+  # Set ALLOW_SAFE_MIGRATION_FALLBACK=true to allow additive fallback behavior.
+  SAFE_FALLBACK_ALLOWED="${ALLOW_SAFE_MIGRATION_FALLBACK:-}"
+  if [ -z "$SAFE_FALLBACK_ALLOWED" ]; then
+    if [ "${NODE_ENV:-production}" = "production" ]; then
+      SAFE_FALLBACK_ALLOWED="false"
+    else
+      SAFE_FALLBACK_ALLOWED="true"
+    fi
+  fi
+
+  PRISMA_MIGRATE_OK="true"
   echo "🔄 Running Prisma migrations..."
   if prisma migrate deploy --schema=prisma/schema.prisma; then
     echo "✅ Prisma migrations complete."
   else
-    echo "⚠️  Prisma migrations failed — continuing with additive safe migration only"
+    PRISMA_MIGRATE_OK="false"
+    if [ "$SAFE_FALLBACK_ALLOWED" = "true" ]; then
+      echo "⚠️  Prisma migrations failed — fallback is enabled, continuing with additive safe migration"
+    else
+      echo "❌ Prisma migrations failed and fallback is disabled. Exiting startup."
+      exit 1
+    fi
   fi
 
   echo "🔄 Running additive safe migration..."
   if [ -f scripts/migrate-safe.sh ]; then
-    bash scripts/migrate-safe.sh || echo "⚠️  Safe migration had issues — continuing anyway"
+    if [ "$PRISMA_MIGRATE_OK" = "true" ] || [ "$SAFE_FALLBACK_ALLOWED" = "true" ]; then
+      bash scripts/migrate-safe.sh || echo "⚠️  Safe migration had issues — continuing anyway"
+    else
+      echo "⏭️  Skipping additive safe migration (Prisma migrate failed and fallback disabled)"
+    fi
   else
     echo "⚠️  scripts/migrate-safe.sh not found — skipping additive safe migration"
   fi

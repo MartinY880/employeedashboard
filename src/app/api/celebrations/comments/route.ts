@@ -1,12 +1,9 @@
-// ProConnect — Video Spotlight Comments API
-// GET: Fetch comments (threaded) | POST: Add comment/reply | DELETE: Remove comment | PATCH: Like/unlike
+// ProConnect — Celebration Comments API
+// GET: Fetch comments (threaded) | POST: Add comment/reply | PATCH: Like/unlike | DELETE: Remove comment
 
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { ensureDbUser } from "@/lib/prisma";
+import { prisma, ensureDbUser } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/logto";
-import { hasPermission, PERMISSIONS } from "@/lib/rbac";
-import { toDbRole } from "@/lib/rbac";
 import { createNotification } from "@/lib/notifications";
 import { extractMentions, mentionDisplayLength, stripMentionMarkup } from "@/lib/mentions";
 
@@ -14,68 +11,60 @@ export async function GET(request: Request) {
   try {
     const { isAuthenticated, user } = await getAuthUser();
     const { searchParams } = new URL(request.url);
-    const videoId = searchParams.get("videoId");
+    const celebrationId = searchParams.get("celebrationId");
 
-    if (!videoId) {
-      return NextResponse.json({ error: "videoId is required" }, { status: 400 });
+    if (!celebrationId) {
+      return NextResponse.json({ error: "celebrationId is required" }, { status: 400 });
     }
 
-    // Fetch top-level comments with their replies (one level deep)
-    const comments = await prisma.videoSpotlightComment.findMany({
-      where: { videoId, parentId: null },
+    const comments = await prisma.celebrationComment.findMany({
+      where: { celebrationId, parentId: null },
       orderBy: { createdAt: "asc" },
       include: {
-        author: { select: { displayName: true } },
-        replies: {
-          orderBy: { createdAt: "asc" },
-          include: { author: { select: { displayName: true } } },
-        },
+        replies: { orderBy: { createdAt: "asc" } },
       },
     });
 
-    // Resolve current user's DB id + admin status for canDelete checks
     let userLikedIds = new Set<string>();
-    let currentUserId: string | null = null;
-    let canDeleteAny = false;
+    let currentDbUserId: string | null = null;
+
     if (isAuthenticated && user) {
-      const dbUser = await ensureDbUser(
-        user.sub,
-        user.email ?? "",
-        user.name ?? user.email ?? "Unknown",
-        toDbRole(user.role)
-      );
-      currentUserId = dbUser.id;
-      canDeleteAny = hasPermission(user, PERMISSIONS.MANAGE_VIDEO_SPOTLIGHT);
-      const allCommentIds = comments.flatMap((c) => [c.id, ...c.replies.map((r) => r.id)]);
-      if (allCommentIds.length > 0) {
-        const likes = await prisma.videoSpotlightCommentLike.findMany({
-          where: { userId: dbUser.id, commentId: { in: allCommentIds } },
-          select: { commentId: true },
-        });
-        userLikedIds = new Set(likes.map((l) => l.commentId));
+      const dbUser = await prisma.user.findFirst({ where: { logtoId: user.sub }, select: { id: true } });
+      currentDbUserId = dbUser?.id ?? null;
+
+      if (currentDbUserId) {
+        const allCommentIds = comments.flatMap((c) => [c.id, ...c.replies.map((r) => r.id)]);
+        if (allCommentIds.length > 0) {
+          const likes = await prisma.celebrationCommentLike.findMany({
+            where: { userId: currentDbUserId, commentId: { in: allCommentIds } },
+            select: { commentId: true },
+          });
+          userLikedIds = new Set(likes.map((l) => l.commentId));
+        }
       }
     }
 
-    // Enrich to UnifiedComment shape
+    const canDeleteAny = isAuthenticated && user?.role === "SUPER_ADMIN";
+
     const enriched = comments.map((c) => ({
       id: c.id,
       authorId: c.authorId,
-      authorName: c.author?.displayName ?? "Unknown",
+      authorName: c.authorName,
       content: c.content,
       parentId: c.parentId,
       likes: c.likes,
       userLiked: userLikedIds.has(c.id),
-      canDelete: canDeleteAny || (!!currentUserId && currentUserId === c.authorId),
+      canDelete: canDeleteAny || (!!currentDbUserId && currentDbUserId === c.authorId),
       createdAt: c.createdAt,
       replies: c.replies.map((r) => ({
         id: r.id,
         authorId: r.authorId,
-        authorName: r.author?.displayName ?? "Unknown",
+        authorName: r.authorName,
         content: r.content,
         parentId: r.parentId,
         likes: r.likes,
         userLiked: userLikedIds.has(r.id),
-        canDelete: canDeleteAny || (!!currentUserId && currentUserId === r.authorId),
+        canDelete: canDeleteAny || (!!currentDbUserId && currentDbUserId === r.authorId),
         createdAt: r.createdAt,
         replies: [],
       })),
@@ -94,53 +83,62 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const dbUser = await ensureDbUser(
-      user.sub,
-      user.email ?? "",
-      user.name ?? user.email ?? "Unknown",
-      toDbRole(user.role)
-    );
-
     const body = await request.json();
-    const { videoId, content, parentId } = body;
+    const { celebrationId, content, parentId } = body;
 
-    if (!videoId || !content?.trim()) {
-      return NextResponse.json({ error: "videoId and content are required" }, { status: 400 });
+    if (!celebrationId || !content?.trim()) {
+      return NextResponse.json({ error: "celebrationId and content are required" }, { status: 400 });
     }
 
-    if (content.trim().length > 500 || mentionDisplayLength(content.trim()) > 500) {
+    if (mentionDisplayLength(content.trim()) > 500) {
       return NextResponse.json({ error: "Comment must be 500 characters or less" }, { status: 400 });
     }
 
-    // If replying, verify parent exists and belongs to the same video
     if (parentId) {
-      const parent = await prisma.videoSpotlightComment.findFirst({ where: { id: parentId, videoId } });
+      const parent = await prisma.celebrationComment.findFirst({ where: { id: parentId, celebrationId } });
       if (!parent) {
         return NextResponse.json({ error: "Parent comment not found" }, { status: 404 });
       }
     }
 
-    const comment = await prisma.videoSpotlightComment.create({
+    const dbUser = await ensureDbUser(user.sub, user.email, user.name);
+
+    const comment = await prisma.celebrationComment.create({
       data: {
-        videoId,
+        celebrationId,
         authorId: dbUser.id,
+        authorName: user.name || "Anonymous",
         content: content.trim(),
         parentId: parentId || null,
       },
-      include: { author: { select: { displayName: true } } },
     });
 
-    // ── Reply + @mention notifications ─────────────────────
+    // Increment denormalized comment count
+    await prisma.celebrationEvent.update({
+      where: { id: celebrationId },
+      data: { commentCount: { increment: 1 } },
+    });
+
+    // ── Notifications (reply + @mention) ────────────────────
     const commenterName = user.name || "Someone";
     const plainContent = stripMentionMarkup(content.trim());
     const truncated = plainContent.length > 120 ? plainContent.slice(0, 120) + "…" : plainContent;
     const alreadyNotified = new Set<string>();
-    alreadyNotified.add(dbUser.id);
+    alreadyNotified.add(dbUser.id); // never notify self
 
-    // Reply — notify parent comment author
+    // Look up the celebration event for context in the notification message
+    const celebrationEvent = await prisma.celebrationEvent.findUnique({
+      where: { id: celebrationId },
+      select: { employeeName: true, type: true },
+    });
+    const subjectLabel = celebrationEvent
+      ? `${celebrationEvent.employeeName}'s ${celebrationEvent.type}`
+      : "a celebration";
+
     try {
       if (parentId) {
-        const parentComment = await prisma.videoSpotlightComment.findUnique({
+        // Reply — notify the parent comment's author
+        const parentComment = await prisma.celebrationComment.findUnique({
           where: { id: parentId },
           select: { authorId: true },
         });
@@ -148,18 +146,18 @@ export async function POST(request: Request) {
           alreadyNotified.add(parentComment.authorId);
           await createNotification({
             recipientUserId: parentComment.authorId,
-            type: "MENTION",
+            type: "CELEBRATION_REPLY",
             title: "New reply on your comment",
-            message: `${commenterName} replied to your comment on a Video Spotlight: "${truncated}"`,
-            metadata: { videoId, commentId: comment.id },
+            message: `${commenterName} replied to your comment on ${subjectLabel}: "${truncated}"`,
+            metadata: { celebrationId, commentId: comment.id },
           });
         }
       }
     } catch (err) {
-      console.error(`[VideoSpotlightComments] Reply notification error for commentId=${comment.id}:`, err);
+      console.error(`[CelebrationComments] Reply notification error for commentId=${comment.id}:`, err);
     }
 
-    // @mention notifications
+    // ── @mention notifications ─────────────────────────────
     try {
       const mentions = extractMentions(content.trim());
       if (mentions.length > 0) {
@@ -184,26 +182,18 @@ export async function POST(request: Request) {
             recipientUserId: recipientUser.id,
             type: "MENTION",
             title: "You were mentioned in a comment",
-            message: `${commenterName} mentioned you in a Video Spotlight comment: "${truncated}"`,
-            metadata: { videoId, commentId: comment.id },
+            message: `${commenterName} mentioned you in a Celebrations comment: "${truncated}"`,
+            metadata: { celebrationId, commentId: comment.id },
           });
         }
       }
     } catch (err) {
-      console.error(`[VideoSpotlightComments] Mention notification error for commentId=${comment.id}:`, err);
+      console.error(`[CelebrationComments] Mention notification error for commentId=${comment.id}:`, err);
     }
 
     return NextResponse.json(
-      {
-        comment: {
-          ...comment,
-          authorName: comment.author?.displayName ?? "Unknown",
-          author: undefined,
-          userLiked: false,
-          replies: [],
-        },
-      },
-      { status: 201 }
+      { comment: { ...comment, userLiked: false, canDelete: true, replies: [] } },
+      { status: 201 },
     );
   } catch {
     return NextResponse.json({ error: "Failed to add comment" }, { status: 500 });
@@ -217,13 +207,6 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const dbUser = await ensureDbUser(
-      user.sub,
-      user.email ?? "",
-      user.name ?? user.email ?? "Unknown",
-      toDbRole(user.role)
-    );
-
     const body = await request.json();
     const { commentId } = body;
 
@@ -231,25 +214,29 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "commentId is required" }, { status: 400 });
     }
 
-    const existing = await prisma.videoSpotlightCommentLike.findUnique({
+    // userId on celebration_comment_likes stores DB User.id
+    const dbUser = await prisma.user.findFirst({ where: { logtoId: user.sub }, select: { id: true } });
+    if (!dbUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const existing = await prisma.celebrationCommentLike.findUnique({
       where: { commentId_userId: { commentId, userId: dbUser.id } },
     });
 
     if (existing) {
-      // Unlike
       await prisma.$transaction([
-        prisma.videoSpotlightCommentLike.delete({ where: { id: existing.id } }),
-        prisma.videoSpotlightComment.update({ where: { id: commentId }, data: { likes: { decrement: 1 } } }),
+        prisma.celebrationCommentLike.delete({ where: { id: existing.id } }),
+        prisma.celebrationComment.update({ where: { id: commentId }, data: { likes: { decrement: 1 } } }),
       ]);
-      const updated = await prisma.videoSpotlightComment.findUnique({ where: { id: commentId }, select: { likes: true } });
+      const updated = await prisma.celebrationComment.findUnique({ where: { id: commentId }, select: { likes: true } });
       return NextResponse.json({ liked: false, likes: updated?.likes ?? 0 });
     } else {
-      // Like
       await prisma.$transaction([
-        prisma.videoSpotlightCommentLike.create({ data: { commentId, userId: dbUser.id } }),
-        prisma.videoSpotlightComment.update({ where: { id: commentId }, data: { likes: { increment: 1 } } }),
+        prisma.celebrationCommentLike.create({ data: { commentId, userId: dbUser.id } }),
+        prisma.celebrationComment.update({ where: { id: commentId }, data: { likes: { increment: 1 } } }),
       ]);
-      const updated = await prisma.videoSpotlightComment.findUnique({ where: { id: commentId }, select: { likes: true } });
+      const updated = await prisma.celebrationComment.findUnique({ where: { id: commentId }, select: { likes: true } });
       return NextResponse.json({ liked: true, likes: updated?.likes ?? 0 });
     }
   } catch {
@@ -264,13 +251,6 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const dbUser = await ensureDbUser(
-      user.sub,
-      user.email ?? "",
-      user.name ?? user.email ?? "Unknown",
-      toDbRole(user.role)
-    );
-
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
 
@@ -278,20 +258,30 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "id is required" }, { status: 400 });
     }
 
-    const comment = await prisma.videoSpotlightComment.findUnique({ where: { id } });
+    const comment = await prisma.celebrationComment.findUnique({ where: { id } });
     if (!comment) {
       return NextResponse.json({ error: "Comment not found" }, { status: 404 });
     }
 
-    // Allow author or admin to delete
-    const isAuthor = comment.authorId === dbUser.id;
-    const isAdmin = hasPermission(user, PERMISSIONS.MANAGE_VIDEO_SPOTLIGHT);
+    const currentDbUser = await prisma.user.findFirst({ where: { logtoId: user.sub }, select: { id: true } });
+    const isAuthor = currentDbUser ? comment.authorId === currentDbUser.id : false;
+    const isSuperAdmin = user.role === "SUPER_ADMIN";
 
-    if (!isAuthor && !isAdmin) {
+    if (!isAuthor && !isSuperAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    await prisma.videoSpotlightComment.delete({ where: { id } });
+    // Count replies to decrement comment count accurately
+    const replyCount = await prisma.celebrationComment.count({ where: { parentId: id } });
+
+    await prisma.$transaction([
+      prisma.celebrationComment.delete({ where: { id } }),
+      prisma.celebrationEvent.update({
+        where: { id: comment.celebrationId },
+        data: { commentCount: { decrement: 1 + replyCount } },
+      }),
+    ]);
+
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ error: "Failed to delete comment" }, { status: 500 });

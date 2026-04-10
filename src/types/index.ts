@@ -231,6 +231,22 @@ export interface DashboardStats {
   propsThisMonth: number;
 }
 
+// ─── Unified Comment (shared across all widgets) ──────────
+
+export interface UnifiedComment {
+  id: string;
+  authorId: string;
+  authorName: string;
+  authorEmail?: string;
+  content: string;
+  parentId: string | null;
+  likes: number;
+  userLiked: boolean;
+  canDelete: boolean;
+  createdAt: string;
+  replies?: UnifiedComment[];
+}
+
 // ─── Tournament Bracket ───────────────────────────────────
 
 export type TournamentStatus = "SETUP" | "IN_PROGRESS" | "COMPLETED";

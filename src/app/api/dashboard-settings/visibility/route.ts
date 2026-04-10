@@ -11,6 +11,7 @@ interface DashboardVisibilitySettings {
   showTournamentBracketLive: boolean;
   showLenderAccountExecutives: boolean;
   showCelebrations: boolean;
+  showMyShare: boolean;
 }
 
 const DEFAULT: DashboardVisibilitySettings = {
@@ -18,6 +19,7 @@ const DEFAULT: DashboardVisibilitySettings = {
   showTournamentBracketLive: true,
   showLenderAccountExecutives: true,
   showCelebrations: true,
+  showMyShare: true,
 };
 
 export async function GET() {
@@ -34,6 +36,7 @@ export async function GET() {
           showTournamentBracketLive: parsed.showTournamentBracketLive !== false,
           showLenderAccountExecutives: parsed.showLenderAccountExecutives !== false,
           showCelebrations: parsed.showCelebrations !== false,
+          showMyShare: parsed.showMyShare !== false,
         });
       } catch {
         /* fall through to default */
@@ -70,6 +73,7 @@ export async function PATCH(request: Request) {
       showTournamentBracketLive: body.showTournamentBracketLive ?? current.showTournamentBracketLive ?? DEFAULT.showTournamentBracketLive,
       showLenderAccountExecutives: body.showLenderAccountExecutives ?? current.showLenderAccountExecutives ?? DEFAULT.showLenderAccountExecutives,
       showCelebrations: body.showCelebrations ?? current.showCelebrations ?? DEFAULT.showCelebrations,
+      showMyShare: body.showMyShare ?? current.showMyShare ?? DEFAULT.showMyShare,
     };
 
     await prisma.calendarSetting.upsert({

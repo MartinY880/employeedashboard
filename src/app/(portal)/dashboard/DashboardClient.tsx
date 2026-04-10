@@ -24,13 +24,14 @@ import { ClosersTableBanner } from "@/components/widgets/ClosersTableBanner";
 import { UnifiedReportsWidget } from "@/components/widgets/UnifiedReportsWidget";
 import { CelebrationsBanner } from "@/components/widgets/CelebrationsBanner";
 import Link from "next/link";
-import { Trophy, ArrowRight, Plane, X } from "lucide-react";
+import { Trophy, ArrowRight, Plane, X, Sparkles, Calendar } from "lucide-react";
 
 interface DashboardVisibilitySettings {
   showTournamentBracketLive: boolean;
   showImportantDates: boolean;
   showLenderAccountExecutives: boolean;
   showCelebrations: boolean;
+  showMyShare: boolean;
 }
 
 interface SliderConfig {
@@ -52,6 +53,7 @@ export default function DashboardClient({ visibility, sliderConfig, showVideoSpo
   // Only fetch slider media when the server tells us the slider is enabled + has media
   const [sliderMedia, setSliderMedia] = useState<DashboardSliderMedia[] | null>(null);
   const [showOoo, setShowOoo] = useState(false);
+  const [celebrationDate, setCelebrationDate] = useState<string>("");
   const sliderActive = sliderConfig.enabled && sliderConfig.hasMedia;
 
   // Ref for Be Brilliant column
@@ -213,13 +215,6 @@ export default function DashboardClient({ visibility, sliderConfig, showVideoSpo
         <ClosersTableBanner />
       </ErrorBoundary>
 
-      {/* Celebrations Carousel */}
-      {visibility.showCelebrations !== false && (
-        <ErrorBoundary label="Celebrations" compact>
-          <CelebrationsBanner />
-        </ErrorBoundary>
-      )}
-
       {/* Quick Links + Weather + Upcoming Important Dates */}
       <section className="mb-4">
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
@@ -277,8 +272,52 @@ export default function DashboardClient({ visibility, sliderConfig, showVideoSpo
           </div>
         </div>
 
-        {/* Right: MyShare Feed */}
+        {/* Right: Celebrations + MyShare Feed */}
         <div className="min-w-0 space-y-5">
+          {/* Celebrations */}
+          {visibility.showCelebrations !== false && (
+            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+              <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 border-t-[3px] border-t-brand-blue">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-bold text-brand-blue tracking-wide uppercase flex items-center gap-1.5">
+                      <Sparkles className="h-3.5 w-3.5" />
+                      Celebrations
+                    </h3>
+                    <p className="text-[11px] text-brand-grey mt-0.5">
+                      {celebrationDate ? new Date(celebrationDate + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" }) : "Birthdays, anniversaries & milestones"}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {celebrationDate && (
+                      <button
+                        type="button"
+                        onClick={() => setCelebrationDate("")}
+                        className="text-[10px] font-medium text-brand-blue hover:underline"
+                      >
+                        Today
+                      </button>
+                    )}
+                    <label className="relative cursor-pointer p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-brand-blue transition-colors">
+                      <Calendar className="h-4 w-4" />
+                      <input
+                        type="date"
+                        value={celebrationDate}
+                        onChange={(e) => setCelebrationDate(e.target.value)}
+                        className="absolute inset-0 opacity-0 cursor-pointer"
+                      />
+                    </label>
+                  </div>
+                </div>
+              </div>
+              <ErrorBoundary label="Celebrations" compact>
+                <CelebrationsBanner selectedDate={celebrationDate || undefined} onDateChange={setCelebrationDate} />
+              </ErrorBoundary>
+            </div>
+          )}
+
+          {/* MyShare */}
+          {visibility.showMyShare !== false && (
           <div
             data-myshare-container
             className="relative bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden"
@@ -293,6 +332,7 @@ export default function DashboardClient({ visibility, sliderConfig, showVideoSpo
               <MyShareFeedWidget />
             </ErrorBoundary>
           </div>
+          )}
         </div>
       </div>
     </div>
