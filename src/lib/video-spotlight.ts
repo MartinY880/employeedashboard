@@ -94,7 +94,7 @@ export function serializeVideoSpotlight(row: {
   fileSize: number;
   duration: number | null;
   authorId: string | null;
-  authorName: string | null;
+  author?: { displayName: string } | null;
   featured: boolean;
   playCount: number;
   sortOrder: number;
@@ -111,7 +111,7 @@ export function serializeVideoSpotlight(row: {
     fileSize: row.fileSize,
     duration: row.duration,
     authorId: row.authorId,
-    authorName: row.authorName,
+    authorName: row.author?.displayName ?? null,
     featured: row.featured,
     playCount: row.playCount,
     sortOrder: row.sortOrder,

@@ -3,7 +3,9 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { ensureDbUser } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/logto";
+import { toDbRole } from "@/lib/rbac";
 
 export async function GET(request: Request) {
   try {
@@ -22,8 +24,14 @@ export async function GET(request: Request) {
 
     let userReaction: string | null = null;
     if (isAuthenticated && user) {
+      const dbUser = await ensureDbUser(
+        user.sub,
+        user.email ?? "",
+        user.name ?? user.email ?? "Unknown",
+        toDbRole(user.role)
+      );
       const existing = await prisma.videoSpotlightReaction.findUnique({
-        where: { videoId_userLogtoId: { videoId, userLogtoId: user.sub } },
+        where: { videoId_userId: { videoId, userId: dbUser.id } },
       });
       userReaction = existing?.type ?? null;
     }
@@ -41,6 +49,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const dbUser = await ensureDbUser(
+      user.sub,
+      user.email ?? "",
+      user.name ?? user.email ?? "Unknown",
+      toDbRole(user.role)
+    );
+
     const body = await request.json();
     const { videoId, type } = body;
 
@@ -49,7 +64,7 @@ export async function POST(request: Request) {
     }
 
     const existing = await prisma.videoSpotlightReaction.findUnique({
-      where: { videoId_userLogtoId: { videoId, userLogtoId: user.sub } },
+      where: { videoId_userId: { videoId, userId: dbUser.id } },
     });
 
     if (existing) {
@@ -66,7 +81,7 @@ export async function POST(request: Request) {
     } else {
       // No existing → create
       await prisma.videoSpotlightReaction.create({
-        data: { videoId, userLogtoId: user.sub, type },
+        data: { videoId, userId: dbUser.id, type },
       });
     }
 
@@ -77,7 +92,7 @@ export async function POST(request: Request) {
     ]);
 
     const updated = await prisma.videoSpotlightReaction.findUnique({
-      where: { videoId_userLogtoId: { videoId, userLogtoId: user.sub } },
+      where: { videoId_userId: { videoId, userId: dbUser.id } },
     });
 
     return NextResponse.json({ likes, dislikes, userReaction: updated?.type ?? null });

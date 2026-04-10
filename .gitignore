@@ -49,6 +49,9 @@ next-env.d.ts
 mockup.html
 Project Guideline.md
 
+
+/scripts/
+
 # Database backups (may contain sensitive data)
 proconnect_backup.sql
 init-db/*.sql
@@ -72,4 +75,7 @@ start
 
 # Capacitor App Development Testing
 android/
+
+# Salesforce DX / VS Code Salesforce extension auto-generated files
+.sfdx/
 ios/

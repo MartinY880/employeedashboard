@@ -1,2 +1,2 @@
 -- AlterEnum
-ALTER TYPE "NotificationType" ADD VALUE 'MENTION';
+ALTER TYPE "NotificationType" ADD VALUE IF NOT EXISTS 'MENTION';

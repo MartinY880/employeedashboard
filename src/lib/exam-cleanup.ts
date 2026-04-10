@@ -15,4 +15,13 @@ export async function cleanupExpiredExamRecords() {
   if (count > 0) {
     console.log(`[ExamCleanup] Deleted ${count} expired exam pass record(s)`);
   }
+
+  // Also clean up exam-type celebration events (cascade deletes their comments + likes)
+  const { count: eventCount } = await prisma.celebrationEvent.deleteMany({
+    where: { type: "exam", eventDate: { lt: cutoff } },
+  });
+
+  if (eventCount > 0) {
+    console.log(`[ExamCleanup] Deleted ${eventCount} expired exam celebration event(s)`);
+  }
 }
