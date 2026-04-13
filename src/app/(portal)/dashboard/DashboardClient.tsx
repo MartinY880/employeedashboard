@@ -24,7 +24,9 @@ import { ClosersTableBanner } from "@/components/widgets/ClosersTableBanner";
 import { UnifiedReportsWidget } from "@/components/widgets/UnifiedReportsWidget";
 import { CelebrationsBanner } from "@/components/widgets/CelebrationsBanner";
 import Link from "next/link";
-import { Trophy, ArrowRight, Plane, X, Sparkles, Calendar } from "lucide-react";
+import { Trophy, ArrowRight, Plane, X, Sparkles, ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 
 interface DashboardVisibilitySettings {
   showTournamentBracketLive: boolean;
@@ -284,29 +286,79 @@ export default function DashboardClient({ visibility, sliderConfig, showVideoSpo
                       <Sparkles className="h-3.5 w-3.5" />
                       Celebrations
                     </h3>
-                    <p className="text-[11px] text-brand-grey mt-0.5">
-                      {celebrationDate ? new Date(celebrationDate + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" }) : "Birthdays, anniversaries & milestones"}
-                    </p>
+                    <p className="text-[11px] text-brand-grey mt-0.5">Birthdays, anniversaries &amp; milestones</p>
                   </div>
-                  <div className="flex items-center gap-1">
-                    {celebrationDate && (
-                      <button
-                        type="button"
-                        onClick={() => setCelebrationDate("")}
-                        className="text-[10px] font-medium text-brand-blue hover:underline"
-                      >
-                        Today
-                      </button>
-                    )}
-                    <label className="relative cursor-pointer p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-brand-blue transition-colors">
-                      <Calendar className="h-4 w-4" />
-                      <input
-                        type="date"
-                        value={celebrationDate}
-                        onChange={(e) => setCelebrationDate(e.target.value)}
-                        className="absolute inset-0 opacity-0 cursor-pointer"
-                      />
-                    </label>
+                  {/* Inline date navigation */}
+                  <div className="flex items-center gap-0.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+                        const base = celebrationDate || todayStr;
+                        const d = new Date(base + "T12:00:00");
+                        d.setDate(d.getDate() - 1);
+                        setCelebrationDate(d.toLocaleDateString("en-CA", { timeZone: "America/New_York" }));
+                      }}
+                      className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-brand-blue transition-colors"
+                      aria-label="Previous day"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </button>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          className="flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                        >
+                          {(() => {
+                            const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+                            const isToday = !celebrationDate || celebrationDate === todayStr;
+                            const label = isToday
+                              ? "Today"
+                              : new Date(celebrationDate + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                            return (
+                              <span className="text-[11px] font-semibold text-brand-blue underline decoration-dotted underline-offset-2 select-none">
+                                {label}
+                              </span>
+                            );
+                          })()}
+                          <CalendarDays className="h-3 w-3 text-brand-blue" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="center">
+                        <Calendar
+                          mode="single"
+                          selected={(() => {
+                            const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+                            const d = celebrationDate || todayStr;
+                            return new Date(d + "T12:00:00");
+                          })()}
+                          onSelect={(day) => {
+                            if (day) {
+                              const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+                              const selected = day.toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+                              setCelebrationDate(selected === todayStr ? "" : selected);
+                            }
+                          }}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+                        const base = celebrationDate || todayStr;
+                        const d = new Date(base + "T12:00:00");
+                        d.setDate(d.getDate() + 1);
+                        const next = d.toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+                        setCelebrationDate(next === todayStr ? "" : next);
+                      }}
+                      className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-brand-blue transition-colors"
+                      aria-label="Next day"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
                   </div>
                 </div>
               </div>

@@ -13,10 +13,13 @@ export interface CelebrationItem {
   id: string;
   type: "birthday" | "anniversary" | "exam";
   employeeName: string;
-  employeeId: string | null; // Entra user ID for photo lookup
+  employeeId: string | null;
   email: string;
-  detail: string; // e.g. "3 Years!" or "Happy Birthday!" or "Exam Passed!"
+  detail: string;
   commentCount: number;
+  likeCount: number;
+  userLiked: boolean;
+  previewComments: { id: string; authorName: string; content: string; createdAt: string }[];
 }
 
 export async function GET(request: Request) {
@@ -50,47 +53,46 @@ export async function GET(request: Request) {
       targetDay = etDay;
     }
 
-    // ── Birthdays (target date) ─────────────────────────
-    const allWithBirthday = await prisma.salesforceDirectory.findMany({
-      where: { birthday: { not: null } },
-      select: { id: true, email: true, birthday: true },
-    });
+    // ── Parallel: fetch all source data + auth at the same time ──
+    const [allEmps, examRecords, authResult] = await Promise.all([
+      // Single query for both birthdays AND anniversaries (+ nextUp reuses this)
+      prisma.salesforceDirectory.findMany({
+        where: { OR: [{ birthday: { not: null } }, { employmentStartDate: { not: null } }] },
+        select: { id: true, email: true, birthday: true, employmentStartDate: true },
+      }),
+      // Exams (today only)
+      isToday
+        ? prisma.examPassRecord.findMany({
+            where: { createdAt: { gte: new Date(Date.now() - 30 * 86400000) } },
+            select: { email: true, employeeName: true, createdAt: true },
+            orderBy: { createdAt: "desc" },
+          })
+        : Promise.resolve([]),
+      // Auth (start early instead of waiting until the end)
+      getAuthUser(),
+    ]);
 
+    // ── Filter birthdays + anniversaries from the single query ──
     const birthdayEmails: string[] = [];
-    for (const emp of allWithBirthday) {
-      if (!emp.birthday) continue;
-      const bd = new Date(emp.birthday);
-      if (bd.getUTCMonth() + 1 === targetMonth && bd.getUTCDate() === targetDay) {
-        birthdayEmails.push(emp.email);
-      }
-    }
-
-    // ── Anniversaries (target date) ─────────────────────
-    const allWithStartDate = await prisma.salesforceDirectory.findMany({
-      where: { employmentStartDate: { not: null } },
-      select: { id: true, email: true, employmentStartDate: true },
-    });
-
     const anniversaryEntries: { email: string; years: number }[] = [];
-    for (const emp of allWithStartDate) {
-      if (!emp.employmentStartDate) continue;
-      const sd = new Date(emp.employmentStartDate);
-      if (sd.getUTCMonth() + 1 === targetMonth && sd.getUTCDate() === targetDay) {
-        const years = targetYear - sd.getUTCFullYear();
-        if (years > 0) {
-          anniversaryEntries.push({ email: emp.email, years });
+
+    for (const emp of allEmps) {
+      if (emp.birthday) {
+        const bd = new Date(emp.birthday);
+        if (bd.getUTCMonth() + 1 === targetMonth && bd.getUTCDate() === targetDay) {
+          birthdayEmails.push(emp.email);
+        }
+      }
+      if (emp.employmentStartDate) {
+        const sd = new Date(emp.employmentStartDate);
+        if (sd.getUTCMonth() + 1 === targetMonth && sd.getUTCDate() === targetDay) {
+          const years = targetYear - sd.getUTCFullYear();
+          if (years > 0) {
+            anniversaryEntries.push({ email: emp.email, years });
+          }
         }
       }
     }
-
-    // ── Exams Passed (today only — exams expire after 30 days) ──
-    const examRecords = isToday
-      ? await prisma.examPassRecord.findMany({
-          where: { createdAt: { gte: new Date(Date.now() - 30 * 86400000) } },
-          select: { email: true, employeeName: true, createdAt: true },
-          orderBy: { createdAt: "desc" },
-        })
-      : [];
 
     // ── Resolve Entra names + IDs ──────────────────────
     const allEmails = [
@@ -103,9 +105,7 @@ export async function GET(request: Request) {
     const entraSnapshots =
       uniqueEmails.length > 0
         ? await prisma.directorySnapshot.findMany({
-            where: {
-              mail: { in: uniqueEmails, mode: "insensitive" },
-            },
+            where: { mail: { in: uniqueEmails, mode: "insensitive" } },
             select: { id: true, displayName: true, mail: true },
           })
         : [];
@@ -114,94 +114,169 @@ export async function GET(request: Request) {
       entraSnapshots.map((s) => [s.mail?.toLowerCase() ?? "", s])
     );
 
-    // ── Build items + upsert into celebration_events ──
+    // ── Build upsert data, then batch all upserts in a single transaction ──
     const eventDate = new Date(`${targetYear}-${String(targetMonth).padStart(2, "0")}-${String(targetDay).padStart(2, "0")}T00:00:00.000Z`);
-    const items: CelebrationItem[] = [];
+
+    type UpsertEntry = {
+      type: "birthday" | "anniversary" | "exam";
+      email: string;
+      employeeName: string;
+      employeeId: string | null;
+      detail: string;
+    };
+    const upsertEntries: UpsertEntry[] = [];
 
     for (const email of birthdayEmails) {
       const entra = entraByEmail.get(email.toLowerCase());
-      const employeeName = entra?.displayName ?? email.split("@")[0];
-      const detail = "Happy Birthday! 🎂";
-      const event = await prisma.celebrationEvent.upsert({
-        where: { type_email_eventDate: { type: "birthday", email, eventDate } },
-        update: { employeeName, detail },
-        create: { type: "birthday", email, eventDate, employeeName, detail },
-        select: { id: true, commentCount: true },
-      });
-      items.push({
-        id: event.id,
+      upsertEntries.push({
         type: "birthday",
-        employeeName,
-        employeeId: entra?.id ?? null,
         email,
-        detail,
-        commentCount: event.commentCount,
+        employeeName: entra?.displayName ?? email.split("@")[0],
+        employeeId: entra?.id ?? null,
+        detail: "Happy Birthday! 🎂",
       });
     }
-
     for (const { email, years } of anniversaryEntries) {
       const entra = entraByEmail.get(email.toLowerCase());
-      const employeeName = entra?.displayName ?? email.split("@")[0];
-      const detail = `${years} Year${years !== 1 ? "s" : ""}! 🎉`;
-      const event = await prisma.celebrationEvent.upsert({
-        where: { type_email_eventDate: { type: "anniversary", email, eventDate } },
-        update: { employeeName, detail },
-        create: { type: "anniversary", email, eventDate, employeeName, detail },
-        select: { id: true, commentCount: true },
-      });
-      items.push({
-        id: event.id,
+      upsertEntries.push({
         type: "anniversary",
-        employeeName,
-        employeeId: entra?.id ?? null,
         email,
-        detail,
-        commentCount: event.commentCount,
+        employeeName: entra?.displayName ?? email.split("@")[0],
+        employeeId: entra?.id ?? null,
+        detail: `${years} Year${years !== 1 ? "s" : ""}! 🎉`,
       });
     }
-
     for (const rec of examRecords) {
       const entra = entraByEmail.get(rec.email.toLowerCase());
-      const employeeName = entra?.displayName ?? rec.email.split("@")[0];
-      const detail = "Exam Passed! 🏆";
-      const event = await prisma.celebrationEvent.upsert({
-        where: { type_email_eventDate: { type: "exam", email: rec.email, eventDate } },
-        update: { employeeName, detail },
-        create: { type: "exam", email: rec.email, eventDate, employeeName, detail },
-        select: { id: true, commentCount: true },
-      });
-      items.push({
-        id: event.id,
+      upsertEntries.push({
         type: "exam",
-        employeeName,
-        employeeId: entra?.id ?? null,
         email: rec.email,
-        detail,
-        commentCount: event.commentCount,
+        employeeName: entra?.displayName ?? rec.email.split("@")[0],
+        employeeId: entra?.id ?? null,
+        detail: "Exam Passed! 🏆",
       });
     }
 
-    // Sort: birthdays first, then anniversaries, then exams (already newest-first from query)
-    // Within birthdays/anniversaries, sort alphabetically by name
+    // Batch all upserts in a single transaction (1 round-trip instead of N)
+    const upsertResults = upsertEntries.length > 0
+      ? await prisma.$transaction(
+          upsertEntries.map((entry) =>
+            prisma.celebrationEvent.upsert({
+              where: { type_email_eventDate: { type: entry.type, email: entry.email, eventDate } },
+              update: { employeeName: entry.employeeName, detail: entry.detail },
+              create: { type: entry.type, email: entry.email, eventDate, employeeName: entry.employeeName, detail: entry.detail },
+              select: { id: true, commentCount: true, likeCount: true },
+            })
+          )
+        )
+      : [];
+
+    // ── Build items array ──
+    const items: CelebrationItem[] = upsertEntries.map((entry, i) => ({
+      id: upsertResults[i].id,
+      type: entry.type,
+      employeeName: entry.employeeName,
+      employeeId: entry.employeeId,
+      email: entry.email,
+      detail: entry.detail,
+      commentCount: upsertResults[i].commentCount,
+      likeCount: upsertResults[i].likeCount,
+      userLiked: false,
+      previewComments: [],
+    }));
+
+    // Sort: birthdays first, then anniversaries, then exams
     const typeOrder: Record<string, number> = { birthday: 0, anniversary: 1, exam: 2 };
     const originalIndex = new Map(items.map((item, i) => [item, i]));
     items.sort((a, b) => {
       const ta = typeOrder[a.type] ?? 9;
       const tb = typeOrder[b.type] ?? 9;
       if (ta !== tb) return ta - tb;
-      // Within same type, preserve insertion order (exams = newest first, birthdays/anniversaries = alpha from query)
       return (originalIndex.get(a) ?? 0) - (originalIndex.get(b) ?? 0);
     });
+
+    // ── Resolve userLiked (auth already fetched in parallel) ──
+    const { isAuthenticated, user: authUser } = authResult;
+    if (isAuthenticated && authUser) {
+      const dbUser = await prisma.user.findFirst({ where: { logtoId: authUser.sub }, select: { id: true } });
+      if (dbUser && items.length > 0) {
+        const likedRows = await prisma.celebrationLike.findMany({
+          where: { userId: dbUser.id, celebrationId: { in: items.map((i) => i.id) } },
+          select: { celebrationId: true },
+        });
+        const likedSet = new Set(likedRows.map((r) => r.celebrationId));
+        for (const item of items) {
+          item.userLiked = likedSet.has(item.id);
+        }
+      }
+    }
+
+    // ── Compute nextUp from the same allEmps data (no extra query) ──
+    const todayStr = `${etYear}-${String(etMonth).padStart(2, "0")}-${String(etDay).padStart(2, "0")}`;
+    const todayMidnight = new Date(`${todayStr}T00:00:00.000Z`);
+    const baseStr = dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : todayStr;
+    const baseMidnight = new Date(`${baseStr}T00:00:00.000Z`);
+    const baseYear = +baseStr.slice(0, 4);
+
+    function nextOccurrence(month: number, day: number) {
+      let year = baseYear;
+      let candidate = new Date(Date.UTC(year, month - 1, day));
+      if (candidate <= baseMidnight) {
+        year++;
+        candidate = new Date(Date.UTC(year, month - 1, day));
+      }
+      return {
+        dateStr: candidate.toISOString().slice(0, 10),
+        daysAway: Math.ceil((candidate.getTime() - todayMidnight.getTime()) / 86400000),
+        year,
+      };
+    }
+
+    let best: { email: string; type: "birthday" | "anniversary"; dateStr: string; daysAway: number } | null = null;
+    for (const emp of allEmps) {
+      if (emp.birthday) {
+        const bd = new Date(emp.birthday);
+        const occ = nextOccurrence(bd.getUTCMonth() + 1, bd.getUTCDate());
+        if (!best || occ.daysAway < best.daysAway) {
+          best = { email: emp.email, type: "birthday", dateStr: occ.dateStr, daysAway: occ.daysAway };
+        }
+      }
+      if (emp.employmentStartDate) {
+        const sd = new Date(emp.employmentStartDate);
+        const occ = nextOccurrence(sd.getUTCMonth() + 1, sd.getUTCDate());
+        if (occ.year > sd.getUTCFullYear() && (!best || occ.daysAway < best.daysAway)) {
+          best = { email: emp.email, type: "anniversary", dateStr: occ.dateStr, daysAway: occ.daysAway };
+        }
+      }
+    }
+
+    let nextUpResult = null;
+    if (best) {
+      const entra = entraByEmail.get(best.email.toLowerCase())
+        ?? (await prisma.directorySnapshot.findFirst({
+            where: { mail: { equals: best.email, mode: "insensitive" } },
+            select: { id: true, displayName: true },
+          }));
+      nextUpResult = {
+        employeeName: entra?.displayName ?? best.email.split("@")[0],
+        employeeId: entra?.id ?? null,
+        email: best.email,
+        type: best.type,
+        eventDate: best.dateStr,
+        daysAway: best.daysAway,
+      };
+    }
 
     return NextResponse.json({
       items,
       hasBirthdays: birthdayEmails.length > 0,
       hasAnniversaries: anniversaryEntries.length > 0,
       hasExams: examRecords.length > 0,
+      nextUp: nextUpResult,
     });
   } catch (err) {
     console.error("[celebrations] GET error:", err);
-    return NextResponse.json({ items: [], hasBirthdays: false, hasAnniversaries: false, hasExams: false });
+    return NextResponse.json({ items: [], hasBirthdays: false, hasAnniversaries: false, hasExams: false, nextUp: null });
   }
 }
 

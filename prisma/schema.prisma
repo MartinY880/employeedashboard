@@ -39,6 +39,7 @@ model User {
 
   celebrationComments     CelebrationComment[]     @relation("CelebrationCommentAuthor")
   celebrationCommentLikes CelebrationCommentLike[] @relation("CelebrationCommentLikeUser")
+  celebrationLikes        CelebrationLike[]        @relation("CelebrationLikeUser")
 
   @@map("users")
 }
@@ -576,7 +577,7 @@ model VideoSpotlightReaction {
   type         String         // "like" | "dislike"
   createdAt    DateTime       @default(now())
   video        VideoSpotlight @relation(fields: [videoId], references: [id], onDelete: Cascade)
-  user         User?          @relation("VideoSpotlightReactionUser", fields: [userId], references: [id])
+  user         User           @relation("VideoSpotlightReactionUser", fields: [userId], references: [id])
 
   @@unique([videoId, userId])
   @@index([videoId])
@@ -593,7 +594,7 @@ model VideoSpotlightComment {
   likes        Int                          @default(0)
   createdAt    DateTime                     @default(now())
   video        VideoSpotlight               @relation(fields: [videoId], references: [id], onDelete: Cascade)
-  author       User?                        @relation("VideoSpotlightCommentAuthor", fields: [authorId], references: [id])
+  author       User                         @relation("VideoSpotlightCommentAuthor", fields: [authorId], references: [id])
   parent       VideoSpotlightComment?       @relation("VideoCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
   replies      VideoSpotlightComment[]      @relation("VideoCommentReplies")
   likedBy      VideoSpotlightCommentLike[]
@@ -609,7 +610,7 @@ model VideoSpotlightCommentLike {
   userId       String                @map("voterLogtoId")
   createdAt    DateTime              @default(now())
   comment      VideoSpotlightComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
-  user         User?                 @relation("VideoSpotlightCommentLikeUser", fields: [userId], references: [id])
+  user         User                  @relation("VideoSpotlightCommentLikeUser", fields: [userId], references: [id])
 
   @@unique([commentId, userId])
   @@index([userId])
@@ -795,10 +796,12 @@ model CelebrationEvent {
   employeeName String   @map("employee_name")
   detail       String
   commentCount Int      @default(0) @map("comment_count")
+  likeCount    Int      @default(0) @map("like_count")
   createdAt    DateTime @default(now()) @map("created_at")
 
   employee     SalesforceDirectory @relation(fields: [email], references: [email], onDelete: Cascade)
   comments     CelebrationComment[]
+  likes        CelebrationLike[]
 
   @@unique([type, email, eventDate])
   @@index([eventDate])
@@ -838,4 +841,18 @@ model CelebrationCommentLike {
   @@unique([commentId, userId])
   @@index([userId])
   @@map("celebration_comment_likes")
+}
+
+model CelebrationLike {
+  id             String   @id @default(cuid())
+  celebrationId  String   @map("celebration_id")
+  userId         String   @map("user_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  celebration    CelebrationEvent @relation(fields: [celebrationId], references: [id], onDelete: Cascade)
+  user           User             @relation("CelebrationLikeUser", fields: [userId], references: [id])
+
+  @@unique([celebrationId, userId])
+  @@index([userId])
+  @@map("celebration_likes")
 }

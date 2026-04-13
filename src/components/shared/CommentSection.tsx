@@ -223,6 +223,10 @@ export interface CommentSectionProps {
   onDelete: (entityId: string, commentId: string) => Promise<void>;
   /** Compact chip toggle (icon + count, no text label) for inline grid usage */
   compact?: boolean;
+  /** Show only this many top-level comments initially, with a "View all" link to expand */
+  previewCount?: number;
+  /** Start the section already expanded (comments load immediately) */
+  initiallyExpanded?: boolean;
 }
 
 // ─── CommentSection (inline expandable) ─────────────────────
@@ -236,21 +240,32 @@ export function CommentSection({
   onLike,
   onDelete,
   compact = false,
+  previewCount,
+  initiallyExpanded = false,
 }: CommentSectionProps) {
   const [comments, setComments] = useState<UnifiedComment[]>([]);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(initiallyExpanded && !previewCount);
   const [newComment, setNewComment] = useState("");
   const [sending, setSending] = useState(false);
   const [localCount, setLocalCount] = useState(commentCount);
   const [replyTo, setReplyTo] = useState<{ id: string; name: string } | null>(null);
+  const [previewExpanded, setPreviewExpanded] = useState(false);
+  const [currentUserInitial, setCurrentUserInitial] = useState("");
   const { playClick, playSuccess } = useSounds();
   const inputRef = useRef<MentionInputHandle>(null);
 
   useEffect(() => {
     setLocalCount(commentCount);
   }, [commentCount]);
+
+  useEffect(() => {
+    fetch("/api/me")
+      .then((r) => r.json())
+      .then((d) => { if (d?.name) setCurrentUserInitial(d.name.charAt(0).toUpperCase()); })
+      .catch(() => {});
+  }, []);
 
   const fetchComments = useCallback(async () => {
     setLoading(true);
@@ -270,6 +285,13 @@ export function CommentSection({
   useEffect(() => {
     if (expanded && !loaded) fetchComments();
   }, [expanded, loaded, fetchComments]);
+
+  // For initiallyExpanded + previewCount, fetch immediately on mount
+  useEffect(() => {
+    if (initiallyExpanded && previewCount && !loaded) {
+      fetchComments();
+    }
+  }, [initiallyExpanded, previewCount, loaded, fetchComments]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -346,6 +368,144 @@ export function CommentSection({
 
   return (
     <div className={compact ? "contents" : "mt-3"}>
+      {/* ── initiallyExpanded + previewCount: always-visible preview ── */}
+      {initiallyExpanded && previewCount ? (
+        <>
+          {/* Compact chip for grid layouts */}
+          {compact && (
+            <button
+              type="button"
+              onClick={() => {
+                playClick();
+                setExpanded(!expanded);
+              }}
+              className={`inline-flex h-7 shrink-0 items-center gap-0.5 rounded-full border px-2 py-0 text-[11px] font-medium shadow-sm transition-all ${
+                expanded
+                  ? "bg-brand-blue/10 text-brand-blue border-brand-blue/30 ring-1 ring-brand-blue/20"
+                  : "border-gray-200/80 dark:border-gray-700/80 bg-white/90 dark:bg-gray-800/90 text-gray-600 dark:text-gray-300 hover:border-brand-blue/30 hover:bg-white dark:hover:bg-gray-800"
+              }`}
+            >
+              <MessageCircle className="w-3.5 h-3.5" />
+              {localCount > 0 && <span className="tabular-nums text-[10px]">{localCount}</span>}
+            </button>
+          )}
+
+          {/* "Hide comments" link — shown at top when expanded with more comments than preview (non-compact only) */}
+          {!compact && expanded && localCount > previewCount && (
+            <button
+              type="button"
+              onClick={() => {
+                playClick();
+                setExpanded(false);
+              }}
+              className="text-[11px] font-medium text-gray-400 dark:text-gray-500 hover:text-brand-blue transition-colors mb-1"
+            >
+              Hide comments
+            </button>
+          )}
+
+          {/* Comments display */}
+          <div className={compact ? "col-span-full mt-1" : ""}>
+            {loading ? (
+              <div className="flex items-center gap-1.5 text-[11px] text-gray-400 pt-1">
+                <Loader2 className="w-3 h-3 animate-spin" /> Loading…
+              </div>
+            ) : comments.length === 0 && loaded ? null : expanded ? (
+              /* Expanded: show ALL comments with ALL replies */
+              <div className="space-y-2 pt-1">
+                {comments.map((c) => (
+                  <CommentWithReplies
+                    key={c.id}
+                    comment={c}
+                    onDelete={handleDelete}
+                    onLike={handleLike}
+                    onReplyClick={handleReplyClick}
+                  />
+                ))}
+              </div>
+            ) : (
+              /* Collapsed: preview capped at previewCount total including replies */
+              <div className="space-y-2 pt-1">
+                {(() => {
+                  let remaining = previewCount;
+                  return comments.map((c) => {
+                    if (remaining <= 0) return null;
+                    remaining--;
+                    const repliesToShow = Math.min((c.replies || []).length, remaining);
+                    remaining -= repliesToShow;
+                    return (
+                      <div key={c.id}>
+                        <CommentBubble
+                          comment={c}
+                          onDelete={handleDelete}
+                          onLike={handleLike}
+                          onReplyClick={handleReplyClick}
+                        />
+                        {(c.replies || []).slice(0, repliesToShow).map((r) => (
+                          <div key={r.id} className="mt-1.5">
+                            <CommentBubble comment={r} onDelete={handleDelete} onLike={handleLike} isReply />
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+            )}
+          </div>
+
+          {/* "View all X comments" link — shown when collapsed with more comments (non-compact only) */}
+          {!compact && !expanded && localCount > previewCount && (
+            <button
+              type="button"
+              onClick={() => {
+                playClick();
+                setExpanded(true);
+              }}
+              className="text-[11px] font-medium text-gray-500 dark:text-gray-400 hover:text-brand-blue dark:hover:text-brand-blue transition-colors mt-1"
+            >
+              View all {localCount} comment{localCount !== 1 ? "s" : ""}
+            </button>
+          )}
+
+          {/* Always-visible comment input */}
+          <div className={compact ? "col-span-full" : ""}>
+            {replyTo && (
+              <ReplyIndicator replyTo={replyTo} onCancel={() => setReplyTo(null)} />
+            )}
+
+            <form onSubmit={handleSubmit} className="flex gap-1.5 items-center mt-2">
+              <div className="shrink-0 w-6 h-6 rounded-full bg-gradient-to-br from-brand-blue/70 to-brand-blue flex items-center justify-center text-white font-bold text-[9px]">
+                {currentUserInitial || <MessageCircle className="w-3 h-3" />}
+              </div>
+              <MentionInput
+                ref={inputRef}
+                placeholder={
+                  replyTo ? `Reply to ${replyTo.name}…` : "Write a comment…"
+                }
+                value={newComment}
+                onChange={setNewComment}
+                maxLength={charLimit}
+                className="flex-1 text-[11px] h-7 rounded-full px-3 bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700"
+              />
+              <Button
+                type="submit"
+                size="sm"
+                disabled={!newComment.trim() || sending}
+                className="h-7 w-7 p-0 rounded-full bg-brand-blue hover:bg-brand-blue/90 text-white shrink-0"
+              >
+                {sending ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <Send className="w-3 h-3" />
+                )}
+              </Button>
+            </form>
+          </div>
+        </>
+      ) : (
+      /* ── Standard toggle mode (all other widgets) ── */
+      <>
       {/* Toggle button */}
       {compact ? (
         <button
@@ -403,25 +563,49 @@ export function CommentSection({
                 <p className="text-[11px] text-gray-400 dark:text-gray-500 italic">
                   No comments yet — be the first!
                 </p>
-              ) : (
-                comments.map((c) => (
-                  <CommentWithReplies
-                    key={c.id}
-                    comment={c}
-                    onDelete={handleDelete}
-                    onLike={handleLike}
-                    onReplyClick={handleReplyClick}
-                  />
-                ))
-              )}
+              ) : (() => {
+                const isPreviewMode = !!previewCount && !previewExpanded;
+                const visibleComments = isPreviewMode ? comments.slice(0, previewCount) : comments;
+                const hiddenCount = comments.length - visibleComments.length;
+                return (
+                  <>
+                    <div
+                      className="space-y-2"
+                      style={isPreviewMode && hiddenCount > 0 ? {
+                        maskImage: "linear-gradient(to bottom, black 40%, transparent 100%)",
+                        WebkitMaskImage: "linear-gradient(to bottom, black 40%, transparent 100%)",
+                      } : undefined}
+                    >
+                      {visibleComments.map((c) => (
+                        <CommentWithReplies
+                          key={c.id}
+                          comment={c}
+                          onDelete={handleDelete}
+                          onLike={handleLike}
+                          onReplyClick={handleReplyClick}
+                        />
+                      ))}
+                    </div>
+                    {isPreviewMode && hiddenCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setPreviewExpanded(true)}
+                        className="text-[11px] font-medium text-gray-500 dark:text-gray-400 hover:text-brand-blue dark:hover:text-brand-blue transition-colors"
+                      >
+                        View all {localCount} comment{localCount !== 1 ? "s" : ""}
+                      </button>
+                    )}
+                  </>
+                );
+              })()}
 
               {replyTo && (
                 <ReplyIndicator replyTo={replyTo} onCancel={() => setReplyTo(null)} />
               )}
 
               <form onSubmit={handleSubmit} className="flex gap-1.5 items-center">
-                <div className="shrink-0 w-6 h-6 rounded-full bg-brand-blue/20 dark:bg-brand-blue/30 flex items-center justify-center">
-                  <MessageCircle className="w-3 h-3 text-brand-blue" />
+                <div className="shrink-0 w-6 h-6 rounded-full bg-gradient-to-br from-brand-blue/70 to-brand-blue flex items-center justify-center text-white font-bold text-[9px]">
+                  {currentUserInitial || <MessageCircle className="w-3 h-3" />}
                 </div>
                 <MentionInput
                   ref={inputRef}
@@ -450,6 +634,8 @@ export function CommentSection({
           </motion.div>
         )}
       </AnimatePresence>
+      </>
+      )}
     </div>
   );
 }
