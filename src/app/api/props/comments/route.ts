@@ -17,20 +17,34 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "propsId is required" }, { status: 400 });
     }
 
+    // Resolve current user's DB id for likes + auth checks
+    let currentUserId: string | null = null;
+    if (isAuthenticated && user) {
+      const dbUser = await prisma.user.findFirst({
+        where: { logtoId: user.sub },
+        select: { id: true },
+      });
+      currentUserId = dbUser?.id ?? null;
+    }
+
     const comments = await prisma.propsComment.findMany({
       where: { propsId, parentId: null },
       orderBy: { createdAt: "asc" },
       include: {
-        replies: { orderBy: { createdAt: "asc" } },
+        author: { select: { displayName: true } },
+        replies: {
+          orderBy: { createdAt: "asc" },
+          include: { author: { select: { displayName: true } } },
+        },
       },
     });
 
     let userLikedIds = new Set<string>();
-    if (isAuthenticated && user) {
+    if (currentUserId) {
       const allCommentIds = comments.flatMap((c) => [c.id, ...c.replies.map((r) => r.id)]);
       if (allCommentIds.length > 0) {
         const likes = await prisma.propsCommentLike.findMany({
-          where: { voterLogtoId: user.sub, commentId: { in: allCommentIds } },
+          where: { userId: currentUserId, commentId: { in: allCommentIds } },
           select: { commentId: true },
         });
         userLikedIds = new Set(likes.map((l) => l.commentId));
@@ -43,22 +57,22 @@ export async function GET(request: Request) {
     const enriched = comments.map((c) => ({
       id: c.id,
       authorId: c.authorId,
-      authorName: c.authorName,
+      authorName: c.author?.displayName ?? "Unknown",
       content: c.content,
       parentId: c.parentId,
       likes: c.likes,
       userLiked: userLikedIds.has(c.id),
-      canDelete: canDeleteAny || (isAuthenticated && user?.sub === c.authorId),
+      canDelete: canDeleteAny || (!!currentUserId && currentUserId === c.authorId),
       createdAt: c.createdAt,
       replies: c.replies.map((r) => ({
         id: r.id,
         authorId: r.authorId,
-        authorName: r.authorName,
+        authorName: r.author?.displayName ?? "Unknown",
         content: r.content,
         parentId: r.parentId,
         likes: r.likes,
         userLiked: userLikedIds.has(r.id),
-        canDelete: canDeleteAny || (isAuthenticated && user?.sub === r.authorId),
+        canDelete: canDeleteAny || (!!currentUserId && currentUserId === r.authorId),
         createdAt: r.createdAt,
         replies: [],
       })),
@@ -75,6 +89,14 @@ export async function POST(request: Request) {
     const { isAuthenticated, user } = await getAuthUser();
     if (!isAuthenticated || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const dbUser = await prisma.user.findFirst({
+      where: { logtoId: user.sub },
+      select: { id: true, displayName: true },
+    });
+    if (!dbUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     const body = await request.json();
@@ -98,29 +120,21 @@ export async function POST(request: Request) {
     const comment = await prisma.propsComment.create({
       data: {
         propsId,
-        authorId: user.sub,
-        authorName: user.name || "Anonymous",
+        authorId: dbUser.id,
         content: content.trim(),
         parentId: parentId || null,
       },
     });
 
     // ── Reply + @mention notifications ─────────────────────
-    const commenterName = user.name || "Someone";
+    const commenterName = dbUser.displayName || "Someone";
     const plainContent = stripMentionMarkup(content.trim());
     const truncatedContent = plainContent.length > 120
       ? plainContent.slice(0, 120) + "…"
       : plainContent;
 
-    const commenterDbUser = await prisma.user.findFirst({
-      where: { logtoId: user.sub },
-      select: { id: true },
-    });
-
     const alreadyNotified = new Set<string>();
-    if (commenterDbUser) {
-      alreadyNotified.add(commenterDbUser.id);
-    }
+    alreadyNotified.add(dbUser.id);
 
     // Reply — notify parent comment author
     try {
@@ -129,22 +143,15 @@ export async function POST(request: Request) {
           where: { id: parentId },
           select: { authorId: true },
         });
-        if (parentComment) {
-          // Props authorId is Logto sub — resolve to DB user
-          const parentAuthor = await prisma.user.findFirst({
-            where: { logtoId: parentComment.authorId },
-            select: { id: true },
+        if (parentComment && !alreadyNotified.has(parentComment.authorId)) {
+          alreadyNotified.add(parentComment.authorId);
+          await createNotification({
+            recipientUserId: parentComment.authorId,
+            type: "MENTION",
+            title: "New reply on your comment",
+            message: `${commenterName} replied to your comment on a Props post: "${truncatedContent}"`,
+            metadata: { propsId, commentId: comment.id },
           });
-          if (parentAuthor && !alreadyNotified.has(parentAuthor.id)) {
-            alreadyNotified.add(parentAuthor.id);
-            await createNotification({
-              recipientUserId: parentAuthor.id,
-              type: "MENTION",
-              title: "New reply on your comment",
-              message: `${commenterName} replied to your comment on a Props post: "${truncatedContent}"`,
-              metadata: { propsId, commentId: comment.id },
-            });
-          }
         }
       }
     } catch (err) {
@@ -191,7 +198,7 @@ export async function POST(request: Request) {
       console.error(`[PropsComments] Mention notification error for commentId=${comment.id}:`, err);
     }
 
-    return NextResponse.json({ comment: { ...comment, userLiked: false, canDelete: true, replies: [] } }, { status: 201 });
+    return NextResponse.json({ comment: { ...comment, authorName: dbUser.displayName, userLiked: false, canDelete: true, replies: [] } }, { status: 201 });
   } catch {
     return NextResponse.json({ error: "Failed to add comment" }, { status: 500 });
   }
@@ -204,6 +211,14 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const dbUser = await prisma.user.findFirst({
+      where: { logtoId: user.sub },
+      select: { id: true },
+    });
+    if (!dbUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
     const body = await request.json();
     const { commentId } = body;
 
@@ -212,7 +227,7 @@ export async function PATCH(request: Request) {
     }
 
     const existing = await prisma.propsCommentLike.findUnique({
-      where: { commentId_voterLogtoId: { commentId, voterLogtoId: user.sub } },
+      where: { commentId_userId: { commentId, userId: dbUser.id } },
     });
 
     if (existing) {
@@ -225,7 +240,7 @@ export async function PATCH(request: Request) {
     }
 
     await prisma.$transaction([
-      prisma.propsCommentLike.create({ data: { commentId, voterLogtoId: user.sub } }),
+      prisma.propsCommentLike.create({ data: { commentId, userId: dbUser.id } }),
       prisma.propsComment.update({ where: { id: commentId }, data: { likes: { increment: 1 } } }),
     ]);
     const updated = await prisma.propsComment.findUnique({ where: { id: commentId }, select: { likes: true } });
@@ -242,6 +257,14 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const dbUser = await prisma.user.findFirst({
+      where: { logtoId: user.sub },
+      select: { id: true },
+    });
+    if (!dbUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
 
@@ -254,7 +277,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "Comment not found" }, { status: 404 });
     }
 
-    const isAuthor = comment.authorId === user.sub;
+    const isAuthor = comment.authorId === dbUser.id;
     const isSuperAdmin = user.role === "SUPER_ADMIN";
 
     if (!isAuthor && !isSuperAdmin) {

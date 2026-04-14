@@ -37,6 +37,9 @@ model User {
   videoSpotlightComments  VideoSpotlightComment[]  @relation("VideoSpotlightCommentAuthor")
   videoSpotlightCommentLikes VideoSpotlightCommentLike[] @relation("VideoSpotlightCommentLikeUser")
 
+  propsComments          PropsComment[]           @relation("PropsCommentAuthor")
+  propsCommentLikes       PropsCommentLike[]       @relation("PropsCommentLikeUser")
+
   celebrationComments     CelebrationComment[]     @relation("CelebrationCommentAuthor")
   celebrationCommentLikes CelebrationCommentLike[] @relation("CelebrationCommentLikeUser")
   celebrationLikes        CelebrationLike[]        @relation("CelebrationLikeUser")
@@ -47,26 +50,25 @@ model User {
 model PropsMessage {
   id          String   @id @default(cuid())
   content     String
-  authorId    String
-  recipientId String
+  authorId    String   @map("user_id")
+  recipientId String   @map("recipient_id")
   badge       String   @default("mvp")
   author      User     @relation("PropsAuthor", fields: [authorId], references: [id])
   recipient   User     @relation("PropsRecipient", fields: [recipientId], references: [id])
   reactions   PropsReaction[]
   comments    PropsComment[]
-  likes       Int      @default(0)
   createdAt   DateTime @default(now())
 
   @@index([authorId])
   @@index([recipientId])
   @@index([createdAt])
-  @@map("kudos_messages")
+  @@map("props_messages")
 }
 
 model PropsReaction {
   id        String            @id @default(cuid())
-  propsId   String            @map("kudosId")
-  userId    String
+  propsId   String            @map("props_id")
+  userId    String            @map("user_id")
   reaction  PropsReactionType
   props     PropsMessage      @relation(fields: [propsId], references: [id], onDelete: Cascade)
   user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -75,37 +77,39 @@ model PropsReaction {
   @@unique([propsId, userId])
   @@index([propsId, reaction])
   @@index([userId])
-  @@map("kudos_reactions")
+  @@map("props_reactions")
 }
 
 model PropsComment {
   id           String             @id @default(cuid())
   propsId      String
-  authorId     String
-  authorName   String
+  authorId     String             @map("user_id")
   content      String
   parentId     String?
   likes        Int                @default(0)
   createdAt    DateTime           @default(now())
   props        PropsMessage       @relation(fields: [propsId], references: [id], onDelete: Cascade)
+  author       User               @relation("PropsCommentAuthor", fields: [authorId], references: [id])
   parent       PropsComment?      @relation("PropsCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
   replies      PropsComment[]     @relation("PropsCommentReplies")
   likedBy      PropsCommentLike[]
 
   @@index([propsId, createdAt])
   @@index([parentId])
+  @@index([authorId])
   @@map("props_comments")
 }
 
 model PropsCommentLike {
-  id           String      @id @default(cuid())
+  id           String       @id @default(cuid())
   commentId    String
-  voterLogtoId String
-  createdAt    DateTime    @default(now())
+  userId       String       @map("user_id")
+  createdAt    DateTime     @default(now())
   comment      PropsComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user         User         @relation("PropsCommentLikeUser", fields: [userId], references: [id])
 
-  @@unique([commentId, voterLogtoId])
-  @@index([voterLogtoId])
+  @@unique([commentId, userId])
+  @@index([userId])
   @@map("props_comment_likes")
 }
 
@@ -351,7 +355,7 @@ enum PropsReactionType {
   UPLIFT
   BOMB
 
-  @@map("KudosReactionType")
+  @@map("PropsReactionType")
 }
 
 // ─── Calendar / Holidays ──────────────────────────────────
@@ -553,7 +557,7 @@ model VideoSpotlight {
   mimeType    String   @default("video/webm")
   fileSize    Int      @default(0) // bytes
   duration    Float?               // seconds
-  authorId    String?              // FK to users.id
+  authorId    String?  @map("user_id") // FK to users.id
   author      User?    @relation("VideoSpotlightAuthor", fields: [authorId], references: [id])
   featured    Boolean  @default(false)
   playCount   Int      @default(0)
@@ -573,7 +577,7 @@ model VideoSpotlight {
 model VideoSpotlightReaction {
   id           String         @id @default(cuid())
   videoId      String
-  userId       String         @map("userLogtoId")
+  userId       String         @map("user_id")
   type         String         // "like" | "dislike"
   createdAt    DateTime       @default(now())
   video        VideoSpotlight @relation(fields: [videoId], references: [id], onDelete: Cascade)
@@ -588,7 +592,7 @@ model VideoSpotlightReaction {
 model VideoSpotlightComment {
   id           String                       @id @default(cuid())
   videoId      String
-  authorId     String
+  authorId     String                       @map("user_id")
   content      String
   parentId     String?
   likes        Int                          @default(0)
@@ -607,7 +611,7 @@ model VideoSpotlightComment {
 model VideoSpotlightCommentLike {
   id           String                @id @default(cuid())
   commentId    String
-  userId       String                @map("voterLogtoId")
+  userId       String                @map("user_id")
   createdAt    DateTime              @default(now())
   comment      VideoSpotlightComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
   user         User                  @relation("VideoSpotlightCommentLikeUser", fields: [userId], references: [id])
