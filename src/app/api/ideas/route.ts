@@ -25,21 +25,32 @@ export async function GET(request: Request) {
     const ideas = await prisma.idea.findMany({
       where,
       orderBy: [{ votes: "desc" }, { createdAt: "desc" }],
-      include: { _count: { select: { comments: true } } },
+      include: {
+        author: { select: { displayName: true } },
+        _count: { select: { comments: true } },
+      },
     });
 
-    // Flatten _count into commentCount
-    const ideasWithCounts = ideas.map(({ _count, ...idea }) => ({
+    // Flatten _count and map authorName from relation
+    const ideasWithCounts = ideas.map(({ _count, author, ...idea }) => ({
       ...idea,
+      authorName: author?.displayName ?? "Anonymous",
       commentCount: _count.comments,
     }));
 
     const userVotesByIdea = isAuthenticated && user
       ? Object.fromEntries(
-          (await prisma.ideaVote.findMany({
-            where: { voterLogtoId: user.sub },
-            select: { ideaId: true, direction: true },
-          })).map((vote) => [
+          (await (async () => {
+            const dbUser = await prisma.user.findFirst({
+              where: { logtoId: user.sub },
+              select: { id: true },
+            });
+            if (!dbUser) return [];
+            return prisma.ideaVote.findMany({
+              where: { userId: dbUser.id },
+              select: { ideaId: true, direction: true },
+            });
+          })()).map((vote) => [
             vote.ideaId,
             vote.direction === "UP" ? "up" : "down",
           ])
@@ -57,7 +68,7 @@ export async function POST(request: Request) {
   try {
     const { isAuthenticated, user } = await getAuthUser();
     const body = await request.json();
-    const { title, description, authorName } = body;
+    const { title, description } = body;
 
     if (!title?.trim() || !description?.trim()) {
       return NextResponse.json({ error: "Title and description are required" }, { status: 400 });
@@ -71,23 +82,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Description must be 500 characters or less" }, { status: 400 });
     }
 
-    // Resolve DB user ID for authorId (instead of storing logtoId)
-    let dbUserId = "anonymous";
-    if (isAuthenticated && user) {
-      const dbUser = await ensureDbUser(user.sub, user.email, user.name);
-      dbUserId = dbUser.id;
+    if (!isAuthenticated || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const dbUser = await ensureDbUser(user.sub, user.email, user.name);
 
     const idea = await prisma.idea.create({
       data: {
         title: title.trim(),
         description: description.trim(),
-        authorId: dbUserId,
-        authorName: authorName?.trim() || (isAuthenticated && user ? user.name : "Anonymous"),
+        userId: dbUser.id,
       },
     });
 
-    const ideaAuthorName = authorName?.trim() || (isAuthenticated && user ? user.name : "Anonymous");
+    const ideaAuthorName = user.name || "Anonymous";
 
     try {
       const mentions = extractMentions(description.trim());
@@ -95,7 +104,7 @@ export async function POST(request: Request) {
       const truncatedDescription = plainDescription.length > 120
         ? plainDescription.slice(0, 120) + "…"
         : plainDescription;
-      const alreadyNotified = new Set<string>([dbUserId]);
+      const alreadyNotified = new Set<string>([dbUser.id]);
 
       for (const mention of mentions) {
         const snapshot = await prisma.$queryRaw<
@@ -130,7 +139,7 @@ export async function POST(request: Request) {
       console.error(`[Ideas] Mention notification error for ideaId=${idea.id}:`, err);
     }
 
-    return NextResponse.json({ idea }, { status: 201 });
+    return NextResponse.json({ idea: { ...idea, authorName: ideaAuthorName } }, { status: 201 });
   } catch {
     return NextResponse.json({ error: "Failed to create idea" }, { status: 500 });
   }
@@ -151,11 +160,19 @@ export async function PATCH(request: Request) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
 
+      const dbUser = await prisma.user.findFirst({
+        where: { logtoId: user.sub },
+        select: { id: true },
+      });
+      if (!dbUser) {
+        return NextResponse.json({ error: "User not found" }, { status: 404 });
+      }
+
       const existingVote = await prisma.ideaVote.findUnique({
         where: {
-          ideaId_voterLogtoId: {
+          ideaId_userId: {
             ideaId: id,
-            voterLogtoId: user.sub,
+            userId: dbUser.id,
           },
         },
       });
@@ -170,7 +187,7 @@ export async function PATCH(request: Request) {
           prisma.ideaVote.create({
             data: {
               ideaId: id,
-              voterLogtoId: user.sub,
+              userId: dbUser.id,
               direction: vote === "up" ? "UP" : "DOWN",
             },
           }),
@@ -251,11 +268,11 @@ export async function PATCH(request: Request) {
         },
       };
 
-      // authorId is now a DB User.id — send notification directly
+      // userId is the DB User.id — send notification directly
       const notifConfig = stageNotifications[status];
-      if (notifConfig && idea.authorId && idea.authorId !== "anonymous") {
+      if (notifConfig && idea.userId && idea.userId !== "anonymous") {
         createNotification({
-          recipientUserId: idea.authorId,
+          recipientUserId: idea.userId,
           type: notifConfig.type,
           title: notifConfig.title,
           message: notifConfig.message(idea.title),
@@ -289,7 +306,7 @@ export async function DELETE(request: Request) {
 
     const idea = await prisma.idea.findUnique({
       where: { id },
-      select: { authorId: true, status: true },
+      select: { userId: true, status: true },
     });
 
     if (!idea) {
@@ -297,9 +314,9 @@ export async function DELETE(request: Request) {
     }
 
     const isAdmin = hasPermission(user, PERMISSIONS.MANAGE_IDEAS);
-    // authorId is now a DB User.id — look up current user's DB id for comparison
+    // userId is the DB User.id — look up current user's DB id for comparison
     const currentDbUser = await prisma.user.findFirst({ where: { logtoId: user.sub }, select: { id: true } });
-    const isAuthor = currentDbUser ? idea.authorId === currentDbUser.id : false;
+    const isAuthor = currentDbUser ? idea.userId === currentDbUser.id : false;
     const isLockedStage = idea.status === "IN_PROGRESS" || idea.status === "COMPLETED";
 
     if (!isAdmin && (!isAuthor || isLockedStage)) {

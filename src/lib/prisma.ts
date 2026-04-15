@@ -63,15 +63,15 @@ export async function ensureDbUser(
         data: { logtoId, displayName, role },
       });
 
-      // Fix any ideas/comments that stored the SSO sub as authorId
+      // Fix any ideas/comments that stored the SSO sub as userId
       // (mirrors Props pattern: resolve by email at point of interaction)
       await prisma.idea.updateMany({
-        where: { authorId: logtoId },
-        data: { authorId: upgraded.id },
+        where: { userId: logtoId },
+        data: { userId: upgraded.id },
       });
       await prisma.ideaComment.updateMany({
-        where: { authorId: logtoId },
-        data: { authorId: upgraded.id },
+        where: { userId: logtoId },
+        data: { userId: upgraded.id },
       });
 
       return upgraded;

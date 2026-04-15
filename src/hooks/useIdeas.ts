@@ -35,11 +35,11 @@ export function useIdeas() {
   }, [fetchIdeas]);
 
   const submitIdea = useCallback(
-    async (title: string, description: string, authorName?: string) => {
+    async (title: string, description: string) => {
       const res = await fetch("/api/ideas", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, description, authorName }),
+        body: JSON.stringify({ title, description }),
       });
 
       if (!res.ok) throw new Error("Failed to submit idea");

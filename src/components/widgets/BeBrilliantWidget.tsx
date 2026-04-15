@@ -757,7 +757,7 @@ export function BeBrilliantWidget() {
                                         idea={idea}
                                         onVote={handleVote}
                                         onDeleteIdea={() => void handleDeleteIdea(idea)}
-                                        canDeleteIdea={currentUserDbId === idea.authorId && idea.status !== "IN_PROGRESS" && idea.status !== "COMPLETED"}
+                                        canDeleteIdea={currentUserDbId === idea.userId && idea.status !== "IN_PROGRESS" && idea.status !== "COMPLETED"}
                                         isDeleting={deletingIdeaId === idea.id}
                                         userVote={userVotesByIdea[idea.id]}
                                         isTrending
@@ -781,7 +781,7 @@ export function BeBrilliantWidget() {
                                         idea={idea}
                                         onVote={handleVote}
                                         onDeleteIdea={() => void handleDeleteIdea(idea)}
-                                        canDeleteIdea={currentUserDbId === idea.authorId && idea.status !== "IN_PROGRESS" && idea.status !== "COMPLETED"}
+                                        canDeleteIdea={currentUserDbId === idea.userId && idea.status !== "IN_PROGRESS" && idea.status !== "COMPLETED"}
                                         isDeleting={deletingIdeaId === idea.id}
                                         userVote={userVotesByIdea[idea.id]}
                                       />
@@ -808,7 +808,7 @@ export function BeBrilliantWidget() {
                               idea={idea}
                               onVote={handleVote}
                               onDeleteIdea={() => void handleDeleteIdea(idea)}
-                              canDeleteIdea={currentUserDbId === idea.authorId && idea.status !== "IN_PROGRESS" && idea.status !== "COMPLETED"}
+                              canDeleteIdea={currentUserDbId === idea.userId && idea.status !== "IN_PROGRESS" && idea.status !== "COMPLETED"}
                               isDeleting={deletingIdeaId === idea.id}
                               userVote={userVotesByIdea[idea.id]}
                               isTrending={idea.votes >= TRENDING_THRESHOLD}

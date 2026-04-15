@@ -40,6 +40,11 @@ model User {
   propsComments          PropsComment[]           @relation("PropsCommentAuthor")
   propsCommentLikes       PropsCommentLike[]       @relation("PropsCommentLikeUser")
 
+  ideas                  Idea[]                   @relation("IdeaAuthor")
+  ideaComments           IdeaComment[]             @relation("IdeaCommentAuthor")
+  ideaVotes              IdeaVote[]               @relation("IdeaVoteUser")
+  ideaCommentLikes       IdeaCommentLike[]         @relation("IdeaCommentLikeUser")
+
   celebrationComments     CelebrationComment[]     @relation("CelebrationCommentAuthor")
   celebrationCommentLikes CelebrationCommentLike[] @relation("CelebrationCommentLikeUser")
   celebrationLikes        CelebrationLike[]        @relation("CelebrationLikeUser")
@@ -53,8 +58,8 @@ model PropsMessage {
   authorId    String   @map("user_id")
   recipientId String   @map("recipient_id")
   badge       String   @default("mvp")
-  author      User     @relation("PropsAuthor", fields: [authorId], references: [id])
-  recipient   User     @relation("PropsRecipient", fields: [recipientId], references: [id])
+  author      User     @relation("PropsAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  recipient   User     @relation("PropsRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
   reactions   PropsReaction[]
   comments    PropsComment[]
   createdAt   DateTime @default(now())
@@ -89,7 +94,7 @@ model PropsComment {
   likes        Int                @default(0)
   createdAt    DateTime           @default(now())
   props        PropsMessage       @relation(fields: [propsId], references: [id], onDelete: Cascade)
-  author       User               @relation("PropsCommentAuthor", fields: [authorId], references: [id])
+  author       User               @relation("PropsCommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
   parent       PropsComment?      @relation("PropsCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
   replies      PropsComment[]     @relation("PropsCommentReplies")
   likedBy      PropsCommentLike[]
@@ -106,7 +111,7 @@ model PropsCommentLike {
   userId       String       @map("user_id")
   createdAt    DateTime     @default(now())
   comment      PropsComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
-  user         User         @relation("PropsCommentLikeUser", fields: [userId], references: [id])
+  user         User         @relation("PropsCommentLikeUser", fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([commentId, userId])
   @@index([userId])
@@ -122,7 +127,7 @@ model Alert {
   active    Boolean   @default(true)
   expiresAt DateTime? @map("expires_at")
   createdBy String
-  author    User      @relation(fields: [createdBy], references: [id])
+  author    User      @relation(fields: [createdBy], references: [id], onDelete: Cascade)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
@@ -136,15 +141,16 @@ model Idea {
   id          String        @id @default(cuid())
   title       String
   description String
-  authorId    String
-  authorName  String
+  userId      String        @map("user_id")
   votes       Int           @default(0)
   status      IdeaStatus    @default(ACTIVE)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
+  author      User          @relation("IdeaAuthor", fields: [userId], references: [id], onDelete: Cascade)
   votesBy     IdeaVote[]
   comments    IdeaComment[]
 
+  @@index([userId])
   @@index([status, votes])
   @@index([createdAt])
   @@map("ideas")
@@ -153,31 +159,33 @@ model Idea {
 model IdeaVote {
   id           String        @id @default(cuid())
   ideaId       String
-  voterLogtoId String
+  userId       String        @map("user_id")
   direction    VoteDirection
   createdAt    DateTime      @default(now())
   idea         Idea          @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  user         User          @relation("IdeaVoteUser", fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([ideaId, voterLogtoId])
-  @@index([voterLogtoId])
+  @@unique([ideaId, userId])
+  @@index([userId])
   @@map("idea_votes")
 }
 
 model IdeaComment {
   id           String             @id @default(cuid())
   ideaId       String
-  authorId     String
-  authorName   String
+  userId       String             @map("user_id")
   content      String
   parentId     String?
   likes        Int                @default(0)
   createdAt    DateTime           @default(now())
   idea         Idea               @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  author       User               @relation("IdeaCommentAuthor", fields: [userId], references: [id], onDelete: Cascade)
   parent       IdeaComment?       @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
   replies      IdeaComment[]      @relation("CommentReplies")
   likedBy      IdeaCommentLike[]
 
   @@index([ideaId, createdAt])
+  @@index([userId])
   @@index([parentId])
   @@map("idea_comments")
 }
@@ -185,12 +193,13 @@ model IdeaComment {
 model IdeaCommentLike {
   id           String      @id @default(cuid())
   commentId    String
-  voterLogtoId String
+  userId       String      @map("user_id")
   createdAt    DateTime    @default(now())
   comment      IdeaComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user         User        @relation("IdeaCommentLikeUser", fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([commentId, voterLogtoId])
-  @@index([voterLogtoId])
+  @@unique([commentId, userId])
+  @@index([userId])
   @@map("idea_comment_likes")
 }
 
@@ -558,7 +567,7 @@ model VideoSpotlight {
   fileSize    Int      @default(0) // bytes
   duration    Float?               // seconds
   authorId    String?  @map("user_id") // FK to users.id
-  author      User?    @relation("VideoSpotlightAuthor", fields: [authorId], references: [id])
+  author      User?    @relation("VideoSpotlightAuthor", fields: [authorId], references: [id], onDelete: SetNull)
   featured    Boolean  @default(false)
   playCount   Int      @default(0)
   sortOrder   Int      @default(0)
@@ -581,7 +590,7 @@ model VideoSpotlightReaction {
   type         String         // "like" | "dislike"
   createdAt    DateTime       @default(now())
   video        VideoSpotlight @relation(fields: [videoId], references: [id], onDelete: Cascade)
-  user         User           @relation("VideoSpotlightReactionUser", fields: [userId], references: [id])
+  user         User           @relation("VideoSpotlightReactionUser", fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([videoId, userId])
   @@index([videoId])
@@ -598,7 +607,7 @@ model VideoSpotlightComment {
   likes        Int                          @default(0)
   createdAt    DateTime                     @default(now())
   video        VideoSpotlight               @relation(fields: [videoId], references: [id], onDelete: Cascade)
-  author       User                         @relation("VideoSpotlightCommentAuthor", fields: [authorId], references: [id])
+  author       User                         @relation("VideoSpotlightCommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
   parent       VideoSpotlightComment?       @relation("VideoCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
   replies      VideoSpotlightComment[]      @relation("VideoCommentReplies")
   likedBy      VideoSpotlightCommentLike[]
@@ -614,7 +623,7 @@ model VideoSpotlightCommentLike {
   userId       String                @map("user_id")
   createdAt    DateTime              @default(now())
   comment      VideoSpotlightComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
-  user         User                  @relation("VideoSpotlightCommentLikeUser", fields: [userId], references: [id])
+  user         User                  @relation("VideoSpotlightCommentLikeUser", fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([commentId, userId])
   @@index([userId])
@@ -694,7 +703,7 @@ model ExamPassRecord {
 model MySharePost {
   id        String    @id @default(cuid())
   authorId  String
-  author    User      @relation("MyShareAuthor", fields: [authorId], references: [id])
+  author    User      @relation("MyShareAuthor", fields: [authorId], references: [id], onDelete: Cascade)
   caption   String?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -730,7 +739,7 @@ model MyShareLike {
   userId    String
   createdAt DateTime    @default(now())
   post      MySharePost @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user      User        @relation("MyShareLikes", fields: [userId], references: [id])
+  user      User        @relation("MyShareLikes", fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([postId, userId])
   @@map("myshare_likes")
@@ -745,7 +754,7 @@ model MyShareComment {
   createdAt DateTime             @default(now())
   deletedAt DateTime?            @map("deleted_at")
   post      MySharePost          @relation(fields: [postId], references: [id], onDelete: Cascade)
-  author    User                 @relation("MyShareCommentAuthor", fields: [authorId], references: [id])
+  author    User                 @relation("MyShareCommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
   parent    MyShareComment?      @relation("MyShareCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
   replies   MyShareComment[]     @relation("MyShareCommentReplies")
   likedBy   MyShareCommentLike[]
@@ -762,7 +771,7 @@ model MyShareCommentLike {
   userId    String
   createdAt DateTime       @default(now())
   comment   MyShareComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
-  user      User           @relation("MyShareCommentLikes", fields: [userId], references: [id])
+  user      User           @relation("MyShareCommentLikes", fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([commentId, userId])
   @@map("myshare_comment_likes")
@@ -816,14 +825,13 @@ model CelebrationComment {
   id            String   @id @default(cuid())
   celebrationId String   @map("celebration_id")
   authorId      String   @map("author_id")
-  authorName    String   @map("author_name")
   content       String
   parentId      String?  @map("parent_id")
   likes         Int      @default(0)
   createdAt     DateTime @default(now()) @map("created_at")
 
   celebration   CelebrationEvent        @relation(fields: [celebrationId], references: [id], onDelete: Cascade)
-  author        User                    @relation("CelebrationCommentAuthor", fields: [authorId], references: [id])
+  author        User                    @relation("CelebrationCommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
   parent        CelebrationComment?     @relation("CelebrationCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
   replies       CelebrationComment[]    @relation("CelebrationCommentReplies")
   likedBy       CelebrationCommentLike[]
@@ -840,7 +848,7 @@ model CelebrationCommentLike {
   createdAt DateTime @default(now()) @map("created_at")
 
   comment   CelebrationComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
-  user      User               @relation("CelebrationCommentLikeUser", fields: [userId], references: [id])
+  user      User               @relation("CelebrationCommentLikeUser", fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([commentId, userId])
   @@index([userId])
@@ -854,7 +862,7 @@ model CelebrationLike {
   createdAt      DateTime @default(now()) @map("created_at")
 
   celebration    CelebrationEvent @relation(fields: [celebrationId], references: [id], onDelete: Cascade)
-  user           User             @relation("CelebrationLikeUser", fields: [userId], references: [id])
+  user           User             @relation("CelebrationLikeUser", fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([celebrationId, userId])
   @@index([userId])

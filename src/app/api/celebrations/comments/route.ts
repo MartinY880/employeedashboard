@@ -21,7 +21,11 @@ export async function GET(request: Request) {
       where: { celebrationId, parentId: null },
       orderBy: { createdAt: "asc" },
       include: {
-        replies: { orderBy: { createdAt: "asc" } },
+        author: { select: { displayName: true } },
+        replies: {
+          orderBy: { createdAt: "asc" },
+          include: { author: { select: { displayName: true } } },
+        },
       },
     });
 
@@ -49,7 +53,7 @@ export async function GET(request: Request) {
     const enriched = comments.map((c) => ({
       id: c.id,
       authorId: c.authorId,
-      authorName: c.authorName,
+      authorName: c.author.displayName,
       content: c.content,
       parentId: c.parentId,
       likes: c.likes,
@@ -59,7 +63,7 @@ export async function GET(request: Request) {
       replies: c.replies.map((r) => ({
         id: r.id,
         authorId: r.authorId,
-        authorName: r.authorName,
+        authorName: r.author.displayName,
         content: r.content,
         parentId: r.parentId,
         likes: r.likes,
@@ -107,10 +111,10 @@ export async function POST(request: Request) {
       data: {
         celebrationId,
         authorId: dbUser.id,
-        authorName: user.name || "Anonymous",
         content: content.trim(),
         parentId: parentId || null,
       },
+      include: { author: { select: { displayName: true } } },
     });
 
     // Increment denormalized comment count
@@ -192,7 +196,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(
-      { comment: { ...comment, userLiked: false, canDelete: true, replies: [] } },
+      { comment: { ...comment, authorName: comment.author.displayName, userLiked: false, canDelete: true, replies: [] } },
       { status: 201 },
     );
   } catch {
