@@ -69,7 +69,6 @@ start
 
 # Database backups & dumps
 *.sql
-!/prisma/seed-data.sql
 !/prisma/migrations/**/*.sql
 !/init-db/*.sql
 
