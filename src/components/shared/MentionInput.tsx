@@ -20,6 +20,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import type { HashtagResult } from "@/types";
 
 export interface MentionUser {
   id: string;
@@ -179,6 +180,22 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
       width: number;
     } | null>(null);
 
+    // ── Hashtag autocomplete state ──────────────────────────
+    const hashtagAbortRef = useRef<AbortController | null>(null);
+    const hashtagDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const [hashtagQuery, setHashtagQuery] = useState<string | null>(null);
+    const [hashtagStart, setHashtagStart] = useState(0);
+    const [hashtagResults, setHashtagResults] = useState<HashtagResult[]>([]);
+    const [hashtagSelectedIndex, setHashtagSelectedIndex] = useState(0);
+    const [hashtagLoading, setHashtagLoading] = useState(false);
+    const [showHashtagDropdown, setShowHashtagDropdown] = useState(false);
+    const hashtagDropdownRef = useRef<HTMLDivElement>(null);
+    const [hashtagDropdownPos, setHashtagDropdownPos] = useState<{
+      top: number;
+      left: number;
+      width: number;
+    } | null>(null);
+
     useImperativeHandle(ref, () => ({
       focus: () => inputRef.current?.focus(),
     }));
@@ -210,6 +227,9 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
             setMentionQuery(query);
             setMentionStart(atIdx);
             setShowDropdown(true);
+            // Close hashtag dropdown — mutually exclusive
+            setShowHashtagDropdown(false);
+            setHashtagQuery(null);
             return;
           }
           // Found a valid @ but query is too short — stop searching
@@ -222,6 +242,50 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
         setShowDropdown(false);
       },
       [],
+    );
+
+    // ── Detect #hashtag ─────────────────────────────────────
+    // Walks backwards from cursor to find #. If found at start of
+    // text or preceded by whitespace, opens the hashtag dropdown.
+    // No minimum character requirement — just # shows trending.
+    const detectHashtag = useCallback(
+      (text: string, cursorPos: number) => {
+        // Don't detect hashtag if mention dropdown is open
+        if (showDropdown) {
+          setHashtagQuery(null);
+          setShowHashtagDropdown(false);
+          return;
+        }
+
+        const before = text.slice(0, cursorPos);
+        let hashIdx = before.lastIndexOf("#");
+
+        if (hashIdx === -1) {
+          setHashtagQuery(null);
+          setShowHashtagDropdown(false);
+          return;
+        }
+
+        // # must be at start of text or preceded by whitespace
+        if (hashIdx > 0 && !/\s/.test(before[hashIdx - 1])) {
+          setHashtagQuery(null);
+          setShowHashtagDropdown(false);
+          return;
+        }
+
+        const query = before.slice(hashIdx + 1);
+        // Reject if whitespace or # appears inside the query
+        if (/[\s#]/.test(query)) {
+          setHashtagQuery(null);
+          setShowHashtagDropdown(false);
+          return;
+        }
+
+        setHashtagQuery(query); // "" for just #, or the partial tag
+        setHashtagStart(hashIdx);
+        setShowHashtagDropdown(true);
+      },
+      [showDropdown],
     );
 
     // ── Fetch results (debounced + abortable) ───────────────
@@ -292,6 +356,43 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
       };
     }, [mentionQuery, fetchResults]);
 
+    // ── Fetch hashtag results (debounced + abortable) ───────
+    const fetchHashtags = useCallback(async (query: string) => {
+      hashtagAbortRef.current?.abort();
+      const ctrl = new AbortController();
+      hashtagAbortRef.current = ctrl;
+      setHashtagLoading(true);
+      try {
+        const url = query
+          ? `/api/hashtags/search?q=${encodeURIComponent(query)}`
+          : "/api/hashtags/trending";
+        const res = await fetch(url, { signal: ctrl.signal });
+        if (!res.ok) throw new Error("fetch");
+        const data = await res.json();
+        if (!ctrl.signal.aborted) {
+          setHashtagResults(data.hashtags || []);
+          setHashtagSelectedIndex(0);
+        }
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setHashtagResults([]);
+      } finally {
+        if (!ctrl.signal.aborted) setHashtagLoading(false);
+      }
+    }, []);
+
+    useEffect(() => {
+      if (hashtagQuery === null) {
+        setHashtagResults([]);
+        return;
+      }
+      if (hashtagDebounceRef.current) clearTimeout(hashtagDebounceRef.current);
+      hashtagDebounceRef.current = setTimeout(() => fetchHashtags(hashtagQuery), 300);
+      return () => {
+        if (hashtagDebounceRef.current) clearTimeout(hashtagDebounceRef.current);
+      };
+    }, [hashtagQuery, fetchHashtags]);
+
     // ── Select mention ──────────────────────────────────────
     const selectMention = useCallback(
       (user: MentionUser) => {
@@ -335,6 +436,41 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
       [displayText, mentionStart, chips, onChange],
     );
 
+    // ── Select hashtag ──────────────────────────────────────
+    const selectHashtag = useCallback(
+      (hashtag: HashtagResult) => {
+        const cursorPos =
+          inputRef.current?.selectionStart ?? displayText.length;
+        const before = displayText.slice(0, hashtagStart);
+        const after = displayText.slice(cursorPos);
+        const tag = `#${hashtag.tag}`;
+        const newDisplay = before + tag + " " + after;
+
+        // Adjust chips that come after the insertion
+        const replaced = cursorPos - hashtagStart;
+        const inserted = tag.length + 1;
+        const shift = inserted - replaced;
+        const newChips = chips
+          .filter((c) => c.end <= hashtagStart || c.start >= cursorPos)
+          .map((c) =>
+            c.start >= cursorPos
+              ? { ...c, start: c.start + shift, end: c.end + shift }
+              : c,
+          );
+        const newReal = buildRealValue(newDisplay, newChips);
+
+        ignoredChangeValueRef.current = newDisplay;
+
+        onChange(newReal);
+        setShowHashtagDropdown(false);
+        setHashtagQuery(null);
+        setHashtagResults([]);
+
+        pendingCaretPosRef.current = hashtagStart + tag.length + 1;
+      },
+      [displayText, hashtagStart, chips, onChange],
+    );
+
     // ── onChange handler ─────────────────────────────────────
     const handleChange = useCallback(
       (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -355,8 +491,9 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
 
         const cursor = e.target.selectionStart ?? newDisplay.length;
         detectMention(newDisplay, cursor, newChips);
+        detectHashtag(newDisplay, cursor);
       },
-      [displayText, chips, value, maxLength, onChange, detectMention],
+      [displayText, chips, value, maxLength, onChange, detectMention, detectHashtag],
     );
 
     // ── Selection / cursor change ───────────────────────────
@@ -368,11 +505,46 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
       const latestDisplay = toDisplayText(value);
       const latestChips = deriveChips(value);
       detectMention(latestDisplay, cursor, latestChips);
-    }, [value, detectMention]);
+      detectHashtag(latestDisplay, cursor);
+    }, [value, detectMention, detectHashtag]);
 
     // ── Keyboard navigation ─────────────────────────────────
     const handleKeyDown = useCallback(
       (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        // Hashtag dropdown navigation
+        if (showHashtagDropdown && hashtagResults.length > 0) {
+          switch (e.key) {
+            case "ArrowDown":
+              e.preventDefault();
+              setHashtagSelectedIndex((p) => {
+                const n = p < hashtagResults.length - 1 ? p + 1 : 0;
+                scrollIntoView(hashtagDropdownRef.current, n);
+                return n;
+              });
+              return;
+            case "ArrowUp":
+              e.preventDefault();
+              setHashtagSelectedIndex((p) => {
+                const n = p > 0 ? p - 1 : hashtagResults.length - 1;
+                scrollIntoView(hashtagDropdownRef.current, n);
+                return n;
+              });
+              return;
+            case "Tab":
+            case "Enter":
+              e.preventDefault();
+              e.stopPropagation();
+              selectHashtag(hashtagResults[hashtagSelectedIndex]);
+              return;
+            case "Escape":
+              e.preventDefault();
+              setShowHashtagDropdown(false);
+              setHashtagQuery(null);
+              return;
+          }
+        }
+
+        // Mention dropdown navigation
         if (!showDropdown || results.length === 0) return;
 
         switch (e.key) {
@@ -407,19 +579,28 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
             return;
         }
       },
-      [showDropdown, results, selectedIndex, selectMention, hasMore, loadMore],
+      [showDropdown, results, selectedIndex, selectMention, hasMore, loadMore, showHashtagDropdown, hashtagResults, hashtagSelectedIndex, selectHashtag],
     );
 
     // ── Close on outside click ──────────────────────────────
     useEffect(() => {
       const handler = (e: MouseEvent) => {
+        const target = e.target as Node;
         if (
           wrapperRef.current &&
-          !wrapperRef.current.contains(e.target as Node) &&
+          !wrapperRef.current.contains(target) &&
           dropdownRef.current &&
-          !dropdownRef.current.contains(e.target as Node)
+          !dropdownRef.current.contains(target)
         ) {
           setShowDropdown(false);
+        }
+        if (
+          wrapperRef.current &&
+          !wrapperRef.current.contains(target) &&
+          hashtagDropdownRef.current &&
+          !hashtagDropdownRef.current.contains(target)
+        ) {
+          setShowHashtagDropdown(false);
         }
       };
       document.addEventListener("mousedown", handler);
@@ -437,6 +618,18 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
       const h = Math.min(count * 36 + 4, 192);
       setDropdownPos({ top: rect.top - h, left: rect.left, width: rect.width });
     }, [showDropdown, results, loading, mentionQuery]);
+
+    // ── Hashtag dropdown positioning ────────────────────────
+    useLayoutEffect(() => {
+      if (!showHashtagDropdown || !inputRef.current) {
+        setHashtagDropdownPos(null);
+        return;
+      }
+      const rect = inputRef.current.getBoundingClientRect();
+      const count = hashtagResults.length || 1;
+      const h = Math.min(count * 36 + 4, 192);
+      setHashtagDropdownPos({ top: rect.top - h, left: rect.left, width: rect.width });
+    }, [showHashtagDropdown, hashtagResults, hashtagLoading, hashtagQuery]);
 
     useLayoutEffect(() => {
       const pos = pendingCaretPosRef.current;
@@ -555,6 +748,68 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
                     </div>
                   )}
                   </>
+                )}
+              </motion.div>
+            </AnimatePresence>,
+            document.body,
+          )}
+
+        {showHashtagDropdown &&
+          hashtagDropdownPos &&
+          (hashtagLoading || hashtagResults.length > 0) &&
+          createPortal(
+            <AnimatePresence>
+              <motion.div
+                ref={hashtagDropdownRef}
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 4 }}
+                transition={{ duration: 0.15 }}
+                style={{
+                  position: "fixed",
+                  top: hashtagDropdownPos.top,
+                  left: hashtagDropdownPos.left,
+                  width: hashtagDropdownPos.width,
+                }}
+                className="z-[9999] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-t-lg border-b-0 shadow-lg overflow-hidden max-h-48 overflow-y-auto"
+              >
+                {hashtagLoading && hashtagResults.length === 0 ? (
+                  <div className="flex items-center gap-2 px-3 py-2 text-xs text-gray-400">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    Searching…
+                  </div>
+                ) : (
+                  hashtagResults.map((h, i) => (
+                    <button
+                      key={h.tag}
+                      type="button"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        selectHashtag(h);
+                      }}
+                      className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-left transition-colors ${
+                        i === hashtagSelectedIndex
+                          ? "bg-brand-blue/10 dark:bg-brand-blue/20"
+                          : "hover:bg-gray-50 dark:hover:bg-gray-800"
+                      }`}
+                      role="option"
+                      aria-selected={i === hashtagSelectedIndex}
+                    >
+                      <div className="shrink-0 w-6 h-6 rounded-full bg-gradient-to-br from-emerald-500/70 to-emerald-600 flex items-center justify-center text-white text-[11px] font-bold">
+                        #
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <span className="text-xs font-medium text-gray-800 dark:text-gray-200">
+                          #{h.tag}
+                        </span>
+                      </div>
+                      {h.count > 0 && (
+                        <span className="shrink-0 text-[10px] text-gray-400 dark:text-gray-500 tabular-nums">
+                          {h.count} {h.count === 1 ? "post" : "posts"}
+                        </span>
+                      )}
+                    </button>
+                  ))
                 )}
               </motion.div>
             </AnimatePresence>,

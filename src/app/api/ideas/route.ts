@@ -101,9 +101,6 @@ export async function POST(request: Request) {
     try {
       const mentions = extractMentions(description.trim());
       const plainDescription = stripMentionMarkup(description.trim());
-      const truncatedDescription = plainDescription.length > 120
-        ? plainDescription.slice(0, 120) + "…"
-        : plainDescription;
       const alreadyNotified = new Set<string>([dbUser.id]);
 
       for (const mention of mentions) {
@@ -131,7 +128,7 @@ export async function POST(request: Request) {
           recipientUserId: recipientUser.id,
           type: "MENTION",
           title: "You were mentioned in an idea",
-          message: `${ideaAuthorName} mentioned you in a Be Brilliant idea: "${truncatedDescription}"`,
+          message: `${ideaAuthorName} mentioned you in a Be Brilliant idea: "${plainDescription}"`,
           metadata: { ideaId: idea.id },
         });
       }

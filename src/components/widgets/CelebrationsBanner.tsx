@@ -18,6 +18,7 @@ interface CelebrationItem {
   employeeId: string | null;
   email: string;
   detail: string;
+  examDate?: string;
   commentCount: number;
   likeCount: number;
   userLiked: boolean;
@@ -184,9 +185,16 @@ function CelebrationRow({ item }: { item: CelebrationItem }) {
           <p className="text-[12.5px] font-semibold text-gray-900 dark:text-gray-50 leading-tight truncate">
             {item.employeeName}
           </p>
-          <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-tight mt-0.5 truncate">
-            {item.detail}
-          </p>
+          <div className="flex items-center justify-between gap-2 mt-0.5">
+            <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-tight truncate">
+              {item.detail}
+            </p>
+            {item.type === "exam" && item.examDate && (
+              <span className="shrink-0 text-[10px] font-medium text-gray-400 dark:text-gray-500 tabular-nums">
+                {item.examDate}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Like button — top right */}

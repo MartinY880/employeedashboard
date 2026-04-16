@@ -868,3 +868,38 @@ model CelebrationLike {
   @@index([userId])
   @@map("celebration_likes")
 }
+
+// ─── Hashtag Tracking ─────────────────────────────────────
+
+enum CommentType {
+  PROPS
+  IDEA
+  VIDEO
+  MYSHARE
+  CELEBRATION
+}
+
+model Hashtag {
+  id        String   @id @default(cuid())
+  tag       String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+
+  comments  CommentHashtag[]
+
+  @@map("hashtags")
+}
+
+model CommentHashtag {
+  id          String      @id @default(cuid())
+  hashtagId   String      @map("hashtag_id")
+  commentId   String      @map("comment_id")
+  commentType CommentType @map("comment_type")
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  hashtag     Hashtag     @relation(fields: [hashtagId], references: [id], onDelete: Cascade)
+
+  @@unique([hashtagId, commentId, commentType])
+  @@index([hashtagId])
+  @@index([commentId, commentType])
+  @@map("comment_hashtags")
+}

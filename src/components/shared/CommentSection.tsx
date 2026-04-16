@@ -21,9 +21,10 @@ import { MentionChip } from "@/components/shared/ProfileDialog";
 import { useSounds } from "@/components/shared/SoundProvider";
 import type { UnifiedComment } from "@/types";
 
-// ─── Mention rendering ─────────────────────────────────────
+// ─── Mention + Hashtag rendering ────────────────────────────
 
 const MENTION_RENDER_REGEX = /@\[([^\]]+)\]\(([^)]+)\)/g;
+const HASHTAG_RENDER_REGEX = /#(\w+)/g;
 
 export function renderMentionContent(content: string) {
   const parts: (string | React.ReactNode)[] = [];
@@ -32,12 +33,13 @@ export function renderMentionContent(content: string) {
   const regex = new RegExp(MENTION_RENDER_REGEX.source, "g");
   let key = 0;
 
+  // First pass: split by @mentions
   while ((match = regex.exec(content)) !== null) {
     if (match.index > lastIndex) {
       parts.push(content.slice(lastIndex, match.index));
     }
     parts.push(
-      <MentionChip key={key++} userId={match[2]} displayName={match[1]} />,
+      <MentionChip key={`m${key++}`} userId={match[2]} displayName={match[1]} />,
     );
     lastIndex = match.index + match[0].length;
   }
@@ -46,7 +48,37 @@ export function renderMentionContent(content: string) {
     parts.push(content.slice(lastIndex));
   }
 
-  return parts.length > 0 ? parts : content;
+  if (parts.length === 0) return content;
+
+  // Second pass: split remaining text segments by #hashtags
+  const finalParts: (string | React.ReactNode)[] = [];
+  for (const part of parts) {
+    if (typeof part !== "string") {
+      finalParts.push(part);
+      continue;
+    }
+    const hashRegex = new RegExp(HASHTAG_RENDER_REGEX.source, "g");
+    let hLastIndex = 0;
+    let hMatch: RegExpExecArray | null;
+    while ((hMatch = hashRegex.exec(part)) !== null) {
+      if (hMatch.index > hLastIndex) {
+        finalParts.push(part.slice(hLastIndex, hMatch.index));
+      }
+      finalParts.push(
+        <span key={`h${key++}`} className="text-brand-blue font-medium">
+          #{hMatch[1]}
+        </span>,
+      );
+      hLastIndex = hMatch.index + hMatch[0].length;
+    }
+    if (hLastIndex < part.length) {
+      finalParts.push(part.slice(hLastIndex));
+    } else if (hLastIndex === 0) {
+      finalParts.push(part);
+    }
+  }
+
+  return finalParts;
 }
 
 // ─── Relative time ──────────────────────────────────────────

@@ -6,6 +6,7 @@ import { getAuthUser } from "@/lib/logto";
 import { prisma } from "@/lib/prisma";
 import { createNotification } from "@/lib/notifications";
 import { extractMentions, mentionDisplayLength, stripMentionMarkup } from "@/lib/mentions";
+import { upsertHashtags, removeCommentHashtags } from "@/lib/hashtags";
 
 export async function GET(
   request: Request,
@@ -96,6 +97,8 @@ export async function POST(
       },
     });
 
+    await upsertHashtags(prisma, comment.id, "MYSHARE", content);
+
     // Send notification to the post author (or parent comment author for replies)
     const alreadyNotified = new Set<string>([dbUser.id]);
     try {
@@ -140,9 +143,6 @@ export async function POST(
       const mentions = extractMentions(content);
       if (mentions.length > 0) {
         const mentionDisplay = stripMentionMarkup(content);
-        const truncatedMention = mentionDisplay.length > 120
-          ? mentionDisplay.slice(0, 120) + "…"
-          : mentionDisplay;
 
         for (const mention of mentions) {
           const snapshot = await prisma.$queryRaw<
@@ -178,7 +178,7 @@ export async function POST(
             recipientUserId: recipientUser.id,
             type: "MENTION",
             title: "You were mentioned in a comment",
-            message: `${dbUser.displayName} mentioned you in a MyShare comment: "${truncatedMention}"`,
+            message: `${dbUser.displayName} mentioned you in a MyShare comment: "${mentionDisplay}"`,
             metadata: { postId, commentId: comment.id },
           });
         }
@@ -293,6 +293,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    await removeCommentHashtags(prisma, commentId, "MYSHARE");
     await prisma.myShareComment.update({
       where: { id: commentId },
       data: { deletedAt: new Date() },

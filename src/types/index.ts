@@ -247,6 +247,13 @@ export interface UnifiedComment {
   replies?: UnifiedComment[];
 }
 
+// ─── Hashtag ──────────────────────────────────────────────
+
+export interface HashtagResult {
+  tag: string;
+  count: number;
+}
+
 // ─── Tournament Bracket ───────────────────────────────────
 
 export type TournamentStatus = "SETUP" | "IN_PROGRESS" | "COMPLETED";

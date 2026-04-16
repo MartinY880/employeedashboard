@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/logto";
 import { createNotification } from "@/lib/notifications";
 import { extractMentions, mentionDisplayLength, stripMentionMarkup } from "@/lib/mentions";
+import { upsertHashtags, removeCommentHashtags } from "@/lib/hashtags";
 
 export async function GET(request: Request) {
   try {
@@ -126,12 +127,12 @@ export async function POST(request: Request) {
       },
     });
 
+    // Track hashtags
+    await upsertHashtags(prisma, comment.id, "PROPS", content.trim());
+
     // ── Reply + @mention notifications ─────────────────────
     const commenterName = dbUser.displayName || "Someone";
     const plainContent = stripMentionMarkup(content.trim());
-    const truncatedContent = plainContent.length > 120
-      ? plainContent.slice(0, 120) + "…"
-      : plainContent;
 
     const alreadyNotified = new Set<string>();
     alreadyNotified.add(dbUser.id);
@@ -149,7 +150,7 @@ export async function POST(request: Request) {
             recipientUserId: parentComment.authorId,
             type: "MENTION",
             title: "New reply on your comment",
-            message: `${commenterName} replied to your comment on a Props post: "${truncatedContent}"`,
+            message: `${commenterName} replied to your comment on a Props post: "${plainContent}"`,
             metadata: { propsId, commentId: comment.id },
           });
         }
@@ -189,7 +190,7 @@ export async function POST(request: Request) {
             recipientUserId: recipientUser.id,
             type: "MENTION",
             title: "You were mentioned in a comment",
-            message: `${commenterName} mentioned you in a Props comment: "${truncatedContent}"`,
+            message: `${commenterName} mentioned you in a Props comment: "${plainContent}"`,
             metadata: { propsId, commentId: comment.id },
           });
         }
@@ -284,6 +285,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    await removeCommentHashtags(prisma, id, "PROPS");
     await prisma.propsComment.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch {

@@ -3,20 +3,19 @@
 
 "use client";
 
-import { useState, useRef, useCallback, useEffect, type ReactNode } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { MentionInput, type MentionInputHandle } from "@/components/shared/MentionInput";
-import { MentionChip } from "@/components/shared/ProfileDialog";
+import { renderMentionContent, CommentSection, CommentSectionList } from "@/components/shared/CommentSection";
 import {
   Heart,
   MessageCircle,
   ChevronLeft,
   ChevronRight,
   Trash2,
-  ThumbsUp,
   Send,
   Reply,
   X,
@@ -25,7 +24,7 @@ import {
   Maximize2,
 } from "lucide-react";
 import { useSounds } from "@/components/shared/SoundProvider";
-import type { MySharePost, MyShareComment, MyShareMedia } from "@/types";
+import type { MySharePost, MyShareMedia, UnifiedComment } from "@/types";
 
 /* ─── Helpers ──────────────────────────────────────────── */
 
@@ -52,36 +51,6 @@ function getPhotoUrl(authorEmail: string | undefined, authorName: string): strin
   return `/api/directory/photo?name=${encodeURIComponent(authorName)}&size=120x120`;
 }
 
-const MENTION_RENDER_REGEX = /@\[([^\]]+)\]\(([^)]+)\)/g;
-
-function renderMentionContent(content: string) {
-  const parts: (string | ReactNode)[] = [];
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
-  const regex = new RegExp(MENTION_RENDER_REGEX.source, "g");
-  let key = 0;
-
-  while ((match = regex.exec(content)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push(content.slice(lastIndex, match.index));
-    }
-    parts.push(
-      <MentionChip
-        key={key++}
-        userId={match[2]}
-        displayName={match[1]}
-      />,
-    );
-    lastIndex = match.index + match[0].length;
-  }
-
-  if (lastIndex < content.length) {
-    parts.push(content.slice(lastIndex));
-  }
-
-  return parts.length > 0 ? parts : content;
-}
-
 /* ─── Media Lightbox (fullscreen overlay) ──────────────── */
 
 function MediaLightbox({
@@ -100,13 +69,13 @@ function MediaLightbox({
   onClose: () => void;
   post: MySharePost;
   onLike: () => void;
-  fetchComments: (postId: string) => Promise<MyShareComment[]>;
-  addComment: (postId: string, content: string, parentId?: string) => Promise<MyShareComment>;
+  fetchComments: (postId: string) => Promise<UnifiedComment[]>;
+  addComment: (postId: string, content: string, parentId?: string) => Promise<UnifiedComment>;
   toggleCommentLike: (postId: string, commentId: string) => Promise<void>;
   deleteComment: (postId: string, commentId: string) => Promise<void>;
 }) {
   const [current, setCurrent] = useState(startIndex);
-  const [comments, setComments] = useState<MyShareComment[]>([]);
+  const [comments, setComments] = useState<UnifiedComment[]>([]);
   const [loading, setLoading] = useState(true);
   const [newComment, setNewComment] = useState("");
   const [sending, setSending] = useState(false);
@@ -177,7 +146,7 @@ function MediaLightbox({
 
   const handleLikeComment = async (commentId: string) => {
     playClick();
-    const updateLike = (list: MyShareComment[]): MyShareComment[] =>
+    const updateLike = (list: UnifiedComment[]): UnifiedComment[] =>
       list.map((c) => {
         if (c.id === commentId) {
           const liked = !c.userLiked;
@@ -323,30 +292,22 @@ function MediaLightbox({
                   </div>
                 )}
                 {/* Comments list */}
-                <div className="flex-1 overflow-y-auto min-h-0 px-5 py-3 space-y-4">
-                  {loading ? (
-                    <div className="flex items-center justify-center gap-2 py-8 text-[13px] text-gray-400">
-                      <Loader2 className="w-4 h-4 animate-spin" /> Loading…
-                    </div>
-                  ) : comments.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-8 text-center">
-                      <MessageCircle className="w-8 h-8 text-gray-200 dark:text-gray-700 mb-2" />
-                      <p className="text-[12px] text-gray-400">No comments yet</p>
-                    </div>
-                  ) : (
-                    comments.map((c) => (
-                      <CommentWithReplies
-                        key={c.id}
-                        comment={c}
-                        onDelete={handleDeleteComment}
-                        onLike={handleLikeComment}
-                        onReplyClick={(id, name) => {
-                          setReplyTo({ id, name });
-                          inputRef.current?.focus();
-                        }}
-                      />
-                    ))
-                  )}
+                <div className="flex-1 overflow-y-auto min-h-0 px-5 py-3">
+                  <CommentSectionList
+                    comments={comments}
+                    onCommentsChange={setComments}
+                    onLike={handleLikeComment}
+                    onDelete={handleDeleteComment}
+                    replyTo={null}
+                    onReplyClick={(id, name) => {
+                      setReplyTo({ id, name });
+                      inputRef.current?.focus();
+                    }}
+                    onCancelReply={() => setReplyTo(null)}
+                    loading={loading}
+                    loaded={!loading}
+                    emptyText="No comments yet"
+                  />
                 </div>
                 {/* Comment input */}
                 <div className="shrink-0 border-t border-gray-100 dark:border-gray-800 px-4 py-3 bg-white dark:bg-gray-900">
@@ -449,30 +410,22 @@ function MediaLightbox({
               </div>
             )}
 
-            <div className="px-4 py-3 space-y-4">
-              {loading ? (
-                <div className="flex items-center justify-center gap-2 py-8 text-[13px] text-gray-400">
-                  <Loader2 className="w-4 h-4 animate-spin" /> Loading…
-                </div>
-              ) : comments.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <MessageCircle className="w-8 h-8 text-gray-200 dark:text-gray-700 mb-2" />
-                  <p className="text-[12px] text-gray-400">No comments yet</p>
-                </div>
-              ) : (
-                comments.map((c) => (
-                  <CommentWithReplies
-                    key={c.id}
-                    comment={c}
-                    onDelete={handleDeleteComment}
-                    onLike={handleLikeComment}
-                    onReplyClick={(id, name) => {
-                      setReplyTo({ id, name });
-                      inputRef.current?.focus();
-                    }}
-                  />
-                ))
-              )}
+            <div className="px-4 py-3">
+              <CommentSectionList
+                comments={comments}
+                onCommentsChange={setComments}
+                onLike={handleLikeComment}
+                onDelete={handleDeleteComment}
+                replyTo={null}
+                onReplyClick={(id, name) => {
+                  setReplyTo({ id, name });
+                  inputRef.current?.focus();
+                }}
+                onCancelReply={() => setReplyTo(null)}
+                loading={loading}
+                loaded={!loading}
+                emptyText="No comments yet"
+              />
             </div>
           </div>
 
@@ -671,664 +624,14 @@ function ImageCarousel({ media, onOpenLightbox }: { media: MyShareMedia[]; onOpe
     </div>
   );
 }
-
-/* ─── Comment Row (Pixelfed media-style) ───────────────── */
-
-function CommentRow({
-  comment,
-  onDelete,
-  onLike,
-  onReplyClick,
-  isReply = false,
-}: {
-  comment: MyShareComment;
-  onDelete: (id: string) => void;
-  onLike: (id: string) => void;
-  onReplyClick?: (id: string, authorName: string) => void;
-  isReply?: boolean;
-}) {
-  const photoUrl = getPhotoUrl(comment.authorEmail, comment.authorName);
-
-  return (
-    <div className={`flex gap-2.5 ${isReply ? "ml-10 mt-2" : ""}`}>
-      <Avatar className={`shrink-0 ${isReply ? "h-6 w-6" : "h-8 w-8"}`}>
-        <AvatarImage src={photoUrl} alt={comment.authorName} />
-        <AvatarFallback className="bg-brand-blue/10 text-brand-blue text-[9px] font-bold">
-          {getInitials(comment.authorName)}
-        </AvatarFallback>
-      </Avatar>
-      <div className="flex-1 min-w-0">
-        <p className={`text-gray-700 dark:text-gray-300 leading-relaxed ${isReply ? "text-[11px]" : "text-[12px]"}`}>
-          <span className="font-bold text-gray-900 dark:text-gray-100 mr-1">
-            {comment.authorName}
-          </span>
-          {renderMentionContent(comment.content)}
-        </p>
-        {comment.likes > 0 && (
-          <button
-            onClick={() => onLike(comment.id)}
-            className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 shadow-sm text-[10px] text-gray-500 dark:text-gray-400 hover:text-brand-blue transition-colors"
-          >
-            <ThumbsUp className={`w-2.5 h-2.5 ${comment.userLiked ? "fill-brand-blue text-brand-blue" : ""}`} />
-            <span className="font-semibold tabular-nums">{comment.likes}</span>
-          </button>
-        )}
-        <div className="flex items-center gap-0 mt-1 text-[11px] font-semibold">
-          <button
-            type="button"
-            onClick={() => onLike(comment.id)}
-            className={`transition-colors ${
-              comment.userLiked
-                ? "text-red-500"
-                : "text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-            }`}
-          >
-            {comment.userLiked ? "Liked" : "Like"}
-          </button>
-          {!isReply && onReplyClick && (
-            <>
-              <span className="mx-1.5 text-gray-300 dark:text-gray-600">·</span>
-              <button
-                type="button"
-                onClick={() => onReplyClick(comment.id, comment.authorName)}
-                className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-              >
-                Reply
-              </button>
-            </>
-          )}
-          <span className="mx-1.5 text-gray-300 dark:text-gray-600">·</span>
-          <span className="text-gray-400 dark:text-gray-500 font-normal">
-            {getRelativeTime(comment.createdAt)}
-          </span>
-          {comment.canDelete && (
-            <>
-              <span className="mx-1.5 text-gray-300 dark:text-gray-600">·</span>
-              <button
-                type="button"
-                onClick={() => onDelete(comment.id)}
-                className="text-gray-400 dark:text-gray-500 hover:text-red-500 transition-colors"
-              >
-                Delete
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ─── Comment With Collapsible Replies ─────────────────── */
-
-function CommentWithReplies({
-  comment,
-  onDelete,
-  onLike,
-  onReplyClick,
-}: {
-  comment: MyShareComment;
-  onDelete: (id: string) => void;
-  onLike: (id: string) => void;
-  onReplyClick: (id: string, authorName: string) => void;
-}) {
-  const [showReplies, setShowReplies] = useState(false);
-  const replies = comment.replies || [];
-
-  return (
-    <div>
-      <CommentRow
-        comment={comment}
-        onDelete={onDelete}
-        onLike={onLike}
-        onReplyClick={onReplyClick}
-      />
-      {replies.length > 0 && (
-        <div className="ml-10 mt-1">
-          <button
-            type="button"
-            onClick={() => setShowReplies(!showReplies)}
-            className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 hover:text-brand-blue transition-colors flex items-center gap-1"
-          >
-            <span className="w-6 h-px bg-gray-300 dark:bg-gray-600 inline-block" />
-            {showReplies ? `Hide ${replies.length} ${replies.length === 1 ? "reply" : "replies"}` : `Show ${replies.length} ${replies.length === 1 ? "reply" : "replies"}`}
-          </button>
-          <AnimatePresence>
-            {showReplies && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.15 }}
-                className="overflow-hidden"
-              >
-                <div className="space-y-2 pt-1.5">
-                  {replies.map((r) => (
-                    <CommentRow
-                      key={r.id}
-                      comment={r}
-                      onDelete={onDelete}
-                      onLike={onLike}
-                      isReply
-                    />
-                  ))}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ─── Comments Sheet (Instagram bottom-sheet, scoped to widget) ── */
-
-function CommentsSheet({
-  postId,
-  postAuthorName,
-  postCaption,
-  commentCount,
-  fetchComments,
-  addComment,
-  toggleCommentLike,
-  deleteComment,
-  open,
-  onOpenChange,
-}: {
-  postId: string;
-  postAuthorName: string;
-  postCaption: string | null;
-  commentCount: number;
-  fetchComments: (postId: string) => Promise<MyShareComment[]>;
-  addComment: (postId: string, content: string, parentId?: string) => Promise<MyShareComment>;
-  toggleCommentLike: (postId: string, commentId: string) => Promise<void>;
-  deleteComment: (postId: string, commentId: string) => Promise<void>;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const [comments, setComments] = useState<MyShareComment[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [loaded, setLoaded] = useState(false);
-  const [newComment, setNewComment] = useState("");
-  const [sending, setSending] = useState(false);
-  const [replyTo, setReplyTo] = useState<{ id: string; name: string } | null>(null);
-  const [container, setContainer] = useState<Element | null>(null);
-  const { playClick, playSuccess } = useSounds();
-  const inputRef = useRef<MentionInputHandle>(null);
-
-  // Find the Highlights widget container to portal into
-  useEffect(() => {
-    setContainer(document.querySelector("[data-myshare-container]"));
-  }, []);
-
-  // Fetch comments when sheet opens
-  useEffect(() => {
-    if (open && !loaded) {
-      setLoading(true);
-      fetchComments(postId)
-        .then((data) => setComments(data))
-        .catch(() => {})
-        .finally(() => { setLoading(false); setLoaded(true); });
-    }
-  }, [open, loaded, postId, fetchComments]);
-
-  // Reset state when sheet closes
-  useEffect(() => {
-    if (!open) {
-      setReplyTo(null);
-      setNewComment("");
-    }
-  }, [open]);
-
-  // Close on Escape
-  useEffect(() => {
-    if (!open) return;
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onOpenChange(false);
-    };
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  }, [open, onOpenChange]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newComment.trim() || sending) return;
-    setSending(true);
-    try {
-      const comment = await addComment(postId, newComment.trim(), replyTo?.id);
-      if (replyTo) {
-        setComments((prev) =>
-          prev.map((c) =>
-            c.id === replyTo.id
-              ? { ...c, replies: [...(c.replies || []), comment] }
-              : c,
-          ),
-        );
-      } else {
-        setComments((prev) => [...prev, comment]);
-      }
-      setNewComment("");
-      setReplyTo(null);
-      playSuccess();
-    } catch { /* silent */ } finally {
-      setSending(false);
-    }
-  };
-
-  const handleDelete = async (commentId: string) => {
-    try {
-      await deleteComment(postId, commentId);
-      const wasTopLevel = comments.some((c) => c.id === commentId);
-      if (wasTopLevel) {
-        setComments((prev) => prev.filter((c) => c.id !== commentId));
-      } else {
-        setComments((prev) =>
-          prev.map((c) => ({
-            ...c,
-            replies: (c.replies || []).filter((r) => r.id !== commentId),
-          })),
-        );
-      }
-    } catch { /* silent */ }
-  };
-
-  const handleLike = async (commentId: string) => {
-    playClick();
-    const updateLike = (list: MyShareComment[]): MyShareComment[] =>
-      list.map((c) => {
-        if (c.id === commentId) {
-          const liked = !c.userLiked;
-          return { ...c, userLiked: liked, likes: c.likes + (liked ? 1 : -1) };
-        }
-        return { ...c, replies: updateLike(c.replies || []) };
-      });
-    setComments(updateLike);
-
-    try {
-      await toggleCommentLike(postId, commentId);
-    } catch {
-      setComments(updateLike); // revert
-    }
-  };
-
-  const totalComments = comments.reduce((acc, c) => acc + 1 + (c.replies?.length ?? 0), 0) || commentCount;
-
-  if (!container) return null;
-
-  return createPortal(
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          key="comments-overlay"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
-          className="absolute inset-0 z-40 flex flex-col justify-end"
-        >
-          {/* Backdrop */}
-          <div className="absolute inset-0 bg-black/40" onClick={() => onOpenChange(false)} />
-
-          {/* Bottom sheet — 75% of widget height */}
-          <motion.div
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
-            transition={{ type: "spring", damping: 30, stiffness: 300 }}
-            className="relative h-[75%] bg-white dark:bg-gray-900 rounded-t-2xl border-t border-gray-200 dark:border-gray-700 shadow-2xl flex flex-col overflow-hidden"
-          >
-            {/* Drag handle */}
-            <div className="flex justify-center pt-2.5 pb-1 shrink-0">
-              <div className="w-10 h-1 rounded-full bg-gray-300 dark:bg-gray-600" />
-            </div>
-
-            {/* Header */}
-            <div className="flex items-center justify-center px-5 py-2.5 border-b border-gray-100 dark:border-gray-800 shrink-0">
-              <h3 className="text-[15px] font-bold text-gray-900 dark:text-gray-100">
-                Comments{totalComments > 0 && <span className="ml-1.5 text-gray-400 font-normal text-[13px]">({totalComments})</span>}
-              </h3>
-            </div>
-
-            {/* Caption as first "comment" */}
-            {postCaption && (
-              <div className="px-5 py-3 border-b border-gray-50 dark:border-gray-800/50 shrink-0">
-                <p className="text-[13px] text-gray-700 dark:text-gray-300 leading-relaxed">
-                  <span className="font-bold text-gray-900 dark:text-gray-100 mr-1.5">{postAuthorName}</span>
-                  {renderMentionContent(postCaption)}
-                </p>
-              </div>
-            )}
-
-            {/* Scrollable comments list */}
-            <div className="min-h-0 overflow-y-auto px-5 py-4 space-y-5">
-              {loading ? (
-                <div className="flex items-center justify-center gap-2 py-12 text-[13px] text-gray-400">
-                  <Loader2 className="w-5 h-5 animate-spin" /> Loading comments…
-                </div>
-              ) : comments.length === 0 && loaded ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <MessageCircle className="w-10 h-10 text-gray-200 dark:text-gray-700 mb-2" />
-                  <p className="text-[13px] text-gray-400 dark:text-gray-500 font-semibold">No comments yet</p>
-                  <p className="text-[11px] text-gray-300 dark:text-gray-600 mt-1">Start the conversation</p>
-                </div>
-              ) : (
-                comments.map((c) => (
-                  <CommentWithReplies
-                    key={c.id}
-                    comment={c}
-                    onDelete={handleDelete}
-                    onLike={handleLike}
-                    onReplyClick={(id, name) => {
-                      setReplyTo({ id, name });
-                      inputRef.current?.focus();
-                    }}
-                  />
-                ))
-              )}
-            </div>
-
-            {/* Input footer — pinned at bottom */}
-            <div className="shrink-0 border-t border-gray-100 dark:border-gray-800 px-4 py-3 bg-white dark:bg-gray-900">
-              {replyTo && (
-                <div className="flex items-center gap-1.5 text-[10px] text-brand-blue mb-2">
-                  <Reply className="w-3 h-3" />
-                  <span>Replying to <strong>{replyTo.name}</strong></span>
-                  <button
-                    type="button"
-                    onClick={() => setReplyTo(null)}
-                    className="text-gray-400 hover:text-red-400"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              )}
-              <form onSubmit={handleSubmit} className="flex gap-2 items-center">
-                <MentionInput
-                  ref={inputRef}
-                  placeholder={replyTo ? `Reply to ${replyTo.name}…` : "Add a comment…"}
-                  value={newComment}
-                  onChange={setNewComment}
-                  className="h-9 text-[13px] bg-gray-50 dark:bg-gray-800 dark:border-gray-700 border-gray-200 rounded-full flex-1 px-4"
-                  maxLength={1000}
-                />
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={!newComment.trim() || sending}
-                  className="h-9 w-9 p-0 rounded-full bg-brand-blue hover:bg-brand-blue/90 text-white shrink-0"
-                >
-                  {sending ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Send className="w-4 h-4" />
-                  )}
-                </Button>
-              </form>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>,
-    container,
-  );
-}
-
-/* ─── Comment Bubble (matches Ideas/Props pattern) ─────── */
-
-function MyShareCommentBubble({
-  comment,
-  onDelete,
-  onLike,
-  onReplyClick,
-  isReply = false,
-}: {
-  comment: MyShareComment;
-  onDelete: (id: string) => void;
-  onLike: (id: string) => void;
-  onReplyClick?: (id: string, authorName: string) => void;
-  isReply?: boolean;
-}) {
-  return (
-    <div className={isReply ? "ml-8" : ""}>
-      <div className="group/comment flex gap-2 items-start">
-        <div className={`shrink-0 rounded-full bg-gradient-to-br from-brand-blue/70 to-brand-blue flex items-center justify-center text-white font-bold ${isReply ? "w-6 h-6 text-[9px]" : "w-7 h-7 text-[10px]"}`}>
-          {comment.authorName.charAt(0).toUpperCase()}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="inline-block bg-gray-100 dark:bg-gray-800 rounded-2xl px-3 py-1.5 max-w-[90%]">
-            <span className="font-semibold text-[12px] text-gray-800 dark:text-gray-200 block leading-tight">{comment.authorName}</span>
-            <p className="text-[12px] text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words leading-relaxed mt-0.5">{renderMentionContent(comment.content)}</p>
-          </div>
-          <div className="flex items-center gap-2.5 mt-0.5 ml-2 text-[11px]">
-            <button
-              type="button"
-              onClick={() => onLike(comment.id)}
-              className={`font-semibold transition-colors ${comment.userLiked ? "text-brand-blue" : "text-gray-400 dark:text-gray-500 hover:text-brand-blue"}`}
-            >
-              {comment.likes > 0 ? (
-                <span className="flex items-center gap-0.5">
-                  <ThumbsUp className={`w-3 h-3 ${comment.userLiked ? "fill-brand-blue" : ""}`} />
-                  {comment.likes}
-                </span>
-              ) : "Like"}
-            </button>
-            {!isReply && onReplyClick && (
-              <button
-                type="button"
-                onClick={() => onReplyClick(comment.id, comment.authorName)}
-                className="font-semibold text-gray-400 dark:text-gray-500 hover:text-brand-blue transition-colors"
-              >
-                Reply
-              </button>
-            )}
-            <span className="text-gray-400 dark:text-gray-500">{getRelativeTime(comment.createdAt)}</span>
-            {comment.canDelete && (
-              <button
-                type="button"
-                onClick={() => onDelete(comment.id)}
-                className="opacity-0 group-hover/comment:opacity-100 text-gray-300 hover:text-red-500 transition-all"
-                title="Delete"
-              >
-                <Trash2 className="w-3 h-3" />
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ─── Inline Comment Thread (matches Ideas pattern) ────── */
-
-function InlineCommentThread({
-  postId,
-  commentCount,
-  fetchComments,
-  addComment,
-  toggleCommentLike,
-  deleteComment,
-}: {
-  postId: string;
-  commentCount: number;
-  fetchComments: (postId: string) => Promise<MyShareComment[]>;
-  addComment: (postId: string, content: string, parentId?: string) => Promise<MyShareComment>;
-  toggleCommentLike: (postId: string, commentId: string) => Promise<void>;
-  deleteComment: (postId: string, commentId: string) => Promise<void>;
-}) {
-  const [comments, setComments] = useState<MyShareComment[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [loaded, setLoaded] = useState(false);
-  const [newComment, setNewComment] = useState("");
-  const [sending, setSending] = useState(false);
-  const [localCount, setLocalCount] = useState(commentCount);
-  const [replyTo, setReplyTo] = useState<{ id: string; name: string } | null>(null);
-  const { playClick, playSuccess } = useSounds();
-  const inputRef = useRef<MentionInputHandle>(null);
-
-  useEffect(() => { setLocalCount(commentCount); }, [commentCount]);
-
-  const loadComments = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await fetchComments(postId);
-      setComments(data);
-      const total = data.reduce((acc, c) => acc + 1 + (c.replies?.length ?? 0), 0);
-      setLocalCount(total || commentCount);
-    } catch { /* silent */ } finally {
-      setLoading(false);
-      setLoaded(true);
-    }
-  }, [postId, commentCount, fetchComments]);
-
-  // Auto-load comments when thread is mounted
-  useEffect(() => {
-    if (!loaded) loadComments();
-  }, [loaded, loadComments]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newComment.trim() || sending) return;
-    setSending(true);
-    try {
-      const comment = await addComment(postId, newComment.trim(), replyTo?.id);
-      if (replyTo) {
-        setComments((prev) =>
-          prev.map((c) =>
-            c.id === replyTo.id ? { ...c, replies: [...(c.replies || []), comment] } : c,
-          ),
-        );
-      } else {
-        setComments((prev) => [...prev, comment]);
-      }
-      setLocalCount((c) => c + 1);
-      setNewComment("");
-      setReplyTo(null);
-      playSuccess();
-    } catch { /* silent */ } finally {
-      setSending(false);
-    }
-  };
-
-  const handleDelete = async (commentId: string) => {
-    try {
-      await deleteComment(postId, commentId);
-      const wasTopLevel = comments.some((c) => c.id === commentId);
-      if (wasTopLevel) {
-        const removed = comments.find((c) => c.id === commentId);
-        const removedCount = 1 + (removed?.replies?.length ?? 0);
-        setComments((prev) => prev.filter((c) => c.id !== commentId));
-        setLocalCount((c) => Math.max(0, c - removedCount));
-      } else {
-        setComments((prev) =>
-          prev.map((c) => ({
-            ...c,
-            replies: (c.replies || []).filter((r) => r.id !== commentId),
-          })),
-        );
-        setLocalCount((c) => Math.max(0, c - 1));
-      }
-    } catch { /* silent */ }
-  };
-
-  const handleLike = async (commentId: string) => {
-    playClick();
-    const updateLike = (list: MyShareComment[]): MyShareComment[] =>
-      list.map((c) => {
-        if (c.id === commentId) {
-          const liked = !c.userLiked;
-          return { ...c, userLiked: liked, likes: c.likes + (liked ? 1 : -1) };
-        }
-        return { ...c, replies: updateLike(c.replies || []) };
-      });
-    setComments(updateLike);
-    try {
-      await toggleCommentLike(postId, commentId);
-    } catch {
-      setComments(updateLike);
-    }
-  };
-
-  return (
-    <div>
-      <div className="space-y-2">
-        {loading ? (
-          <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-            <Loader2 className="w-3 h-3 animate-spin" /> Loading…
-          </div>
-        ) : comments.length === 0 && loaded ? (
-          <p className="text-[11px] text-gray-400 dark:text-gray-500 italic">No comments yet — be the first!</p>
-        ) : (
-          comments.map((c) => (
-            <div key={c.id}>
-              <MyShareCommentBubble
-                comment={c}
-                onDelete={handleDelete}
-                onLike={handleLike}
-                onReplyClick={(id, name) => {
-                  setReplyTo({ id, name });
-                  inputRef.current?.focus();
-                }}
-              />
-              {(c.replies || []).map((r) => (
-                <div key={r.id} className="mt-1.5">
-                  <MyShareCommentBubble
-                    comment={r}
-                    onDelete={handleDelete}
-                    onLike={handleLike}
-                    isReply
-                  />
-                </div>
-              ))}
-            </div>
-          ))
-        )}
-
-        {replyTo && (
-          <div className="flex items-center gap-1.5 text-[11px] text-brand-blue ml-1">
-            <Reply className="w-3 h-3" />
-            <span>Replying to <strong>{replyTo.name}</strong></span>
-            <button type="button" onClick={() => setReplyTo(null)} className="text-gray-400 hover:text-red-400">
-              <X className="w-3 h-3" />
-            </button>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="flex gap-1.5 items-center">
-          <div className="shrink-0 w-6 h-6 rounded-full bg-brand-blue/20 dark:bg-brand-blue/30 flex items-center justify-center">
-            <MessageCircle className="w-3 h-3 text-brand-blue" />
-          </div>
-          <MentionInput
-            ref={inputRef}
-            placeholder={replyTo ? `Reply to ${replyTo.name}…` : "Write a comment…"}
-            value={newComment}
-            onChange={setNewComment}
-            className="h-7 text-[11px] bg-gray-50 dark:bg-gray-900 dark:border-gray-700 border-gray-200 rounded-full flex-1 px-3"
-            maxLength={1000}
-          />
-          <Button
-            type="submit"
-            size="sm"
-            disabled={!newComment.trim() || sending}
-            className="h-7 w-7 p-0 rounded-full bg-brand-blue hover:bg-brand-blue/90 text-white"
-          >
-            {sending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
-          </Button>
-        </form>
-      </div>
-    </div>
-  );
-}
-
 /* ─── Post Card ────────────────────────────────────────── */
 
 interface MySharePostCardProps {
   post: MySharePost;
   onLike: () => void;
   onDelete: () => void;
-  onFetchComments: (postId: string) => Promise<MyShareComment[]>;
-  onAddComment: (postId: string, content: string, parentId?: string) => Promise<MyShareComment>;
+  onFetchComments: (postId: string) => Promise<UnifiedComment[]>;
+  onAddComment: (postId: string, content: string, parentId?: string) => Promise<UnifiedComment>;
   onToggleCommentLike: (postId: string, commentId: string) => Promise<void>;
   onDeleteComment: (postId: string, commentId: string) => Promise<void>;
   canDelete: boolean;
@@ -1512,13 +815,15 @@ export function MySharePostCard({
                 transition={{ duration: 0.2 }}
                 className="overflow-hidden mt-2"
               >
-                <InlineCommentThread
-                  postId={post.id}
+                <CommentSection
+                  entityId={post.id}
                   commentCount={post.commentCount}
-                  fetchComments={onFetchComments}
-                  addComment={onAddComment}
-                  toggleCommentLike={onToggleCommentLike}
-                  deleteComment={onDeleteComment}
+                  charLimit={1000}
+                  initiallyExpanded
+                  onFetchComments={onFetchComments}
+                  onSubmit={onAddComment}
+                  onLike={onToggleCommentLike}
+                  onDelete={onDeleteComment}
                 />
               </motion.div>
             )}

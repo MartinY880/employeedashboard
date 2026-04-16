@@ -6,6 +6,7 @@ import { prisma, ensureDbUser } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/logto";
 import { createNotification } from "@/lib/notifications";
 import { extractMentions, mentionDisplayLength, stripMentionMarkup } from "@/lib/mentions";
+import { upsertHashtags, removeCommentHashtags } from "@/lib/hashtags";
 
 export async function GET(request: Request) {
   try {
@@ -117,6 +118,8 @@ export async function POST(request: Request) {
       include: { author: { select: { displayName: true } } },
     });
 
+    await upsertHashtags(prisma, comment.id, "CELEBRATION", content.trim());
+
     // Increment denormalized comment count
     await prisma.celebrationEvent.update({
       where: { id: celebrationId },
@@ -126,7 +129,6 @@ export async function POST(request: Request) {
     // ── Notifications (reply + @mention) ────────────────────
     const commenterName = user.name || "Someone";
     const plainContent = stripMentionMarkup(content.trim());
-    const truncated = plainContent.length > 120 ? plainContent.slice(0, 120) + "…" : plainContent;
     const alreadyNotified = new Set<string>();
     alreadyNotified.add(dbUser.id); // never notify self
 
@@ -152,7 +154,7 @@ export async function POST(request: Request) {
             recipientUserId: parentComment.authorId,
             type: "CELEBRATION_REPLY",
             title: "New reply on your comment",
-            message: `${commenterName} replied to your comment on ${subjectLabel}: "${truncated}"`,
+            message: `${commenterName} replied to your comment on ${subjectLabel}: "${plainContent}"`,
             metadata: { celebrationId, commentId: comment.id },
           });
         }
@@ -186,7 +188,7 @@ export async function POST(request: Request) {
             recipientUserId: recipientUser.id,
             type: "MENTION",
             title: "You were mentioned in a comment",
-            message: `${commenterName} mentioned you in a Celebrations comment: "${truncated}"`,
+            message: `${commenterName} mentioned you in a Celebrations comment: "${plainContent}"`,
             metadata: { celebrationId, commentId: comment.id },
           });
         }
@@ -278,6 +280,7 @@ export async function DELETE(request: Request) {
     // Count replies to decrement comment count accurately
     const replyCount = await prisma.celebrationComment.count({ where: { parentId: id } });
 
+    await removeCommentHashtags(prisma, id, "CELEBRATION");
     await prisma.$transaction([
       prisma.celebrationComment.delete({ where: { id } }),
       prisma.celebrationEvent.update({

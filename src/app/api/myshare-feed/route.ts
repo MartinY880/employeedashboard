@@ -139,9 +139,6 @@ export async function POST(request: Request) {
       const mentions = extractMentions(caption || "");
       if (mentions.length > 0) {
         const plainCaption = stripMentionMarkup(caption || "");
-        const truncatedCaption = plainCaption.length > 120
-          ? plainCaption.slice(0, 120) + "…"
-          : plainCaption;
         const alreadyNotified = new Set<string>([dbUser.id]);
 
         for (const mention of mentions) {
@@ -178,7 +175,7 @@ export async function POST(request: Request) {
             recipientUserId: recipientUser.id,
             type: "MENTION",
             title: "You were mentioned in a post",
-            message: `${post.author.displayName} mentioned you in a MyShare post: "${truncatedCaption}"`,
+            message: `${post.author.displayName} mentioned you in a MyShare post: "${plainCaption}"`,
             metadata: { postId: post.id },
           });
         }

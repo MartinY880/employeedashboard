@@ -294,7 +294,7 @@ export async function POST(request: Request) {
       recipientUserId: resolvedRecipientId,
       type: "PROPS",
       title: "You received props! \uD83C\uDF89",
-      message: `${authResult.user.name} gave you props: "${content.slice(0, 120)}${content.length > 120 ? "..." : ""}"`,
+      message: `${authResult.user.name} gave you props: "${content}"`,
       metadata: { senderName: authResult.user.name, propsId: props.id },
     }).catch((err) => console.error("[Props] notification error:", err));
 

@@ -9,6 +9,7 @@ import { hasPermission, PERMISSIONS } from "@/lib/rbac";
 import { toDbRole } from "@/lib/rbac";
 import { createNotification } from "@/lib/notifications";
 import { extractMentions, mentionDisplayLength, stripMentionMarkup } from "@/lib/mentions";
+import { upsertHashtags, removeCommentHashtags } from "@/lib/hashtags";
 
 export async function GET(request: Request) {
   try {
@@ -130,10 +131,11 @@ export async function POST(request: Request) {
       include: { author: { select: { displayName: true } } },
     });
 
+    await upsertHashtags(prisma, comment.id, "VIDEO", content.trim());
+
     // ── Reply + @mention notifications ─────────────────────
     const commenterName = user.name || "Someone";
     const plainContent = stripMentionMarkup(content.trim());
-    const truncated = plainContent.length > 120 ? plainContent.slice(0, 120) + "…" : plainContent;
     const alreadyNotified = new Set<string>();
     alreadyNotified.add(dbUser.id);
 
@@ -150,7 +152,7 @@ export async function POST(request: Request) {
             recipientUserId: parentComment.authorId,
             type: "MENTION",
             title: "New reply on your comment",
-            message: `${commenterName} replied to your comment on a Video Spotlight: "${truncated}"`,
+            message: `${commenterName} replied to your comment on a Video Spotlight: "${plainContent}"`,
             metadata: { videoId, commentId: comment.id },
           });
         }
@@ -184,7 +186,7 @@ export async function POST(request: Request) {
             recipientUserId: recipientUser.id,
             type: "MENTION",
             title: "You were mentioned in a comment",
-            message: `${commenterName} mentioned you in a Video Spotlight comment: "${truncated}"`,
+            message: `${commenterName} mentioned you in a Video Spotlight comment: "${plainContent}"`,
             metadata: { videoId, commentId: comment.id },
           });
         }
@@ -291,6 +293,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    await removeCommentHashtags(prisma, id, "VIDEO");
     await prisma.videoSpotlightComment.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch {

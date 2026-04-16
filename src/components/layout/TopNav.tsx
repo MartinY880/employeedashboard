@@ -125,6 +125,7 @@ export function TopNav({ user }: TopNavProps) {
   const { notifications, unreadCount, markAsRead, markAllAsRead, clearAll } = useNotifications();
   const [notifOpen, setNotifOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [expandedNotifs, setExpandedNotifs] = useState<Set<string>>(new Set());
   const shouldUseProxyAvatar = !user.avatar || user.avatar.includes("graph.microsoft.com");
   const avatarSrc = shouldUseProxyAvatar
     ? `/api/directory/photo?userId=${encodeURIComponent(user.sub)}&email=${encodeURIComponent(user.email)}&name=${encodeURIComponent(user.name)}&size=48x48`
@@ -345,7 +346,7 @@ export function TopNav({ user }: TopNavProps) {
 
       {/* Notifications Lightbox */}
       <Dialog open={notifOpen} onOpenChange={setNotifOpen}>
-        <DialogContent className="sm:max-w-md max-h-[80vh] flex flex-col p-0 gap-0">
+        <DialogContent className="sm:max-w-md max-h-[80vh] !flex !flex-col p-0 !gap-0">
           <DialogHeader className="px-5 pt-5 pb-3 border-b dark:border-gray-700">
             <div className="flex items-center justify-between">
               <DialogTitle className="flex items-center gap-2">
@@ -373,17 +374,20 @@ export function TopNav({ user }: TopNavProps) {
               <div className="flex flex-col items-center justify-center py-16 text-gray-400">
                 <Bell className="w-10 h-10 mb-3 opacity-30" />
                 <p className="text-sm font-medium">No notifications yet</p>
-                <p className="text-xs mt-1">You&apos;ll see updates here when you receive props, myshare posts, or idea selections.</p>
               </div>
             ) : (
               <>
               {notifications.map((n: Notification) => (
-                <button
+                <div
                   key={n.id}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => { if (!n.read) markAsRead([n.id]); }}
-                  className={`w-full flex items-start gap-3 px-5 py-3.5 text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors border-b border-gray-100 dark:border-gray-700 last:border-0 ${
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); if (!n.read) markAsRead([n.id]); } }}
+                  className={`w-full flex items-start gap-3 px-5 py-3.5 text-left cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors border-b border-gray-100 dark:border-gray-700 last:border-0 ${
                     !n.read ? "bg-blue-50/60 dark:bg-blue-950/40" : ""
                   }`}
+                  style={expandedNotifs.has(n.id) ? { overflow: "visible" } : undefined}
                 >
                   <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 shrink-0">
                     {getNotificationIcon(n.type)}
@@ -392,15 +396,40 @@ export function TopNav({ user }: TopNavProps) {
                     <p className={`text-sm leading-snug ${!n.read ? "font-semibold text-gray-900 dark:text-gray-100" : "text-gray-700 dark:text-gray-300"}`}>
                       {n.title}
                     </p>
-                    <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{n.message}</p>
-                    <p className="text-[11px] text-gray-400 mt-1">{timeAgo(n.createdAt)}</p>
+                    <p
+                      className="text-xs text-gray-500 mt-0.5"
+                      style={expandedNotifs.has(n.id)
+                        ? { display: "block", overflow: "visible", WebkitLineClamp: "unset", WebkitBoxOrient: "unset" as never, maxHeight: "none" }
+                        : { display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as never, overflow: "hidden" }
+                      }
+                    >{n.message}</p>
+                    <div className="flex items-center justify-between mt-1">
+                      <p className="text-[11px] text-gray-400">{timeAgo(n.createdAt)}</p>
+                      {n.message && n.message.length > 100 && !n.message.includes("…") && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setExpandedNotifs(prev => {
+                              const next = new Set(prev);
+                              if (next.has(n.id)) next.delete(n.id);
+                              else next.add(n.id);
+                              return next;
+                            });
+                          }}
+                          className="text-[11px] text-brand-blue hover:underline shrink-0 ml-2"
+                        >
+                          {expandedNotifs.has(n.id) ? "View less" : "View more"}
+                        </button>
+                      )}
+                    </div>
                   </div>
                   {!n.read && (
                     <div className="mt-2 shrink-0">
                       <div className="h-2.5 w-2.5 rounded-full bg-brand-blue" />
                     </div>
                   )}
-                </button>
+                </div>
               ))}
               <div className="px-5 py-3 border-t bg-gray-50 dark:bg-gray-800 dark:border-gray-700">
                 <button

@@ -6,6 +6,7 @@ import { prisma, ensureDbUser } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/logto";
 import { createNotification } from "@/lib/notifications";
 import { extractMentions, mentionDisplayLength, stripMentionMarkup } from "@/lib/mentions";
+import { upsertHashtags, removeCommentHashtags } from "@/lib/hashtags";
 
 export async function GET(request: Request) {
   try {
@@ -121,12 +122,11 @@ export async function POST(request: Request) {
       },
     });
 
+    await upsertHashtags(prisma, comment.id, "IDEA", content.trim());
+
     // ── Email notifications ──────────────
     const commenterName = user.name || "Someone";
     const plainContent = stripMentionMarkup(content.trim());
-    const truncatedContent = plainContent.length > 120
-      ? plainContent.slice(0, 120) + "…"
-      : plainContent;
 
     const logCtx = { ideaId, commentId: comment.id, parentId: parentId || null, commenter: dbUser.id, commenterName };
     console.log(`[IdeaComments] Starting email notifications`, JSON.stringify(logCtx));
@@ -161,7 +161,7 @@ export async function POST(request: Request) {
               recipientUserId: parentComment.userId,
               type: "IDEA_REPLY",
               title: "New Reply to Your Comment",
-              message: `${commenterName} replied to your comment on "${idea.title}": "${truncatedContent}"`,
+              message: `${commenterName} replied to your comment on "${idea.title}": "${plainContent}"`,
               metadata: { ideaId, commentId: comment.id },
             });
             alreadyNotified.add(parentComment.userId);
@@ -180,7 +180,7 @@ export async function POST(request: Request) {
               recipientUserId: idea.userId,
               type: "IDEA_COMMENT",
               title: "New Comment on Your Idea",
-              message: `${commenterName} commented on your idea "${idea.title}": "${truncatedContent}"`,
+              message: `${commenterName} commented on your idea "${idea.title}": "${plainContent}"`,
               metadata: { ideaId, commentId: comment.id },
             });
             alreadyNotified.add(idea.userId);
@@ -197,7 +197,7 @@ export async function POST(request: Request) {
               recipientUserId: idea.userId,
               type: "IDEA_COMMENT",
               title: "New Comment on Your Idea",
-              message: `${commenterName} commented on your idea "${idea.title}": "${truncatedContent}"`,
+              message: `${commenterName} commented on your idea "${idea.title}": "${plainContent}"`,
               metadata: { ideaId, commentId: comment.id },
             });
             alreadyNotified.add(idea.userId);
@@ -211,9 +211,6 @@ export async function POST(request: Request) {
       const mentions = extractMentions(content.trim());
       if (mentions.length > 0) {
         const mentionDisplay = stripMentionMarkup(content.trim());
-        const truncMention = mentionDisplay.length > 120
-          ? mentionDisplay.slice(0, 120) + "…"
-          : mentionDisplay;
 
         for (const mention of mentions) {
           const snapshot = await prisma.$queryRaw<
@@ -250,7 +247,7 @@ export async function POST(request: Request) {
             recipientUserId: recipientUser.id,
             type: "MENTION",
             title: "You were mentioned in a comment",
-            message: `${commenterName} mentioned you in a comment: "${truncMention}"`,
+            message: `${commenterName} mentioned you in a comment: "${mentionDisplay}"`,
             metadata: { ideaId, commentId: comment.id },
           });
         }
@@ -341,6 +338,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    await removeCommentHashtags(prisma, id, "IDEA");
     await prisma.ideaComment.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch {

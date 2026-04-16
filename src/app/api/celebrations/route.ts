@@ -16,6 +16,7 @@ export interface CelebrationItem {
   employeeId: string | null;
   email: string;
   detail: string;
+  examDate?: string;
   commentCount: number;
   likeCount: number;
   userLiked: boolean;
@@ -123,6 +124,7 @@ export async function GET(request: Request) {
       employeeName: string;
       employeeId: string | null;
       detail: string;
+      examDate?: string;
     };
     const upsertEntries: UpsertEntry[] = [];
 
@@ -153,8 +155,7 @@ export async function GET(request: Request) {
         email: rec.email,
         employeeName: entra?.displayName ?? rec.email.split("@")[0],
         employeeId: entra?.id ?? null,
-        detail: "Exam Passed! 🏆",
-      });
+        detail: "Exam Passed! 🏆",        examDate: rec.createdAt.toLocaleDateString("en-US", { month: "2-digit", day: "2-digit" }),      });
     }
 
     // Batch all upserts in a single transaction (1 round-trip instead of N)
@@ -179,6 +180,7 @@ export async function GET(request: Request) {
       employeeId: entry.employeeId,
       email: entry.email,
       detail: entry.detail,
+      ...(entry.examDate ? { examDate: entry.examDate } : {}),
       commentCount: upsertResults[i].commentCount,
       likeCount: upsertResults[i].likeCount,
       userLiked: false,
