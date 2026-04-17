@@ -37,6 +37,8 @@ import { useIdeas } from "@/hooks/useIdeas";
 import { useSounds } from "@/components/shared/SoundProvider";
 import { MentionInput } from "@/components/shared/MentionInput";
 import { CommentSection, renderMentionContent } from "@/components/shared/CommentSection";
+import { PersonLightbox } from "@/components/shared/ProfileDialog";
+import { type DirectoryNode } from "@/hooks/useDirectory";
 import { mentionDisplayLength } from "@/lib/mentions";
 import type { Idea, UnifiedComment } from "@/types";
 
@@ -95,6 +97,7 @@ function IdeaCard({
   isDeleting = false,
   userVote,
   isTrending,
+  onAuthorClick,
 }: {
   idea: Idea;
   onVote: (id: string, dir: "up" | "down") => void;
@@ -103,6 +106,7 @@ function IdeaCard({
   isDeleting?: boolean;
   userVote?: "up" | "down" | null;
   isTrending?: boolean;
+  onAuthorClick?: (email?: string | null, name?: string) => void;
 }) {
   const { playClick } = useSounds();
   const upTitle =
@@ -204,7 +208,7 @@ function IdeaCard({
           {renderMentionContent(idea.description)}
         </p>
         <div className="flex items-center gap-2 text-[11px] text-gray-400 dark:text-gray-500">
-          <span className="font-medium text-gray-500 dark:text-gray-400">{idea.authorName}</span>
+          <button type="button" onClick={() => onAuthorClick?.(idea.authorEmail, idea.authorName)} className="font-medium text-gray-500 dark:text-gray-400 hover:text-brand-blue transition-colors cursor-pointer focus:outline-none">{idea.authorName}</button>
           <span>·</span>
           <span>{timeAgo}</span>
         </div>
@@ -248,7 +252,7 @@ const STAGE_CONFIG: Record<string, { label: string; icon: React.ReactNode; bgCla
   },
 };
 
-function SelectedIdeaRow({ idea }: { idea: Idea }) {
+function SelectedIdeaRow({ idea, onAuthorClick }: { idea: Idea; onAuthorClick?: (email?: string | null, name?: string) => void }) {
   const timeAgo = getTimeAgo(idea.createdAt);
   const config = STAGE_CONFIG[idea.status] || STAGE_CONFIG.SELECTED;
   return (
@@ -276,7 +280,7 @@ function SelectedIdeaRow({ idea }: { idea: Idea }) {
           {renderMentionContent(idea.description)}
         </p>
         <div className="flex items-center gap-2 text-[11px] text-gray-400 dark:text-gray-500">
-          <span className="font-medium text-gray-500 dark:text-gray-400">{idea.authorName}</span>
+          <button type="button" onClick={() => onAuthorClick?.(idea.authorEmail, idea.authorName)} className="font-medium text-gray-500 dark:text-gray-400 hover:text-brand-blue transition-colors cursor-pointer focus:outline-none">{idea.authorName}</button>
           <span>·</span>
           <span>{timeAgo}</span>
           <span>·</span>
@@ -411,6 +415,27 @@ export function BeBrilliantWidget() {
   const [currentUserDbId, setCurrentUserDbId] = useState<string | null>(null);
   const [deletingIdeaId, setDeletingIdeaId] = useState<string | null>(null);
   const [deleteTargetIdea, setDeleteTargetIdea] = useState<Idea | null>(null);
+  const [profileUser, setProfileUser] = useState<DirectoryNode | null>(null);
+  const [profileOpen, setProfileOpen] = useState(false);
+
+  const handleAuthorClick = useCallback(async (email?: string | null, name?: string) => {
+    if (!email && !name) return;
+    try {
+      const q = email || name || "";
+      const res = await fetch(`/api/directory?mode=flat&search=${encodeURIComponent(q)}`);
+      const data = await res.json();
+      let users = data?.users || [];
+      if (users.length === 0 && name && email && name !== email) {
+        const res2 = await fetch(`/api/directory?mode=flat&search=${encodeURIComponent(name)}`);
+        const data2 = await res2.json();
+        users = data2?.users || [];
+      }
+      if (users.length > 0) {
+        setProfileUser(users[0]);
+        setProfileOpen(true);
+      }
+    } catch { /* silently fail */ }
+  }, []);
 
   // Active tab cards (IdeaCard) are taller; status tabs (SelectedIdeaRow) are compact
   const batchSize = 5;
@@ -761,6 +786,7 @@ export function BeBrilliantWidget() {
                                         isDeleting={deletingIdeaId === idea.id}
                                         userVote={userVotesByIdea[idea.id]}
                                         isTrending
+                                        onAuthorClick={handleAuthorClick}
                                       />
                                     ))}
                                   </AnimatePresence>
@@ -784,6 +810,7 @@ export function BeBrilliantWidget() {
                                         canDeleteIdea={currentUserDbId === idea.userId && idea.status !== "IN_PROGRESS" && idea.status !== "COMPLETED"}
                                         isDeleting={deletingIdeaId === idea.id}
                                         userVote={userVotesByIdea[idea.id]}
+                                        onAuthorClick={handleAuthorClick}
                                       />
                                     ))}
                                   </AnimatePresence>
@@ -812,6 +839,7 @@ export function BeBrilliantWidget() {
                               isDeleting={deletingIdeaId === idea.id}
                               userVote={userVotesByIdea[idea.id]}
                               isTrending={idea.votes >= TRENDING_THRESHOLD}
+                              onAuthorClick={handleAuthorClick}
                             />
                           ))}
                         </AnimatePresence>
@@ -854,7 +882,7 @@ export function BeBrilliantWidget() {
                   )}
                   <div className="space-y-1.5">
                     {paged.map((idea) => (
-                      <SelectedIdeaRow key={idea.id} idea={idea} />
+                      <SelectedIdeaRow key={idea.id} idea={idea} onAuthorClick={handleAuthorClick} />
                     ))}
                   </div>
                 </section>
@@ -877,6 +905,12 @@ export function BeBrilliantWidget() {
         </div>
       </div>
       </div>
+
+      <PersonLightbox
+        user={profileUser}
+        open={profileOpen}
+        onClose={() => setProfileOpen(false)}
+      />
     </>
   );
 }

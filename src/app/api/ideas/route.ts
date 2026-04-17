@@ -26,7 +26,7 @@ export async function GET(request: Request) {
       where,
       orderBy: [{ votes: "desc" }, { createdAt: "desc" }],
       include: {
-        author: { select: { displayName: true } },
+        author: { select: { displayName: true, email: true } },
         _count: { select: { comments: true } },
       },
     });
@@ -35,6 +35,7 @@ export async function GET(request: Request) {
     const ideasWithCounts = ideas.map(({ _count, author, ...idea }) => ({
       ...idea,
       authorName: author?.displayName ?? "Anonymous",
+      authorEmail: author?.email ?? null,
       commentCount: _count.comments,
     }));
 

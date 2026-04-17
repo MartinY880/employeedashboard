@@ -239,9 +239,11 @@ export function PropsFeed() {
           >
             <PropsCard
               id={k.id}
+              authorId={k.author?.email}
               authorName={k.author?.displayName || "Unknown"}
               authorInitials={getInitials(k.author?.displayName || "?")}
               authorPhotoUrl={k.author?.photoUrl || `/api/directory/photo?userId=${encodeURIComponent(k.author?.id || "")}&name=${encodeURIComponent(k.author?.displayName || "?")}&size=48x48`}
+              recipientId={k.recipient?.email}
               recipientName={k.recipient?.displayName || "Unknown"}
               message={k.content}
               likes={k.likes}

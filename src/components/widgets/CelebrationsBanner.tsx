@@ -9,6 +9,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Cake, CalendarHeart, GraduationCap, Sparkles, CalendarDays, Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CommentSection } from "@/components/shared/CommentSection";
+import { PersonLightbox } from "@/components/shared/ProfileDialog";
+import { type DirectoryNode } from "@/hooks/useDirectory";
 import type { UnifiedComment } from "@/types";
 
 interface CelebrationItem {
@@ -119,7 +121,7 @@ function CelebrationCommentThread({ celebrationId, commentCount }: { celebration
   );
 }
 
-function CelebrationRow({ item }: { item: CelebrationItem }) {
+function CelebrationRow({ item, onPersonClick }: { item: CelebrationItem; onPersonClick?: (email: string, name: string) => void }) {
   const { accent, icon: Icon } = TYPE_CONFIG[item.type];
   const [liked, setLiked] = useState(item.userLiked);
   const [likeCount, setLikeCount] = useState(item.likeCount ?? 0);
@@ -151,9 +153,9 @@ function CelebrationRow({ item }: { item: CelebrationItem }) {
     >
       <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-1">
         {/* Photo */}
-        <div className="relative shrink-0">
+        <button type="button" onClick={() => onPersonClick?.(item.email, item.employeeName)} className="relative shrink-0 cursor-pointer rounded-full focus:outline-none group">
           <div
-            className="h-14 w-14 rounded-full overflow-hidden ring-[1.5px] ring-offset-1 ring-offset-white dark:ring-offset-gray-900"
+            className="h-14 w-14 rounded-full overflow-hidden ring-[1.5px] ring-offset-1 ring-offset-white dark:ring-offset-gray-900 group-hover:opacity-80 transition-opacity"
             style={{ ["--tw-ring-color" as string]: `${accent}50` }}
           >
             {item.employeeId ? (
@@ -178,13 +180,13 @@ function CelebrationRow({ item }: { item: CelebrationItem }) {
           >
             <Icon className="h-2.5 w-2.5 text-white" />
           </div>
-        </div>
+        </button>
 
         {/* Info */}
         <div className="min-w-0">
-          <p className="text-[12.5px] font-semibold text-gray-900 dark:text-gray-50 leading-tight truncate">
+          <button type="button" onClick={() => onPersonClick?.(item.email, item.employeeName)} className="text-[12.5px] font-semibold text-gray-900 dark:text-gray-50 leading-tight truncate block max-w-full hover:text-brand-blue transition-colors cursor-pointer focus:outline-none">
             {item.employeeName}
-          </p>
+          </button>
           <div className="flex items-center justify-between gap-2 mt-0.5">
             <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-tight truncate">
               {item.detail}
@@ -230,6 +232,28 @@ export function CelebrationsBanner({ selectedDate, onDateChange }: { selectedDat
   const [filter, setFilter] = useState<FilterType>("all");
   const [showCount, setShowCount] = useState(5);
   const [nextUp, setNextUp] = useState<NextUpItem | null>(null);
+
+  const [profileUser, setProfileUser] = useState<DirectoryNode | null>(null);
+  const [profileOpen, setProfileOpen] = useState(false);
+
+  const handlePersonClick = useCallback(async (email: string, name: string) => {
+    if (!email && !name) return;
+    try {
+      const q = email || name;
+      const res = await fetch(`/api/directory?mode=flat&search=${encodeURIComponent(q)}`);
+      const data = await res.json();
+      let users = data?.users || [];
+      if (users.length === 0 && name && email && name !== email) {
+        const res2 = await fetch(`/api/directory?mode=flat&search=${encodeURIComponent(name)}`);
+        const data2 = await res2.json();
+        users = data2?.users || [];
+      }
+      if (users.length > 0) {
+        setProfileUser(users[0]);
+        setProfileOpen(true);
+      }
+    } catch { /* silently fail */ }
+  }, []);
 
   // Determine if viewing today
   const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" }); // YYYY-MM-DD
@@ -352,8 +376,9 @@ export function CelebrationsBanner({ selectedDate, onDateChange }: { selectedDat
                     const accent = TYPE_CONFIG[nextUp.type]?.accent ?? "#06427F";
                     return (
                       <div className="relative shrink-0">
+                        <button type="button" onClick={() => handlePersonClick(nextUp.email, nextUp.employeeName)} className="cursor-pointer rounded-full focus:outline-none group">
                         <div
-                          className="h-9 w-9 rounded-full overflow-hidden ring-[1.5px] ring-offset-1 ring-offset-white dark:ring-offset-gray-900"
+                          className="h-9 w-9 rounded-full overflow-hidden ring-[1.5px] ring-offset-1 ring-offset-white dark:ring-offset-gray-900 group-hover:opacity-80 transition-opacity"
                           style={{ ["--tw-ring-color" as string]: `${accent}50` }}
                         >
                           {nextUp.employeeId ? (
@@ -383,13 +408,14 @@ export function CelebrationsBanner({ selectedDate, onDateChange }: { selectedDat
                             </div>
                           ) : null;
                         })()}
+                        </button>
                       </div>
                     );
                   })()}
                   <div className="min-w-0">
-                    <p className="text-[12px] font-semibold text-gray-900 dark:text-gray-50 leading-tight truncate">
+                    <button type="button" onClick={() => handlePersonClick(nextUp.email, nextUp.employeeName)} className="text-[12px] font-semibold text-gray-900 dark:text-gray-50 leading-tight truncate block max-w-full hover:text-brand-blue transition-colors cursor-pointer focus:outline-none">
                       {nextUp.employeeName}
-                    </p>
+                    </button>
                     <p className="text-[10.5px] text-gray-400 dark:text-gray-500 leading-tight mt-0.5">
                       {nextUp.type === "birthday" ? "Birthday" : "Anniversary"}
                       {" · "}
@@ -411,7 +437,7 @@ export function CelebrationsBanner({ selectedDate, onDateChange }: { selectedDat
           <div className="divide-y divide-gray-50 dark:divide-gray-800/60">
             <AnimatePresence mode="popLayout">
               {visible.map((item) => (
-                <CelebrationRow key={item.id} item={item} />
+                <CelebrationRow key={item.id} item={item} onPersonClick={handlePersonClick} />
               ))}
             </AnimatePresence>
           </div>
@@ -428,6 +454,12 @@ export function CelebrationsBanner({ selectedDate, onDateChange }: { selectedDat
           )}
         </>
       )}
+
+      <PersonLightbox
+        user={profileUser}
+        open={profileOpen}
+        onClose={() => setProfileOpen(false)}
+      />
     </div>
   );
 }

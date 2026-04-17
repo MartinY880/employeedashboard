@@ -3,9 +3,11 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Star, Sparkles } from "lucide-react";
+import { PersonLightbox } from "@/components/shared/ProfileDialog";
+import { type DirectoryNode } from "@/hooks/useDirectory";
 
 interface Highlight {
   id: string;
@@ -23,16 +25,29 @@ interface Highlight {
 export function EmployeeHighlight() {
   const [highlight, setHighlight] = useState<Highlight | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedUser, setSelectedUser] = useState<DirectoryNode | null>(null);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   useEffect(() => {
     fetch("/api/highlights")
       .then((r) => r.json())
       .then((data: Highlight[]) => {
-        // Show the most recent active highlight
         if (data.length > 0) setHighlight(data[0]);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
+  }, []);
+
+  const handlePersonClick = useCallback(async (employeeId: string | null) => {
+    if (!employeeId) return;
+    try {
+      const res = await fetch(`/api/directory?userId=${encodeURIComponent(employeeId)}`);
+      const data = await res.json();
+      if (data?.user) {
+        setSelectedUser(data.user);
+        setLightboxOpen(true);
+      }
+    } catch { /* silently fail */ }
   }, []);
 
   if (loading) {
@@ -74,21 +89,29 @@ export function EmployeeHighlight() {
 
         {/* Content */}
         <div className="p-4 flex items-start gap-3">
-          {/* Avatar — always use directory photo */}
-          <div className="flex-shrink-0">
+          {/* Avatar — clickable */}
+          <button
+            type="button"
+            onClick={() => handlePersonClick(highlight.employeeId)}
+            className="flex-shrink-0 cursor-pointer rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue"
+          >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={photoSrc}
               alt={highlight.employeeName}
-              className="w-12 h-12 rounded-full object-cover border-2 border-amber-200"
+              className="w-12 h-12 rounded-full object-cover border-2 border-amber-200 hover:opacity-80 transition-opacity"
             />
-          </div>
+          </button>
 
           {/* Info */}
           <div className="flex-1 min-w-0">
-            <h4 className="text-sm font-bold text-gray-900 dark:text-gray-100 leading-tight">
+            <button
+              type="button"
+              onClick={() => handlePersonClick(highlight.employeeId)}
+              className="text-sm font-bold text-gray-900 dark:text-gray-100 leading-tight hover:text-brand-blue transition-colors cursor-pointer focus:outline-none"
+            >
               {highlight.employeeName}
-            </h4>
+            </button>
             {(highlight.jobTitle || highlight.department) && (
               <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">
                 {highlight.jobTitle}{highlight.department ? ` · ${highlight.department}` : ""}
@@ -97,12 +120,18 @@ export function EmployeeHighlight() {
             <p className="text-xs font-semibold text-amber-600 mt-0.5">
               ⭐ {highlight.title}
             </p>
-            <p className="text-xs text-gray-600 dark:text-gray-400 mt-1.5 leading-relaxed line-clamp-3">
+            <p className="text-xs text-gray-600 dark:text-gray-400 mt-1.5 leading-relaxed whitespace-pre-wrap break-words">
               {highlight.subtitle}
             </p>
           </div>
         </div>
       </motion.div>
+
+      <PersonLightbox
+        user={selectedUser}
+        open={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+      />
     </AnimatePresence>
   );
 }

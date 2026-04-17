@@ -91,6 +91,7 @@ const USER_SELECT = [
   "officeLocation",
   "businessPhones",
   "mobilePhone",
+  "faxNumber",
   "accountEnabled",
   "assignedLicenses",
 ].join(",");
@@ -117,6 +118,7 @@ export interface GraphUser {
 
 type GraphUserWithRawPhones = GraphUser & {
   businessPhones?: string[];
+  faxNumber?: string | null;
 };
 
 function normalizePhone(value: string | null | undefined): string | null {
@@ -131,13 +133,12 @@ function normalizeGraphUser(user: GraphUserWithRawPhones): GraphUser {
     .filter((phone) => phone.length > 0);
 
   const businessPhone = normalizedBusinessPhones[0] ?? null;
-  const faxNumber = normalizedBusinessPhones[1] ?? null;
 
   return {
     ...user,
     businessPhone,
     mobilePhone: normalizePhone(user.mobilePhone),
-    faxNumber,
+    faxNumber: normalizePhone(user.faxNumber),
   };
 }
 

@@ -17,14 +17,43 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { MentionInput, type MentionInputHandle } from "@/components/shared/MentionInput";
-import { MentionChip } from "@/components/shared/ProfileDialog";
+import { MentionChip, PersonLightbox } from "@/components/shared/ProfileDialog";
+import { type DirectoryNode } from "@/hooks/useDirectory";
+import { LinkPreviewCard } from "@/components/shared/LinkPreviewCard";
 import { useSounds } from "@/components/shared/SoundProvider";
 import type { UnifiedComment } from "@/types";
 
-// ─── Mention + Hashtag rendering ────────────────────────────
+// ─── Mention + Hashtag + Link rendering ─────────────────────
 
 const MENTION_RENDER_REGEX = /@\[([^\]]+)\]\(([^)]+)\)/g;
 const HASHTAG_RENDER_REGEX = /#(\w+)/g;
+
+// URL: http(s)://… , www.… , or bare domain.tld — avoids trailing punctuation
+const URL_REGEX = /(?:https?:\/\/|www\.)[^\s<]+[^\s<.,;:!?"')\]]|[a-zA-Z0-9][a-zA-Z0-9.-]*\.(?:com|org|net|edu|gov|io|co|dev|app|ai|us|uk|ca|de|fr|info|biz|me|tv|cc|xyz)(?:\/[^\s<]*[^\s<.,;:!?"')\]])?/;
+// Email: local@domain.tld
+const EMAIL_REGEX = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
+// Phone: optional +1, optional parens, 10-digit US numbers with common separators
+const PHONE_REGEX = /(?:\+1[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}/;
+// Combined for single-pass splitting (order matters: URL before email to avoid partial matches)
+const LINK_REGEX = new RegExp(
+  `(${URL_REGEX.source}|${EMAIL_REGEX.source}|${PHONE_REGEX.source})`,
+  "g",
+);
+
+const LINK_CLASSNAME = "text-brand-blue underline decoration-brand-blue/30 hover:decoration-brand-blue/60 transition-colors";
+
+function formatLinkText(raw: string): string {
+  try {
+    const url = new URL(raw.startsWith("http") ? raw : `https://${raw}`);
+    const host = url.hostname.replace(/^www\./, "");
+    const path = url.pathname + url.search + url.hash;
+    if (path.length <= 1) return host;
+    if (path.length > 20) return `${host}/\u2026`;
+    return `${host}${path}`;
+  } catch {
+    return raw.length > 40 ? `${raw.slice(0, 37)}\u2026` : raw;
+  }
+}
 
 export function renderMentionContent(content: string) {
   const parts: (string | React.ReactNode)[] = [];
@@ -78,7 +107,42 @@ export function renderMentionContent(content: string) {
     }
   }
 
-  return finalParts;
+  // Third pass: linkify URLs, emails, and phone numbers in remaining text
+  const linkedParts: (string | React.ReactNode)[] = [];
+  for (const part of finalParts) {
+    if (typeof part !== "string") {
+      linkedParts.push(part);
+      continue;
+    }
+    const segments = part.split(LINK_REGEX);
+    for (const seg of segments) {
+      if (!seg) continue;
+      if (URL_REGEX.test(seg)) {
+        const href = seg.startsWith("http") ? seg : `https://${seg}`;
+        linkedParts.push(
+          <LinkPreviewCard key={`l${key++}`} url={href} />,
+        );
+      } else if (EMAIL_REGEX.test(seg)) {
+        linkedParts.push(
+          <a key={`l${key++}`} href={`mailto:${seg}`} className={LINK_CLASSNAME}>
+            {seg}
+          </a>,
+        );
+      } else if (PHONE_REGEX.test(seg)) {
+        const digits = seg.replace(/\D/g, "");
+        const tel = digits.length === 10 ? `+1${digits}` : `+${digits}`;
+        linkedParts.push(
+          <a key={`l${key++}`} href={`tel:${tel}`} className={LINK_CLASSNAME}>
+            {seg}
+          </a>,
+        );
+      } else {
+        linkedParts.push(seg);
+      }
+    }
+  }
+
+  return linkedParts;
 }
 
 // ─── Relative time ──────────────────────────────────────────
@@ -104,31 +168,35 @@ function CommentBubble({
   onDelete,
   onLike,
   onReplyClick,
+  onAuthorClick,
   isReply = false,
 }: {
   comment: UnifiedComment;
   onDelete: (id: string) => void;
   onLike: (id: string) => void;
   onReplyClick?: (id: string, authorName: string) => void;
+  onAuthorClick?: (name: string) => void;
   isReply?: boolean;
 }) {
   return (
     <div className={isReply ? "ml-8" : ""}>
       <div className="group/comment flex gap-2 items-start">
         {/* Avatar circle */}
-        <div
-          className={`shrink-0 rounded-full bg-gradient-to-br from-brand-blue/70 to-brand-blue flex items-center justify-center text-white font-bold ${
+        <button
+          type="button"
+          onClick={() => onAuthorClick?.(comment.authorName)}
+          className={`shrink-0 rounded-full bg-gradient-to-br from-brand-blue/70 to-brand-blue flex items-center justify-center text-white font-bold cursor-pointer hover:opacity-80 transition-opacity focus:outline-none ${
             isReply ? "w-6 h-6 text-[9px]" : "w-7 h-7 text-[10px]"
           }`}
         >
           {comment.authorName.charAt(0).toUpperCase()}
-        </div>
+        </button>
         {/* Bubble */}
         <div className="flex-1 min-w-0">
           <div className="inline-block bg-gray-100 dark:bg-gray-800 rounded-2xl px-3 py-1.5 max-w-[90%]">
-            <span className="font-semibold text-[12px] text-gray-800 dark:text-gray-200 block leading-tight">
+            <button type="button" onClick={() => onAuthorClick?.(comment.authorName)} className="font-semibold text-[12px] text-gray-800 dark:text-gray-200 block leading-tight hover:text-brand-blue transition-colors cursor-pointer focus:outline-none">
               {comment.authorName}
-            </span>
+            </button>
             <p className="text-[12px] text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words leading-relaxed mt-0.5">
               {renderMentionContent(comment.content)}
             </p>
@@ -187,11 +255,13 @@ function CommentWithReplies({
   onDelete,
   onLike,
   onReplyClick,
+  onAuthorClick,
 }: {
   comment: UnifiedComment;
   onDelete: (id: string) => void;
   onLike: (id: string) => void;
   onReplyClick: (id: string, authorName: string) => void;
+  onAuthorClick?: (name: string) => void;
 }) {
   return (
     <div>
@@ -200,10 +270,11 @@ function CommentWithReplies({
         onDelete={onDelete}
         onLike={onLike}
         onReplyClick={onReplyClick}
+        onAuthorClick={onAuthorClick}
       />
       {(comment.replies || []).map((r) => (
         <div key={r.id} className="mt-1.5">
-          <CommentBubble comment={r} onDelete={onDelete} onLike={onLike} isReply />
+          <CommentBubble comment={r} onDelete={onDelete} onLike={onLike} onAuthorClick={onAuthorClick} isReply />
         </div>
       ))}
     </div>
@@ -287,6 +358,21 @@ export function CommentSection({
   const [currentUserInitial, setCurrentUserInitial] = useState("");
   const { playClick, playSuccess } = useSounds();
   const inputRef = useRef<MentionInputHandle>(null);
+  const [lightboxUser, setLightboxUser] = useState<DirectoryNode | null>(null);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+
+  const handleAuthorClick = useCallback(async (name: string) => {
+    try {
+      const res = await fetch(`/api/directory?mode=flat&search=${encodeURIComponent(name)}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const people: DirectoryNode[] = data.users || data;
+      if (people.length > 0) {
+        setLightboxUser(people[0]);
+        setLightboxOpen(true);
+      }
+    } catch { /* silent */ }
+  }, []);
 
   useEffect(() => {
     setLocalCount(commentCount);
@@ -452,6 +538,7 @@ export function CommentSection({
                     onDelete={handleDelete}
                     onLike={handleLike}
                     onReplyClick={handleReplyClick}
+                    onAuthorClick={handleAuthorClick}
                   />
                 ))}
               </div>
@@ -472,10 +559,11 @@ export function CommentSection({
                           onDelete={handleDelete}
                           onLike={handleLike}
                           onReplyClick={handleReplyClick}
+                          onAuthorClick={handleAuthorClick}
                         />
                         {(c.replies || []).slice(0, repliesToShow).map((r) => (
                           <div key={r.id} className="mt-1.5">
-                            <CommentBubble comment={r} onDelete={handleDelete} onLike={handleLike} isReply />
+                            <CommentBubble comment={r} onDelete={handleDelete} onLike={handleLike} onAuthorClick={handleAuthorClick} isReply />
                           </div>
                         ))}
                       </div>
@@ -615,6 +703,7 @@ export function CommentSection({
                           onDelete={handleDelete}
                           onLike={handleLike}
                           onReplyClick={handleReplyClick}
+                          onAuthorClick={handleAuthorClick}
                         />
                       ))}
                     </div>
@@ -668,6 +757,10 @@ export function CommentSection({
       </AnimatePresence>
       </>
       )}
+
+      {lightboxUser && (
+        <PersonLightbox user={lightboxUser} open={lightboxOpen} onClose={() => setLightboxOpen(false)} />
+      )}
     </div>
   );
 }
@@ -704,6 +797,22 @@ export function CommentSectionList({
   replyTo,
   onReplyClick,
 }: CommentSectionListProps) {
+  const [lightboxUser, setLightboxUser] = useState<DirectoryNode | null>(null);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+
+  const handleAuthorClick = useCallback(async (name: string) => {
+    try {
+      const res = await fetch(`/api/directory?mode=flat&search=${encodeURIComponent(name)}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const people: DirectoryNode[] = data.users || data;
+      if (people.length > 0) {
+        setLightboxUser(people[0]);
+        setLightboxOpen(true);
+      }
+    } catch { /* silent */ }
+  }, []);
+
   return (
     <div className="space-y-3">
       {loading ? (
@@ -724,12 +833,17 @@ export function CommentSectionList({
             onDelete={onDelete}
             onLike={onLike}
             onReplyClick={onReplyClick}
+            onAuthorClick={handleAuthorClick}
           />
         ))
       )}
 
       {replyTo && (
         <ReplyIndicator replyTo={replyTo} onCancel={() => {}} />
+      )}
+
+      {lightboxUser && (
+        <PersonLightbox user={lightboxUser} open={lightboxOpen} onClose={() => setLightboxOpen(false)} />
       )}
     </div>
   );

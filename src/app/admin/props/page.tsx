@@ -9,7 +9,6 @@ import {
   MessageCircle,
   Trash2,
   ArrowLeft,
-  Heart,
   Search,
   Loader2,
 } from "lucide-react";
@@ -197,7 +196,6 @@ export default function AdminPropsPage() {
                 <TableHead>From</TableHead>
                 <TableHead>To</TableHead>
                 <TableHead className="w-[40%]">Message</TableHead>
-                <TableHead>Likes</TableHead>
                 <TableHead>Sent</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -249,12 +247,6 @@ export default function AdminPropsPage() {
                       <p className="text-sm text-gray-700 dark:text-gray-300 truncate max-w-[320px]">
                         {k.content}
                       </p>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className="text-[10px] gap-1">
-                        <Heart className="w-3 h-3 text-pink-500" />
-                        {k.likes}
-                      </Badge>
                     </TableCell>
                     <TableCell>
                       <div>

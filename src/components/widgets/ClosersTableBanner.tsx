@@ -4,9 +4,11 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Trophy } from "lucide-react";
+import { PersonLightbox } from "@/components/shared/ProfileDialog";
+import { type DirectoryNode } from "@/hooks/useDirectory";
 
 interface CloserAward {
   id: string;
@@ -28,6 +30,8 @@ function getInitials(name: string): string {
 
 export function ClosersTableBanner() {
   const [awards, setAwards] = useState<CloserAward[]>([]);
+  const [selectedUser, setSelectedUser] = useState<DirectoryNode | null>(null);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   useEffect(() => {
     fetch("/api/closers-table")
@@ -36,6 +40,18 @@ export function ClosersTableBanner() {
         if (d?.awards?.length) setAwards(d.awards);
       })
       .catch(() => {});
+  }, []);
+
+  const handleCardClick = useCallback(async (award: CloserAward) => {
+    if (!award.employeeId) return;
+    try {
+      const res = await fetch(`/api/directory?userId=${encodeURIComponent(award.employeeId)}`);
+      const data = await res.json();
+      if (data?.user) {
+        setSelectedUser(data.user);
+        setLightboxOpen(true);
+      }
+    } catch { /* silently fail */ }
   }, []);
 
   if (!awards.length) return null;
@@ -66,8 +82,9 @@ export function ClosersTableBanner() {
                 className="w-[130px]"
               >
                 {/* Glassmorphism card */}
-                <div className="relative rounded-xl overflow-hidden backdrop-blur-md bg-gray-50 dark:bg-white/[0.07] border border-gray-200 dark:border-white/10 shadow-md p-3 flex flex-col items-center text-center group hover:bg-gray-100/80 dark:hover:bg-white/10 transition-colors h-full"
+                <div className="relative rounded-xl overflow-hidden backdrop-blur-md bg-gray-50 dark:bg-white/[0.07] border border-gray-200 dark:border-white/10 shadow-md p-3 flex flex-col items-center text-center group hover:bg-gray-100/80 dark:hover:bg-white/10 transition-colors h-full cursor-pointer"
                   style={{ boxShadow: `0 4px 14px ${c}20` }}
+                  onClick={() => handleCardClick(award)}
                 >
                   {/* Accent gradient at top */}
                   <div
@@ -125,6 +142,12 @@ export function ClosersTableBanner() {
           })}
         </div>
       </div>
+
+      <PersonLightbox
+        user={selectedUser}
+        open={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+      />
     </section>
   );
 }

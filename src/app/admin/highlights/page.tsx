@@ -466,11 +466,24 @@ export default function AdminHighlightsPage() {
               </label>
               <textarea
                 value={formSubtitle}
-                onChange={(e) => setFormSubtitle(e.target.value)}
+                onChange={(e) => { if (e.target.value.length <= 200) setFormSubtitle(e.target.value); }}
                 placeholder="Why this employee is being highlighted…"
                 rows={3}
-                className="w-full rounded-md border border-gray-200 dark:border-gray-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/30 focus:border-brand-blue resize-none"
+                className={`w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/30 focus:border-brand-blue resize-none ${
+                  formSubtitle.length >= 200
+                    ? "border-red-400 dark:border-red-500"
+                    : formSubtitle.length >= 180
+                      ? "border-yellow-400 dark:border-yellow-500"
+                      : "border-gray-200 dark:border-gray-700"
+                }`}
               />
+              <p className={`text-[11px] mt-0.5 text-right font-medium ${
+                formSubtitle.length >= 200
+                  ? "text-red-500"
+                  : formSubtitle.length >= 180
+                    ? "text-yellow-500"
+                    : "text-gray-400"
+              }`}>{formSubtitle.length}/200</p>
             </div>
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={() => setDialogOpen(false)}>

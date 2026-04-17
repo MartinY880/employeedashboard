@@ -166,6 +166,15 @@ export async function GET(request: Request) {
         injectPhotos([found]);
         return NextResponse.json({ user: found }, { headers: DIRECTORY_RESPONSE_HEADERS });
       }
+      // Trigger background sync if stale (userId lookups skip the main sync block)
+      const meta = await getSnapshotSyncMeta();
+      if (!meta.lastSyncedAt) {
+        await withTimeout(syncDirectorySnapshotFromGraph(), 30000);
+      } else if (meta.isStale) {
+        void syncDirectorySnapshotFromGraph().catch((error) => {
+          console.error("[Directory API] Background snapshot sync failed:", error);
+        });
+      }
       const found = await getSnapshotUserById(userId);
       if (!found) return NextResponse.json({ user: null }, { status: 404 });
       injectPhotos([found]);

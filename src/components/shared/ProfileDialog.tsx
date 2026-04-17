@@ -121,7 +121,7 @@ export function ProfileDialog({
         <div className="space-y-3 border-t border-gray-100 dark:border-gray-800 pt-4">
           {user.mail && (
             <div className="flex items-center gap-3 text-sm">
-              <Mail className="w-4 h-4 text-brand-grey shrink-0" />
+              <Mail className="w-4 h-4 text-brand-blue shrink-0" />
               <a
                 href={`mailto:${user.mail}`}
                 className="text-brand-blue hover:underline truncate"
@@ -138,20 +138,20 @@ export function ProfileDialog({
           )}
           {user.businessPhone && (
             <div className="flex items-center gap-3 text-sm">
-              <Phone className="w-4 h-4 text-brand-grey shrink-0" />
-              <span className="text-gray-700 dark:text-gray-300">{user.businessPhone}</span>
+              <Phone className="w-4 h-4 text-brand-blue shrink-0" />
+              <a href={`tel:${user.businessPhone.replace(/[^+\d]/g, "")}`} className="text-brand-blue hover:underline">{user.businessPhone}</a>
             </div>
           )}
           {user.mobilePhone && (
             <div className="flex items-center gap-3 text-sm">
-              <Smartphone className="w-4 h-4 text-brand-grey shrink-0" />
-              <span className="text-gray-700 dark:text-gray-300">{user.mobilePhone}</span>
+              <Smartphone className="w-4 h-4 text-brand-blue shrink-0" />
+              <a href={`tel:${user.mobilePhone.replace(/[^+\d]/g, "")}`} className="text-brand-blue hover:underline">{user.mobilePhone}</a>
             </div>
           )}
           {user.faxNumber && (
             <div className="flex items-center gap-3 text-sm">
-              <Printer className="w-4 h-4 text-brand-grey shrink-0" />
-              <span className="text-gray-700 dark:text-gray-300">{user.faxNumber}</span>
+              <Printer className="w-4 h-4 text-brand-blue shrink-0" />
+              <a href={`tel:${user.faxNumber.replace(/[^+\d]/g, "")}`} className="text-brand-blue hover:underline">{user.faxNumber}</a>
             </div>
           )}
         </div>
@@ -287,6 +287,12 @@ export function PersonLightbox({
   open: boolean;
   onClose: () => void;
 }) {
+  const [photoZoom, setPhotoZoom] = useState(false);
+
+  useEffect(() => {
+    if (!open) setPhotoZoom(false);
+  }, [open]);
+
   return (
     <AnimatePresence>
       {open && (
@@ -318,17 +324,24 @@ export function PersonLightbox({
 
             {/* Avatar overlap */}
             <div className="relative -mt-8 flex justify-center">
-              <Avatar className="h-16 w-16 ring-4 ring-white dark:ring-gray-900 shadow-lg">
-                {user && (
-                  <AvatarImage
-                    src={getPhotoUrl(user, 120)}
-                    alt={user.displayName}
-                  />
-                )}
-                <AvatarFallback className="bg-brand-blue text-white text-lg font-bold">
-                  {user ? getInitials(user.displayName) : "…"}
-                </AvatarFallback>
-              </Avatar>
+              <button
+                type="button"
+                onClick={() => setPhotoZoom(true)}
+                className="relative group cursor-zoom-in rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue"
+              >
+                <Avatar className="h-16 w-16 ring-4 ring-white dark:ring-gray-900 shadow-lg">
+                  {user && (
+                    <AvatarImage
+                      src={getPhotoUrl(user, 120)}
+                      alt={user.displayName}
+                    />
+                  )}
+                  <AvatarFallback className="bg-brand-blue text-white text-lg font-bold">
+                    {user ? getInitials(user.displayName) : "…"}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/10 transition-colors" />
+              </button>
             </div>
 
             {/* Info */}
@@ -361,20 +374,20 @@ export function PersonLightbox({
                   )}
                   {user.businessPhone && (
                     <div className="flex items-center gap-3 text-sm">
-                      <Phone className="w-4 h-4 text-brand-grey shrink-0" />
-                      <span className="text-gray-700 dark:text-gray-300 truncate">{user.businessPhone}</span>
+                      <Phone className="w-4 h-4 text-brand-blue shrink-0" />
+                      <a href={`tel:${user.businessPhone.replace(/[^+\d]/g, "")}`} className="text-brand-blue hover:underline truncate">{user.businessPhone}</a>
                     </div>
                   )}
                   {user.mobilePhone && (
                     <div className="flex items-center gap-3 text-sm">
-                      <Smartphone className="w-4 h-4 text-brand-grey shrink-0" />
-                      <span className="text-gray-700 dark:text-gray-300 truncate">{user.mobilePhone}</span>
+                      <Smartphone className="w-4 h-4 text-brand-blue shrink-0" />
+                      <a href={`tel:${user.mobilePhone.replace(/[^+\d]/g, "")}`} className="text-brand-blue hover:underline truncate">{user.mobilePhone}</a>
                     </div>
                   )}
                   {user.faxNumber && (
                     <div className="flex items-center gap-3 text-sm">
-                      <Printer className="w-4 h-4 text-brand-grey shrink-0" />
-                      <span className="text-gray-700 dark:text-gray-300 truncate">{user.faxNumber}</span>
+                      <Printer className="w-4 h-4 text-brand-blue shrink-0" />
+                      <a href={`tel:${user.faxNumber.replace(/[^+\d]/g, "")}`} className="text-brand-blue hover:underline truncate">{user.faxNumber}</a>
                     </div>
                   )}
                   {user.directReports && user.directReports.length > 0 && (
@@ -387,15 +400,32 @@ export function PersonLightbox({
                   )}
                 </div>
               )}
-
-              <button
-                type="button"
-                onClick={onClose}
-                className="mt-6 w-full py-2.5 bg-brand-blue text-white text-sm font-medium rounded-lg hover:bg-brand-blue/90 transition-colors"
-              >
-                Close
-              </button>
             </div>
+          </motion.div>
+        </motion.div>
+      )}
+
+      {/* Full-size photo overlay */}
+      {photoZoom && user && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className="fixed inset-0 z-[110] flex items-center justify-center bg-black/70 backdrop-blur-sm cursor-zoom-out"
+          onClick={() => setPhotoZoom(false)}
+        >
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.8, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <img
+              src={getPhotoUrl(user, 480)}
+              alt={user.displayName}
+              className="w-64 h-64 rounded-full object-cover ring-4 ring-white/20 shadow-2xl"
+            />
           </motion.div>
         </motion.div>
       )}

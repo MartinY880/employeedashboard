@@ -9,6 +9,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useSounds } from "@/components/shared/SoundProvider";
 import { motion } from "framer-motion";
 import { CommentSection } from "@/components/shared/CommentSection";
+import { PersonLightbox } from "@/components/shared/ProfileDialog";
+import { type DirectoryNode } from "@/hooks/useDirectory";
 import type { UnifiedComment } from "@/types";
 
 /* ─── Badge Definitions ────────────────────────────────── */
@@ -155,9 +157,11 @@ function PropsCommentThread({
 
 interface PropsCardProps {
   id?: string;
+  authorId?: string;
   authorName: string;
   authorInitials: string;
   authorPhotoUrl?: string;
+  recipientId?: string;
   recipientName: string;
   message: string;
   likes: number;
@@ -173,9 +177,11 @@ interface PropsCardProps {
 
 export function PropsCard({
   id,
+  authorId,
   authorName,
   authorInitials,
   authorPhotoUrl,
+  recipientId,
   recipientName,
   message,
   likes,
@@ -188,6 +194,27 @@ export function PropsCard({
 }: PropsCardProps) {
   const { playPop } = useSounds();
   const badge = getBadge(badgeKey);
+  const [selectedUser, setSelectedUser] = useState<DirectoryNode | null>(null);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+
+  const handlePersonClick = useCallback(async (identifier?: string, fallbackName?: string) => {
+    if (!identifier) return;
+    try {
+      const res = await fetch(`/api/directory?mode=flat&search=${encodeURIComponent(identifier)}`);
+      const data = await res.json();
+      let users = data?.users || [];
+      // If email search found nothing, try by display name
+      if (users.length === 0 && fallbackName && fallbackName !== identifier) {
+        const res2 = await fetch(`/api/directory?mode=flat&search=${encodeURIComponent(fallbackName)}`);
+        const data2 = await res2.json();
+        users = data2?.users || [];
+      }
+      if (users.length > 0) {
+        setSelectedUser(users[0]);
+        setLightboxOpen(true);
+      }
+    } catch { /* silently fail */ }
+  }, []);
 
   const reactions: Record<ReactionKey, number> = reactionCounts || {
     highfive: likes,
@@ -216,6 +243,7 @@ export function PropsCard({
   };
 
   return (
+    <>
     <motion.div
       initial={{ opacity: 0, y: 10, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -244,18 +272,20 @@ export function PropsCard({
       <div className={`${badge.bg} p-3.5`}>
         {/* Author → Recipient */}
         <div className="flex items-center gap-2 mb-2.5">
-          <Avatar className="h-7 w-7 shrink-0 ring-2 ring-white shadow-sm">
-            {authorPhotoUrl && (
-              <AvatarImage src={authorPhotoUrl} alt={authorName} />
-            )}
-            <AvatarFallback className="bg-brand-blue/10 text-brand-blue text-[9px] font-bold">
-              {authorInitials}
-            </AvatarFallback>
-          </Avatar>
+          <button type="button" onClick={() => handlePersonClick(authorId, authorName)} className="shrink-0 cursor-pointer rounded-full focus:outline-none">
+            <Avatar className="h-7 w-7 ring-2 ring-white shadow-sm hover:opacity-80 transition-opacity">
+              {authorPhotoUrl && (
+                <AvatarImage src={authorPhotoUrl} alt={authorName} />
+              )}
+              <AvatarFallback className="bg-brand-blue/10 text-brand-blue text-[9px] font-bold">
+                {authorInitials}
+              </AvatarFallback>
+            </Avatar>
+          </button>
           <div className="text-xs min-w-0 flex-1">
-            <span className="font-bold text-gray-800 dark:text-gray-200">{authorName}</span>
+            <button type="button" onClick={() => handlePersonClick(authorId, authorName)} className="font-bold text-gray-800 dark:text-gray-200 hover:text-brand-blue transition-colors cursor-pointer focus:outline-none">{authorName}</button>
             <span className="text-gray-400 dark:text-gray-500 mx-1">→</span>
-            <span className="font-bold text-brand-blue">@{recipientName}</span>
+            <button type="button" onClick={() => handlePersonClick(recipientId, recipientName)} className="font-bold text-brand-blue hover:underline cursor-pointer focus:outline-none">@{recipientName}</button>
           </div>
           <span className="text-[10px] text-gray-400 shrink-0">{timeAgo}</span>
         </div>
@@ -302,6 +332,13 @@ export function PropsCard({
         </div>
       </div>
     </motion.div>
+
+    <PersonLightbox
+      user={selectedUser}
+      open={lightboxOpen}
+      onClose={() => setLightboxOpen(false)}
+    />
+    </>
   );
 }
 

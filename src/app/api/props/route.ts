@@ -42,10 +42,10 @@ export async function GET(request: Request) {
     const props = await prisma.propsMessage.findMany({
       include: {
         author: {
-          select: { id: true, displayName: true },
+          select: { id: true, displayName: true, email: true },
         },
         recipient: {
-          select: { id: true, displayName: true },
+          select: { id: true, displayName: true, email: true },
         },
       },
       orderBy: { createdAt: "desc" },

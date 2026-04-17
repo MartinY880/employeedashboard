@@ -32,8 +32,8 @@ export interface PropsMessage {
   content: string;
   authorId: string;
   recipientId: string;
-  author: Pick<User, "id" | "displayName" | "avatarUrl"> & { photoUrl?: string };
-  recipient: Pick<User, "id" | "displayName" | "avatarUrl"> & { photoUrl?: string };
+  author: Pick<User, "id" | "displayName" | "email" | "avatarUrl"> & { photoUrl?: string };
+  recipient: Pick<User, "id" | "displayName" | "email" | "avatarUrl"> & { photoUrl?: string };
   likes: number;
   badge?: string;
   reactions?: {
@@ -126,6 +126,7 @@ export interface Idea {
   description: string;
   userId: string;
   authorName: string;
+  authorEmail?: string | null;
   votes: number;
   status: IdeaStatus;
   createdAt: string;

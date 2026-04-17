@@ -94,6 +94,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "employeeName, title, and subtitle are required" }, { status: 400 });
   }
 
+  if (subtitle.length > 200) {
+    return NextResponse.json({ error: "Subtitle must be 200 characters or less" }, { status: 400 });
+  }
+
   // Auto-generate avatar URL from directory photo proxy
   const avatarUrl = employeeId ? buildPhotoUrl(employeeId, employeeName) : null;
 
@@ -172,6 +176,10 @@ export async function PUT(req: NextRequest) {
 
   if (!id) {
     return NextResponse.json({ error: "id is required" }, { status: 400 });
+  }
+
+  if (fields.subtitle !== undefined && fields.subtitle.length > 200) {
+    return NextResponse.json({ error: "Subtitle must be 200 characters or less" }, { status: 400 });
   }
 
   try {
