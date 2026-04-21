@@ -46,6 +46,7 @@ export async function GET(request: Request) {
     const holidays = await prisma.holiday.findMany({
       where,
       orderBy: { date: "asc" },
+      include: { event: { include: { flyer: true } } },
     });
 
     return NextResponse.json(holidays);
@@ -58,7 +59,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { title, date, category, color, source, visible, recurring } = body;
+    const { title, date, category, color, source, visible, recurring, startTime, endTime, location, description } = body;
 
     if (!title || !date || !category) {
       return NextResponse.json(
@@ -79,7 +80,24 @@ export async function POST(request: Request) {
       },
     });
 
-    return NextResponse.json(holiday, { status: 201 });
+    if (startTime || endTime || location || description) {
+      await prisma.holidayEvent.create({
+        data: {
+          holidayId: holiday.id,
+          startTime: startTime ? new Date(startTime) : null,
+          endTime: endTime ? new Date(endTime) : null,
+          location: location || null,
+          description: description || null,
+        },
+      });
+    }
+
+    const withEvent = await prisma.holiday.findUnique({
+      where: { id: holiday.id },
+      include: { event: { include: { flyer: true } } },
+    });
+
+    return NextResponse.json(withEvent, { status: 201 });
   } catch (error) {
     console.error("[Calendar API] POST error:", error);
     return NextResponse.json({ error: "Failed to create holiday" }, { status: 500 });
@@ -89,13 +107,13 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const body = await request.json();
-    const { id, title, date, category, color, visible, recurring } = body;
+    const { id, title, date, category, color, visible, recurring, startTime, endTime, location, description } = body;
 
     if (!id) {
       return NextResponse.json({ error: "ID is required" }, { status: 400 });
     }
 
-    const holiday = await prisma.holiday.update({
+    await prisma.holiday.update({
       where: { id },
       data: {
         ...(title !== undefined && { title }),
@@ -107,7 +125,30 @@ export async function PUT(request: Request) {
       },
     });
 
-    return NextResponse.json(holiday);
+    // Always upsert event when editing (allows clearing fields)
+    await prisma.holidayEvent.upsert({
+      where: { holidayId: id },
+      update: {
+        startTime: startTime ? new Date(startTime) : null,
+        endTime: endTime ? new Date(endTime) : null,
+        location: location || null,
+        description: description || null,
+      },
+      create: {
+        holidayId: id,
+        startTime: startTime ? new Date(startTime) : null,
+        endTime: endTime ? new Date(endTime) : null,
+        location: location || null,
+        description: description || null,
+      },
+    });
+
+    const withEvent = await prisma.holiday.findUnique({
+      where: { id },
+      include: { event: { include: { flyer: true } } },
+    });
+
+    return NextResponse.json(withEvent);
   } catch (error) {
     console.error("[Calendar API] PUT error:", error);
     return NextResponse.json({ error: "Failed to update holiday" }, { status: 500 });

@@ -16,6 +16,9 @@ import {
   Flag,
   PartyPopper,
   Building2,
+  Clock,
+  MapPin,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -28,6 +31,7 @@ import {
 } from "@/components/ui/dialog";
 import { useCalendar, type CalendarHoliday } from "@/hooks/useCalendar";
 import { useSounds } from "@/components/shared/SoundProvider";
+import { HolidayFlyerDialog } from "@/components/shared/HolidayFlyerDialog";
 
 // ── Category Config ──────────────────────────────────────
 const CATEGORIES = [
@@ -67,6 +71,15 @@ function formatDate(dateStr: string): string {
   return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
 }
 
+function formatTime(isoString: string): string {
+  return new Date(isoString).toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "UTC",
+  });
+}
+
 function daysUntil(dateStr: string): number {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -97,6 +110,7 @@ function getBadgeStyle(color: string) {
 
 export default function CalendarPage() {
   const { playClick } = useSounds();
+  const [flyerOpen, setFlyerOpen] = useState(false);
 
   const today = new Date();
   const [viewMonth, setViewMonth] = useState(today.getMonth());
@@ -455,7 +469,20 @@ export default function CalendarPage() {
       <Dialog open={!!selectedHoliday} onOpenChange={(open) => !open && setSelectedHoliday(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-lg font-semibold text-gray-900 dark:text-gray-100">Holiday Details</DialogTitle>
+            <div className="flex items-start justify-between gap-3 pr-6">
+              <DialogTitle className="text-lg font-semibold text-gray-900 dark:text-gray-100 leading-snug">
+                Holiday Details
+              </DialogTitle>
+              {selectedHoliday?.event?.flyer && (
+                <button
+                  onClick={() => setFlyerOpen(true)}
+                  className="shrink-0 flex items-center justify-center w-8 h-8 rounded-lg bg-brand-blue/10 hover:bg-brand-blue/20 text-brand-blue transition-colors"
+                  title={`View flyer: ${selectedHoliday.event.flyer.fileName}`}
+                >
+                  <FileText className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           </DialogHeader>
           {selectedHoliday && (
             <div className="space-y-3 text-sm">
@@ -465,8 +492,15 @@ export default function CalendarPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <div className="text-xs text-brand-grey">Date</div>
+                  <div className="text-xs text-brand-grey flex items-center gap-1"><Calendar className="w-3 h-3" /> Date</div>
                   <div className="text-gray-800 dark:text-gray-200">{formatDate(selectedHoliday.date)}</div>
+                  {selectedHoliday.event?.startTime && (
+                    <div className="text-xs text-brand-grey mt-0.5 flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      {formatTime(selectedHoliday.event.startTime)}
+                      {selectedHoliday.event.endTime && ` – ${formatTime(selectedHoliday.event.endTime)}`}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <div className="text-xs text-brand-grey">Category</div>
@@ -479,10 +513,57 @@ export default function CalendarPage() {
                   </Badge>
                 </div>
               </div>
+              {(selectedHoliday.event?.location || selectedHoliday.event?.description) && (() => {
+                const loc = selectedHoliday.event?.location;
+                const desc = selectedHoliday.event?.description;
+                const shortDesc = desc && desc.length <= 60;
+                return (
+                  <>
+                    {loc && desc && shortDesc ? (
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <div className="text-xs text-brand-grey flex items-center gap-1"><MapPin className="w-3 h-3" /> Location</div>
+                          <div className="text-gray-800 dark:text-gray-200">{loc}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-brand-grey">Details</div>
+                          <div className="text-gray-700 dark:text-gray-300">{desc}</div>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        {loc && (
+                          <div>
+                            <div className="text-xs text-brand-grey flex items-center gap-1"><MapPin className="w-3 h-3" /> Location</div>
+                            <div className="text-gray-800 dark:text-gray-200">{loc}</div>
+                          </div>
+                        )}
+                        {desc && (
+                          <div>
+                            <div className="text-xs text-brand-grey">Details</div>
+                            <div className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{desc}</div>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           )}
         </DialogContent>
       </Dialog>
+
+      {selectedHoliday?.event?.flyer && (
+        <HolidayFlyerDialog
+          open={flyerOpen}
+          onClose={() => setFlyerOpen(false)}
+          fileUrl={selectedHoliday.event.flyer.fileUrl}
+          fileName={selectedHoliday.event.flyer.fileName}
+          mimeType={selectedHoliday.event.flyer.mimeType}
+          holidayTitle={selectedHoliday.title}
+        />
+      )}
     </motion.div>
   );
 }

@@ -381,10 +381,42 @@ model Holiday {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  event     HolidayEvent?
+
   @@index([date])
   @@index([category])
   @@index([visible])
   @@map("holidays")
+}
+
+model HolidayEvent {
+  id          String    @id @default(cuid())
+  holidayId   String    @unique @map("holiday_id")
+  startTime   DateTime?
+  endTime     DateTime?
+  location    String?
+  description String?   @db.Text
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  holiday     Holiday        @relation(fields: [holidayId], references: [id], onDelete: Cascade)
+  flyer       HolidayFlyer?
+
+  @@map("holiday_events")
+}
+
+model HolidayFlyer {
+  id         String   @id @default(cuid())
+  eventId    String   @unique @map("event_id")
+  fileUrl    String
+  fileName   String
+  mimeType   String   @default("application/pdf")
+  fileSize   Int      @default(0)
+  uploadedAt DateTime @default(now()) @map("uploaded_at")
+
+  event      HolidayEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@map("holiday_flyers")
 }
 
 model CalendarSyncLog {

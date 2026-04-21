@@ -39,6 +39,9 @@ import {
   AlertTriangle,
   Upload,
   X,
+  MapPin,
+  FileText,
+  Paperclip,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -73,6 +76,26 @@ import { useSounds } from "@/components/shared/SoundProvider";
 /* Types                                                               */
 /* ------------------------------------------------------------------ */
 
+interface HolidayFlyer {
+  id: string;
+  eventId: string;
+  fileUrl: string;
+  fileName: string;
+  mimeType: string;
+  fileSize: number;
+  uploadedAt: string;
+}
+
+interface HolidayEvent {
+  id: string;
+  holidayId: string;
+  startTime: string | null;
+  endTime: string | null;
+  location: string | null;
+  description: string | null;
+  flyer: HolidayFlyer | null;
+}
+
 interface Holiday {
   id: string;
   title: string;
@@ -84,6 +107,7 @@ interface Holiday {
   recurring: boolean;
   createdAt: string;
   updatedAt: string;
+  event?: HolidayEvent | null;
 }
 
 interface HolidayStats {
@@ -103,13 +127,17 @@ interface SyncLog {
   syncedAt: string;
 }
 
-interface FormData {
+interface HolidayFormData {
   title: string;
   date: string;
   category: string;
   color: string;
   visible: boolean;
   recurring: boolean;
+  startTime: string;
+  endTime: string;
+  location: string;
+  description: string;
 }
 
 interface ApiConfig {
@@ -140,13 +168,17 @@ interface CategoryColors {
   company: string;
 }
 
-const DEFAULT_FORM: FormData = {
+const DEFAULT_FORM: HolidayFormData = {
   title: "",
   date: "",
   category: "company",
   color: "#06427F",
   visible: true,
   recurring: false,
+  startTime: "",
+  endTime: "",
+  location: "",
+  description: "",
 };
 
 const DEFAULT_API: ApiConfig = {
@@ -224,8 +256,11 @@ export default function AdminCalendarPage() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [editingHoliday, setEditingHoliday] = useState<Holiday | null>(null);
   const [deletingHoliday, setDeletingHoliday] = useState<Holiday | null>(null);
-  const [formData, setFormData] = useState<FormData>(DEFAULT_FORM);
+  const [formData, setFormData] = useState<HolidayFormData>(DEFAULT_FORM);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [flyerFile, setFlyerFile] = useState<File | null>(null);
+  const [removeFlyerFlag, setRemoveFlyerFlag] = useState(false);
+  const flyerInputRef = useRef<HTMLInputElement>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>("holidays");
 
@@ -329,6 +364,9 @@ export default function AdminCalendarPage() {
   const openCreate = () => {
     setEditingHoliday(null);
     setFormData(DEFAULT_FORM);
+    setFlyerFile(null);
+    setRemoveFlyerFlag(false);
+    if (flyerInputRef.current) flyerInputRef.current.value = "";
     setIsModalOpen(true);
     playClick();
   };
@@ -342,7 +380,14 @@ export default function AdminCalendarPage() {
       color: h.color,
       visible: h.visible,
       recurring: h.recurring,
+      startTime: h.event?.startTime ? new Date(h.event.startTime).toISOString().slice(0, 16) : "",
+      endTime: h.event?.endTime ? new Date(h.event.endTime).toISOString().slice(0, 16) : "",
+      location: h.event?.location ?? "",
+      description: h.event?.description ?? "",
     });
+    setFlyerFile(null);
+    setRemoveFlyerFlag(false);
+    if (flyerInputRef.current) flyerInputRef.current.value = "";
     setIsModalOpen(true);
     playClick();
   };
@@ -351,6 +396,7 @@ export default function AdminCalendarPage() {
     if (!formData.title || !formData.date || !formData.category) return;
     setIsSubmitting(true);
     try {
+      let savedHoliday: Holiday;
       if (editingHoliday) {
         const res = await fetch("/api/calendar", {
           method: "PUT",
@@ -358,6 +404,7 @@ export default function AdminCalendarPage() {
           body: JSON.stringify({ id: editingHoliday.id, ...formData }),
         });
         if (!res.ok) throw new Error("Update failed");
+        savedHoliday = await res.json();
       } else {
         const res = await fetch("/api/calendar", {
           method: "POST",
@@ -365,6 +412,20 @@ export default function AdminCalendarPage() {
           body: JSON.stringify(formData),
         });
         if (!res.ok) throw new Error("Create failed");
+        savedHoliday = await res.json();
+      }
+      // Handle flyer upload / removal
+      const eventId = savedHoliday.event?.id;
+      if (eventId) {
+        if (removeFlyerFlag && !flyerFile) {
+          await fetch(`/api/calendar/flyer?eventId=${eventId}`, { method: "DELETE" });
+        }
+        if (flyerFile) {
+          const upload = new globalThis.FormData();
+          upload.append("file", flyerFile);
+          upload.append("eventId", eventId);
+          await fetch("/api/calendar/flyer", { method: "POST", body: upload });
+        }
       }
       playSuccess();
       setIsModalOpen(false);
@@ -1821,14 +1882,15 @@ export default function AdminCalendarPage() {
 
       {/* ── Create/Edit Holiday Modal ───────────────────────── */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CalendarDays className="w-5 h-5 text-purple-500" />
               {editingHoliday ? "Edit Holiday" : "Add Holiday"}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <div className="space-y-4 py-2 max-h-[70vh] overflow-y-auto pr-1">
+            {/* ── Holiday basics ── */}
             <div>
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">Title</label>
               <Input
@@ -1898,6 +1960,102 @@ export default function AdminCalendarPage() {
                 />
                 <span className="text-sm text-gray-700 dark:text-gray-300">Recurring yearly</span>
               </label>
+            </div>
+
+            {/* ── Event Details ── */}
+            <div className="border-t border-gray-100 dark:border-gray-800 pt-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-brand-grey mb-3">Event Details (optional)</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5" /> Start Time
+                  </label>
+                  <Input
+                    type="datetime-local"
+                    value={formData.startTime}
+                    onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5" /> End Time
+                    <span className="text-xs font-normal text-brand-grey ml-1">(optional)</span>
+                  </label>
+                  <Input
+                    type="datetime-local"
+                    value={formData.endTime}
+                    onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="mt-3">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5" /> Location
+                </label>
+                <Input
+                  placeholder="e.g. Main Conference Room, HQ"
+                  value={formData.location}
+                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                />
+              </div>
+              <div className="mt-3">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block flex items-center gap-1.5">
+                  <FileText className="w-3.5 h-3.5" /> Description
+                </label>
+                <textarea
+                  placeholder="Event details, dress code, RSVP info..."
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  rows={3}
+                  className="w-full rounded-md border border-gray-200 dark:border-gray-700 bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/20 focus:border-brand-blue resize-none"
+                />
+              </div>
+            </div>
+
+            {/* ── Flyer Upload ── */}
+            <div className="border-t border-gray-100 dark:border-gray-800 pt-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-brand-grey mb-3 flex items-center gap-1.5">
+                <Paperclip className="w-3.5 h-3.5" /> Flyer (optional)
+              </p>
+              {/* Existing flyer */}
+              {editingHoliday?.event?.flyer && !removeFlyerFlag && !flyerFile && (
+                <div className="flex items-center gap-2 p-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 mb-2">
+                  <FileText className="w-4 h-4 text-brand-blue flex-shrink-0" />
+                  <a
+                    href={editingHoliday.event.flyer.fileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-brand-blue hover:underline truncate flex-1"
+                  >
+                    {editingHoliday.event.flyer.fileName}
+                  </a>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 flex-shrink-0"
+                    onClick={() => setRemoveFlyerFlag(true)}
+                  >
+                    <X className="w-3 h-3" />
+                  </Button>
+                </div>
+              )}
+              {removeFlyerFlag && !flyerFile && (
+                <p className="text-xs text-red-600 mb-2">Flyer will be removed on save.</p>
+              )}
+              <Input
+                ref={flyerInputRef}
+                type="file"
+                accept=".pdf,.png,.jpg,.jpeg,.webp,application/pdf,image/*"
+                className="text-sm"
+                onChange={(e) => {
+                  const f = e.target.files?.[0] ?? null;
+                  setFlyerFile(f);
+                  if (f) setRemoveFlyerFlag(false);
+                }}
+              />
+              {flyerFile && (
+                <p className="text-xs text-green-700 mt-1">{flyerFile.name} selected</p>
+              )}
             </div>
           </div>
           <DialogFooter>

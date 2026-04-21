@@ -5,6 +5,22 @@
 
 import { useState, useEffect, useCallback } from "react";
 
+export interface HolidayFlyer {
+  id: string;
+  fileUrl: string;
+  fileName: string;
+  mimeType: string;
+}
+
+export interface HolidayEvent {
+  id: string;
+  startTime: string | null;
+  endTime: string | null;
+  location: string | null;
+  description: string | null;
+  flyer: HolidayFlyer | null;
+}
+
 export interface CalendarHoliday {
   id: string;
   title: string;
@@ -14,6 +30,7 @@ export interface CalendarHoliday {
   source?: string;
   visible?: boolean;
   recurring?: boolean;
+  event?: HolidayEvent | null;
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
