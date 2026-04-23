@@ -59,7 +59,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { title, date, category, color, source, visible, recurring, startTime, endTime, location, description } = body;
+    const { title, date, category, color, source, visible, recurring, startTime, endTime, location, description, htmlContent, lightboxWidth } = body;
 
     if (!title || !date || !category) {
       return NextResponse.json(
@@ -80,7 +80,7 @@ export async function POST(request: Request) {
       },
     });
 
-    if (startTime || endTime || location || description) {
+    if (startTime || endTime || location || description || htmlContent || lightboxWidth) {
       await prisma.holidayEvent.create({
         data: {
           holidayId: holiday.id,
@@ -88,6 +88,8 @@ export async function POST(request: Request) {
           endTime: endTime ? new Date(endTime) : null,
           location: location || null,
           description: description || null,
+          htmlContent: htmlContent || null,
+          lightboxWidth: lightboxWidth ? parseInt(lightboxWidth, 10) : null,
         },
       });
     }
@@ -107,7 +109,7 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const body = await request.json();
-    const { id, title, date, category, color, visible, recurring, startTime, endTime, location, description } = body;
+    const { id, title, date, category, color, visible, recurring, startTime, endTime, location, description, htmlContent, lightboxWidth } = body;
 
     if (!id) {
       return NextResponse.json({ error: "ID is required" }, { status: 400 });
@@ -133,6 +135,8 @@ export async function PUT(request: Request) {
         endTime: endTime ? new Date(endTime) : null,
         location: location || null,
         description: description || null,
+        htmlContent: htmlContent || null,
+        lightboxWidth: lightboxWidth ? parseInt(lightboxWidth, 10) : null,
       },
       create: {
         holidayId: id,
@@ -140,6 +144,8 @@ export async function PUT(request: Request) {
         endTime: endTime ? new Date(endTime) : null,
         location: location || null,
         description: description || null,
+        htmlContent: htmlContent || null,
+        lightboxWidth: lightboxWidth ? parseInt(lightboxWidth, 10) : null,
       },
     });
 

@@ -37,6 +37,8 @@ model User {
   videoSpotlightComments  VideoSpotlightComment[]  @relation("VideoSpotlightCommentAuthor")
   videoSpotlightCommentLikes VideoSpotlightCommentLike[] @relation("VideoSpotlightCommentLikeUser")
 
+  flyers                  Flyer[]                  @relation("FlyerAuthor")
+
   propsComments          PropsComment[]           @relation("PropsCommentAuthor")
   propsCommentLikes       PropsCommentLike[]       @relation("PropsCommentLikeUser")
 
@@ -396,8 +398,10 @@ model HolidayEvent {
   endTime     DateTime?
   location    String?
   description String?   @db.Text
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  htmlContent   String?   @db.Text @map("html_content")
+  lightboxWidth Int?      @map("lightbox_width")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   holiday     Holiday        @relation(fields: [holidayId], references: [id], onDelete: Cascade)
   flyer       HolidayFlyer?
@@ -613,6 +617,26 @@ model VideoSpotlight {
   @@index([featured, status])
   @@index([createdAt])
   @@map("video_spotlights")
+}
+
+model Flyer {
+  id          String    @id @default(cuid())
+  title       String
+  filename    String                // stored filename on disk (uploads/flyers/)
+  mimeType    String    @default("image/jpeg")
+  fileSize    Int       @default(0) // bytes
+  sortOrder   Int       @default(0)
+  status      String    @default("active") // active | archived
+  startDate   DateTime?             // when to start displaying
+  endDate     DateTime?             // when to stop displaying
+  authorId    String?   @map("user_id")
+  author      User?     @relation("FlyerAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([status, startDate, endDate])
+  @@index([createdAt])
+  @@map("flyers")
 }
 
 model VideoSpotlightReaction {

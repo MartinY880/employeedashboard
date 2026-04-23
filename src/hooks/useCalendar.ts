@@ -18,6 +18,8 @@ export interface HolidayEvent {
   endTime: string | null;
   location: string | null;
   description: string | null;
+  htmlContent: string | null;
+  lightboxWidth: number | null;
   flyer: HolidayFlyer | null;
 }
 

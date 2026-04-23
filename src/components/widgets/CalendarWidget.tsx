@@ -16,7 +16,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useCalendar, type CalendarHoliday } from "@/hooks/useCalendar";
-import { HolidayFlyerDialog } from "@/components/shared/HolidayFlyerDialog";
 
 const DEFAULT_CATEGORY_COLORS: Record<string, string> = {
   federal: "#1e40af",
@@ -80,7 +79,6 @@ export function CalendarWidget() {
   const { holidays: allHolidays, isLoading, isEmpty, refetch } = useCalendar(6);
   const holidays = allHolidays.slice(0, 6);
   const [selectedHoliday, setSelectedHoliday] = useState<CalendarHoliday | null>(null);
-  const [flyerOpen, setFlyerOpen] = useState(false);
   const [categoryColors, setCategoryColors] = useState<Record<string, string>>(DEFAULT_CATEGORY_COLORS);
   const [categoryLabels, setCategoryLabels] = useState<Record<string, string>>(DEFAULT_CATEGORY_LABELS);
 
@@ -123,14 +121,16 @@ export function CalendarWidget() {
   }
 
   return (
-    <div>
+    <div className="h-full flex flex-col">
       {holidays.length === 0 ? (
-        <div className="px-4 py-6 text-center">
-          <Calendar className="w-6 h-6 text-brand-grey/40 mx-auto mb-1.5" />
-          <p className="text-xs text-brand-grey">No upcoming holidays</p>
+        <div className="flex-1 flex items-center justify-center px-4">
+          <div className="text-center">
+            <Calendar className="w-5 h-5 text-brand-grey/40 mx-auto mb-1" />
+            <p className="text-xs text-brand-grey">No upcoming holidays</p>
+          </div>
         </div>
       ) : (
-        <div className="p-2.5 grid grid-cols-2 gap-2">
+        <div className="flex-1 min-h-0 p-2 grid grid-cols-2 gap-1.5 auto-rows-min">
           {holidays.map((holiday, i) => {
             const days = daysUntil(holiday.date);
             const isToday = days === 0;
@@ -145,19 +145,19 @@ export function CalendarWidget() {
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.2, delay: i * 0.04 }}
-                className={`text-left flex items-center gap-2 px-2.5 py-2 rounded-lg border border-gray-100 dark:border-gray-700/60 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
+                className={`text-left flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-gray-100 dark:border-gray-700/60 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
                   isToday ? "bg-brand-blue/5 border-brand-blue/20" : "bg-white dark:bg-gray-900"
                 }`}
               >
                 <div
-                  className="w-1 h-7 rounded-full shrink-0"
+                  className="w-1 h-6 rounded-full shrink-0"
                   style={{ backgroundColor: catColor }}
                 />
                 <div className="flex-1 min-w-0">
-                  <div className="text-[11px] font-semibold text-gray-800 dark:text-gray-200 truncate leading-tight">
+                  <div className="text-[10px] font-semibold text-gray-800 dark:text-gray-200 truncate leading-tight">
                     {holiday.title}
                   </div>
-                  <div className="text-[10px] text-brand-grey leading-tight mt-0.5">
+                  <div className="text-[9px] text-brand-grey leading-tight mt-0.5">
                     {formatDate(holiday.date)}
                     {isToday && <span className="ml-1 text-brand-blue font-semibold">Today!</span>}
                     {isSoon && !isToday && <span className="ml-1 text-amber-600 font-medium">{days}d</span>}
@@ -169,7 +169,7 @@ export function CalendarWidget() {
         </div>
       )}
 
-      <div className="px-2.5 pt-1 pb-2 flex items-center justify-between">
+      <div className="shrink-0 px-2 py-1.5 flex items-center justify-between border-t border-gray-100 dark:border-gray-800">
         <Link
           href="/calendar"
           className="inline-flex items-center gap-1.5 text-xs text-brand-blue hover:underline font-medium"
@@ -191,21 +191,25 @@ export function CalendarWidget() {
       </div>
 
       <Dialog open={!!selectedHoliday} onOpenChange={(open) => !open && setSelectedHoliday(null)}>
-        <DialogContent className="sm:max-w-md">
+        {(() => {
+          const hasRichContent = selectedHoliday?.event?.htmlContent || selectedHoliday?.event?.flyer;
+          const lbw = selectedHoliday?.event?.lightboxWidth || 90;
+          return (
+            <DialogContent
+              className={hasRichContent ? "max-h-[90vh] overflow-y-auto lightbox-rich" : "sm:max-w-md"}
+              style={hasRichContent ? { "--lb-width": `${lbw}vw` } as React.CSSProperties : undefined}
+            >
+              {hasRichContent && (
+                <style>{`
+                  .lightbox-rich { width: calc(100vw - 2rem) !important; max-width: calc(100vw - 2rem) !important; }
+                  @media (min-width: 768px) { .lightbox-rich { width: var(--lb-width) !important; max-width: var(--lb-width) !important; } }
+                `}</style>
+              )}
           <DialogHeader>
             <div className="flex items-start justify-between gap-3 pr-6">
               <DialogTitle className="text-lg font-semibold text-gray-900 dark:text-gray-100 leading-snug">
                 Holiday Details
               </DialogTitle>
-              {selectedHoliday?.event?.flyer && (
-                <button
-                  onClick={() => setFlyerOpen(true)}
-                  className="shrink-0 flex items-center justify-center w-8 h-8 rounded-lg bg-brand-blue/10 hover:bg-brand-blue/20 text-brand-blue transition-colors"
-                  title={`View flyer: ${selectedHoliday.event.flyer.fileName}`}
-                >
-                  <FileText className="w-4 h-4" />
-                </button>
-              )}
             </div>
           </DialogHeader>
           {selectedHoliday && (
@@ -273,21 +277,76 @@ export function CalendarWidget() {
                   </>
                 );
               })()}
+              {selectedHoliday.event?.htmlContent && (
+                <div className="border-t border-gray-100 dark:border-gray-800 pt-3">
+                  <iframe
+                    srcDoc={`<style>*{box-sizing:border-box;max-width:100%}body{margin:0;overflow-x:hidden}</style>${selectedHoliday.event.htmlContent}`}
+                    sandbox="allow-scripts allow-same-origin"
+                    className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white"
+                    style={{ minHeight: 120, maxHeight: "60vh", width: "100%" }}
+                    title={`${selectedHoliday.title} display`}
+                    onLoad={(e) => {
+                      const iframe = e.currentTarget;
+                      const doc = iframe.contentDocument;
+                      if (!doc?.body) return;
+                      const meta = doc.createElement("meta");
+                      meta.name = "viewport";
+                      meta.content = "width=device-width, initial-scale=1";
+                      doc.head.appendChild(meta);
+                      const maxH = window.innerHeight * 0.6;
+                      const resize = () => {
+                        const h = doc.body.scrollHeight + 16;
+                        iframe.style.height = Math.min(h, maxH) + "px";
+                      };
+                      resize();
+                      const ro = new ResizeObserver(resize);
+                      ro.observe(doc.body);
+                    }}
+                  />
+                </div>
+              )}
+              {selectedHoliday.event?.flyer && (() => {
+                const flyer = selectedHoliday.event.flyer;
+                const isImage = flyer.mimeType.startsWith("image/");
+                const isPdf = flyer.mimeType === "application/pdf";
+                return (
+                  <div className="border-t border-gray-100 dark:border-gray-800 pt-3">
+                    <div className="text-xs text-brand-grey mb-2 flex items-center gap-1">
+                      <FileText className="w-3 h-3" /> Flyer
+                    </div>
+                    {isImage ? (
+                      <img
+                        src={flyer.fileUrl}
+                        alt={flyer.fileName}
+                        className="w-full rounded-lg border border-gray-200 dark:border-gray-700"
+                      />
+                    ) : isPdf ? (
+                      <iframe
+                        src={flyer.fileUrl}
+                        className="w-full rounded-lg border border-gray-200 dark:border-gray-700"
+                        style={{ height: "60vh" }}
+                        title={flyer.fileName}
+                      />
+                    ) : (
+                      <a
+                        href={flyer.fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 text-sm text-brand-blue hover:underline"
+                      >
+                        <FileText className="w-4 h-4" />
+                        {flyer.fileName}
+                      </a>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           )}
         </DialogContent>
+          );
+        })()}
       </Dialog>
-
-      {selectedHoliday?.event?.flyer && (
-        <HolidayFlyerDialog
-          open={flyerOpen}
-          onClose={() => setFlyerOpen(false)}
-          fileUrl={selectedHoliday.event.flyer.fileUrl}
-          fileName={selectedHoliday.event.flyer.fileName}
-          mimeType={selectedHoliday.event.flyer.mimeType}
-          holidayTitle={selectedHoliday.title}
-        />
-      )}
     </div>
   );
 }

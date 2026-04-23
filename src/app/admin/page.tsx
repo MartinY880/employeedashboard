@@ -226,6 +226,16 @@ const adminPages = [
     permission: PERMISSIONS.MANAGE_VIDEO_SPOTLIGHT,
   },
   {
+    title: "Flyer Management",
+    description: "Upload, schedule, and manage flyers displayed on the dashboard — set start and end dates for each flyer.",
+    icon: ImageIcon,
+    href: "/admin/flyers",
+    badge: "Media",
+    color: "text-teal-500",
+    bgColor: "bg-teal-50",
+    permission: PERMISSIONS.MANAGE_FLYERS,
+  },
+  {
     title: "Preferred Vendors",
     description: "Add, edit, and manage preferred vendor listings — set categories, contact info, and feature top vendors.",
     icon: Briefcase,

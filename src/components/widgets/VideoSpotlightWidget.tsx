@@ -190,6 +190,7 @@ export function VideoSpotlightWidget() {
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
+  // ─── Height lock: size to content, then freeze ────────
   useEffect(() => {
     const handleFSChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
@@ -259,11 +260,9 @@ export function VideoSpotlightWidget() {
     if (!hasCountedPlayRef.current && videos[activeIndex]) {
       hasCountedPlayRef.current = true;
       const vid = videos[activeIndex];
-      // Optimistic local update
       setVideos((prev) =>
         prev.map((v) => v.id === vid.id ? { ...v, playCount: v.playCount + 1 } : v)
       );
-      // Fire-and-forget server increment
       fetch(`/api/video-spotlight/${vid.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -344,7 +343,7 @@ export function VideoSpotlightWidget() {
   if (loading) {
     return (
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
-        <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 border-t-[3px] border-t-brand-blue">
+        <div className="px-3.5 py-2 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 border-t-[3px] border-t-brand-blue">
           <div className="h-4 w-36 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
         </div>
         <div className="p-3">
@@ -362,9 +361,11 @@ export function VideoSpotlightWidget() {
   if (!current) return null;
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+    <div
+      className="h-full flex flex-col bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden"
+    >
       {/* Header */}
-      <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 border-t-[3px] border-t-brand-blue">
+      <div className="shrink-0 px-3.5 py-2 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 border-t-[3px] border-t-brand-blue">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-sm font-bold text-brand-blue tracking-wide uppercase flex items-center gap-1.5">
@@ -396,8 +397,8 @@ export function VideoSpotlightWidget() {
         </div>
       </div>
 
-      {/* Video area */}
-      <div className="p-3">
+      {/* Scrollable content */}
+      <div className="flex-1 min-h-0 overflow-y-auto p-3">
         <AnimatePresence mode="wait">
           <motion.div
             key={current.id}
@@ -426,7 +427,6 @@ export function VideoSpotlightWidget() {
                 onLoadedMetadata={handleLoadedMetadata}
                 onLoadedData={() => setVideoReady(true)}
               />
-              {/* Placeholder shown until video data loads */}
               {!videoReady && !isFullscreen && (
                 <img
                   src="/proconnect-message-placeholder.jpg"
@@ -478,7 +478,6 @@ export function VideoSpotlightWidget() {
             {/* Controls bar (non-fullscreen) */}
             {!isFullscreen && (
             <div className="mt-2 flex items-center gap-2">
-              {/* Play / Pause button */}
               <button
                 onClick={togglePlay}
                 className="flex items-center justify-center w-8 h-8 shrink-0 rounded-full bg-brand-blue text-white hover:bg-brand-blue/90 transition-colors shadow-sm"
@@ -490,13 +489,9 @@ export function VideoSpotlightWidget() {
                   <Play className="w-3.5 h-3.5 ml-0.5" />
                 )}
               </button>
-
-              {/* Time display */}
               <span className="text-[10px] font-mono text-gray-400 dark:text-gray-500 min-w-[32px] tabular-nums">
                 {fmtTime(currentTime)}
               </span>
-
-              {/* Scrubable timeline */}
               <div
                 ref={timelineRef}
                 className="relative flex-1 h-5 flex items-center cursor-pointer group"
@@ -508,26 +503,19 @@ export function VideoSpotlightWidget() {
                 aria-valuemin={0}
                 aria-valuemax={Math.round(duration)}
               >
-                {/* Track background */}
                 <div className="absolute inset-x-0 h-1.5 rounded-full bg-gray-200 dark:bg-gray-700" />
-                {/* Filled track */}
                 <div
                   className="absolute left-0 h-1.5 rounded-full bg-brand-blue transition-[width] duration-75"
                   style={{ width: `${progress}%` }}
                 />
-                {/* Scrub handle */}
                 <div
                   className="absolute h-3.5 w-3.5 rounded-full bg-brand-blue border-2 border-white dark:border-gray-900 shadow-sm -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity"
                   style={{ left: `${progress}%` }}
                 />
               </div>
-
-              {/* Duration display */}
               <span className="text-[10px] font-mono text-gray-400 dark:text-gray-500 min-w-[32px] tabular-nums text-right">
                 {fmtTime(duration)}
               </span>
-
-              {/* Fullscreen button */}
               <button
                 onClick={toggleFullscreen}
                 className="flex items-center justify-center w-8 h-8 shrink-0 rounded-full text-gray-400 hover:text-brand-blue hover:bg-brand-blue/10 transition-colors"

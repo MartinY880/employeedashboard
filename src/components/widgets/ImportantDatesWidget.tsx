@@ -188,7 +188,7 @@ export function ImportantDatesWidget() {
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.04 }}
-                  className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 min-h-[74px] w-[280px] ${color.bg} ${color.border} ${isToday ? "ring-2 ring-brand-blue/30 dark:ring-brand-blue/40" : ""}`}
+                  className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 min-h-[74px] flex-1 min-w-[200px] max-w-[280px] ${color.bg} ${color.border} ${isToday ? "ring-2 ring-brand-blue/30 dark:ring-brand-blue/40" : ""}`}
                 >
                   <div className="flex flex-col items-center justify-center w-10 shrink-0">
                     <span className={`text-[10px] font-bold uppercase tracking-wider leading-none ${color.month}`}>

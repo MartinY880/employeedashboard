@@ -38,6 +38,7 @@ import {
   Save,
   AlertTriangle,
   Upload,
+  Code,
   X,
   MapPin,
   FileText,
@@ -93,6 +94,8 @@ interface HolidayEvent {
   endTime: string | null;
   location: string | null;
   description: string | null;
+  htmlContent: string | null;
+  lightboxWidth: number | null;
   flyer: HolidayFlyer | null;
 }
 
@@ -138,6 +141,8 @@ interface HolidayFormData {
   endTime: string;
   location: string;
   description: string;
+  htmlContent: string;
+  lightboxWidth: string;
 }
 
 interface ApiConfig {
@@ -179,6 +184,8 @@ const DEFAULT_FORM: HolidayFormData = {
   endTime: "",
   location: "",
   description: "",
+  htmlContent: "",
+  lightboxWidth: "",
 };
 
 const DEFAULT_API: ApiConfig = {
@@ -384,6 +391,8 @@ export default function AdminCalendarPage() {
       endTime: h.event?.endTime ? new Date(h.event.endTime).toISOString().slice(0, 16) : "",
       location: h.event?.location ?? "",
       description: h.event?.description ?? "",
+      htmlContent: h.event?.htmlContent ?? "",
+      lightboxWidth: h.event?.lightboxWidth?.toString() ?? "",
     });
     setFlyerFile(null);
     setRemoveFlyerFlag(false);
@@ -2010,6 +2019,43 @@ export default function AdminCalendarPage() {
                   className="w-full rounded-md border border-gray-200 dark:border-gray-700 bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/20 focus:border-brand-blue resize-none"
                 />
               </div>
+              <div className="mt-3">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block flex items-center gap-1.5">
+                  <Code className="w-3.5 h-3.5" /> Interactive Display (HTML)
+                  <span className="text-xs font-normal text-brand-grey ml-1">(optional)</span>
+                </label>
+                <p className="text-[11px] text-brand-grey mb-1.5">
+                  Enter HTML/CSS/JS to create an interactive display shown in the event details.
+                </p>
+                <textarea
+                  placeholder="<div style=&quot;...&quot;>Your custom HTML content...</div>"
+                  value={formData.htmlContent}
+                  onChange={(e) => setFormData({ ...formData, htmlContent: e.target.value })}
+                  rows={6}
+                  className="w-full rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-brand-blue/20 focus:border-brand-blue resize-y"
+                  spellCheck={false}
+                />
+              </div>
+              {formData.htmlContent && (
+                <div className="mt-3">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block flex items-center gap-1.5">
+                    Lightbox Width (%)
+                    <span className="text-xs font-normal text-brand-grey ml-1">(optional, default 90%)</span>
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      min={20}
+                      max={100}
+                      placeholder="90"
+                      value={formData.lightboxWidth}
+                      onChange={(e) => setFormData({ ...formData, lightboxWidth: e.target.value })}
+                      className="w-24 text-sm"
+                    />
+                    <span className="text-xs text-brand-grey">% of viewport</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* ── Flyer Upload ── */}

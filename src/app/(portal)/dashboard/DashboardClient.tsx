@@ -21,6 +21,8 @@ import { ImportantDatesWidget } from "@/components/widgets/ImportantDatesWidget"
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { DashboardSlider, type DashboardSliderStyle, type DashboardSliderMedia, type DashboardSliderObjectFit } from "@/components/widgets/DashboardSlider";
 import { ClosersTableBanner } from "@/components/widgets/ClosersTableBanner";
+import { TimeZoneWidget } from "@/components/widgets/TimeZoneWidget";
+import { FlyerWidget } from "@/components/widgets/FlyerWidget";
 import { UnifiedReportsWidget } from "@/components/widgets/UnifiedReportsWidget";
 import { CelebrationsBanner } from "@/components/widgets/CelebrationsBanner";
 import Link from "next/link";
@@ -139,16 +141,17 @@ export default function DashboardClient({ visibility, sliderConfig, showVideoSpo
           </Link>
         </section>
       ) : null}
-
-      {/* Important Dates — full-width row */}
-      {visibility.showImportantDates && (
-        <section className="mb-5">
-          <ErrorBoundary label="Important Dates" compact>
-            <ImportantDatesWidget />
-          </ErrorBoundary>
-        </section>
-      )}
-
+{/* Important Dates + Quick Links — side by side */}
+<section className="mb-5 grid grid-cols-1 lg:grid-cols-2 gap-4">
+  {visibility.showImportantDates && (
+    <ErrorBoundary label="Important Dates" compact>
+      <ImportantDatesWidget />
+    </ErrorBoundary>
+  )}
+  <ErrorBoundary label="Quick Links" compact>
+    <QuickLinksBar />
+  </ErrorBoundary>
+</section>
       {/* Directory Search + Alerts Bar */}
       <section className={`mb-5 grid grid-cols-1 ${visibility.showLenderAccountExecutives ? "lg:grid-cols-4" : "lg:grid-cols-3"} gap-4`}>
         <ErrorBoundary label="Directory Search" compact>
@@ -217,43 +220,67 @@ export default function DashboardClient({ visibility, sliderConfig, showVideoSpo
         <ClosersTableBanner />
       </ErrorBoundary>
 
-      {/* Quick Links + Weather + Upcoming Important Dates */}
-      <section className="mb-4">
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-          <ErrorBoundary label="Quick Links" compact>
-            <QuickLinksBar />
-          </ErrorBoundary>
-          <ErrorBoundary label="Weather Forecast" compact>
-            <WeatherForecastWidget />
-          </ErrorBoundary>
-          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden h-full">
-            <div className="px-3.5 py-2 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 border-t-[3px] border-t-brand-blue flex items-center justify-between">
-              <h3 className="text-sm font-bold text-brand-blue tracking-wide uppercase">
-                Upcoming Dates
-              </h3>
-              <p className="text-[10px] text-brand-grey">Company calendar</p>
+      {/* Spotlight + Employee Highlight + Upcoming Dates + Timezone (4-col) */}
+      <section className="mb-5">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr_1fr_1fr] gap-4 lg:auto-rows-[minmax(0,450px)]">
+
+          {/* Spotlight Video — col 1 */}
+          {showVideoSpotlight && (
+            <div className="lg:col-start-1 h-full overflow-hidden">
+              <ErrorBoundary label="ProConnect Message" compact>
+                <VideoSpotlightWidget />
+              </ErrorBoundary>
             </div>
-            <ErrorBoundary label="Calendar" compact>
-              <CalendarWidget />
+          )}
+
+          {/* Col 2: Employee Highlight + Flyers stacked */}
+          <div className="lg:col-start-2 h-full flex flex-col gap-4">
+            <div className="flex-1 min-h-0 h-full">
+              <ErrorBoundary label="Employee Highlight" compact>
+                <EmployeeHighlight />
+              </ErrorBoundary>
+            </div>
+            <div className="flex-1 min-h-0 h-full">
+              <ErrorBoundary label="Events" compact>
+                <FlyerWidget />
+              </ErrorBoundary>
+            </div>
+          </div>
+
+          {/* Col 3: Upcoming Dates + Weather stacked */}
+          <div className="lg:col-start-3 h-full flex flex-col gap-4">
+            <div className="flex-1 min-h-0 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden flex flex-col">
+              <div className="px-3.5 py-2 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 border-t-[3px] border-t-brand-blue flex items-center justify-between shrink-0">
+                <h3 className="text-sm font-bold text-brand-blue tracking-wide uppercase">Upcoming Dates</h3>
+                <p className="text-[10px] text-brand-grey">Company calendar</p>
+              </div>
+              <div className="flex-1 min-h-0 overflow-hidden">
+                <ErrorBoundary label="Calendar" compact>
+                  <CalendarWidget />
+                </ErrorBoundary>
+              </div>
+            </div>
+            <div className="flex-1 min-h-0">
+              <ErrorBoundary label="Weather Forecast" compact>
+                <WeatherForecastWidget />
+              </ErrorBoundary>
+            </div>
+          </div>
+
+          {/* Time Zones — col 4 */}
+          <div className="lg:col-start-4 h-full overflow-hidden">
+            <ErrorBoundary label="Time Zones" compact>
+              <TimeZoneWidget />
             </ErrorBoundary>
           </div>
+
         </div>
       </section>
 
       {/* 3-Column Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-[320px_1.3fr_0.7fr] gap-5 items-start">
-        {/* Left: ProConnect Message + Employee Highlight + Props + Upcoming Dates */}
+        {/* Left: Feed */}
         <div className="space-y-5">
-          {showVideoSpotlight && (
-            <ErrorBoundary label="ProConnect Message" compact>
-              <VideoSpotlightWidget />
-            </ErrorBoundary>
-          )}
-
-          <ErrorBoundary label="Employee Highlight" compact>
-            <EmployeeHighlight />
-          </ErrorBoundary>
-
           <ErrorBoundary label="Feed">
             <FeedPanel />
           </ErrorBoundary>

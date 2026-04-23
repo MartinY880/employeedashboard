@@ -31,7 +31,6 @@ import {
 } from "@/components/ui/dialog";
 import { useCalendar, type CalendarHoliday } from "@/hooks/useCalendar";
 import { useSounds } from "@/components/shared/SoundProvider";
-import { HolidayFlyerDialog } from "@/components/shared/HolidayFlyerDialog";
 
 // ── Category Config ──────────────────────────────────────
 const CATEGORIES = [
@@ -110,7 +109,6 @@ function getBadgeStyle(color: string) {
 
 export default function CalendarPage() {
   const { playClick } = useSounds();
-  const [flyerOpen, setFlyerOpen] = useState(false);
 
   const today = new Date();
   const [viewMonth, setViewMonth] = useState(today.getMonth());
@@ -467,21 +465,25 @@ export default function CalendarPage() {
       </AnimatePresence>
 
       <Dialog open={!!selectedHoliday} onOpenChange={(open) => !open && setSelectedHoliday(null)}>
-        <DialogContent className="sm:max-w-md">
+        {(() => {
+          const hasRichContent = selectedHoliday?.event?.htmlContent || selectedHoliday?.event?.flyer;
+          const lbw = selectedHoliday?.event?.lightboxWidth || 90;
+          return (
+            <DialogContent
+              className={hasRichContent ? "max-h-[90vh] overflow-y-auto lightbox-rich" : "sm:max-w-md"}
+              style={hasRichContent ? { "--lb-width": `${lbw}vw` } as React.CSSProperties : undefined}
+            >
+              {hasRichContent && (
+                <style>{`
+                  .lightbox-rich { width: calc(100vw - 2rem) !important; max-width: calc(100vw - 2rem) !important; }
+                  @media (min-width: 768px) { .lightbox-rich { width: var(--lb-width) !important; max-width: var(--lb-width) !important; } }
+                `}</style>
+              )}
           <DialogHeader>
             <div className="flex items-start justify-between gap-3 pr-6">
               <DialogTitle className="text-lg font-semibold text-gray-900 dark:text-gray-100 leading-snug">
                 Holiday Details
               </DialogTitle>
-              {selectedHoliday?.event?.flyer && (
-                <button
-                  onClick={() => setFlyerOpen(true)}
-                  className="shrink-0 flex items-center justify-center w-8 h-8 rounded-lg bg-brand-blue/10 hover:bg-brand-blue/20 text-brand-blue transition-colors"
-                  title={`View flyer: ${selectedHoliday.event.flyer.fileName}`}
-                >
-                  <FileText className="w-4 h-4" />
-                </button>
-              )}
             </div>
           </DialogHeader>
           {selectedHoliday && (
@@ -549,21 +551,76 @@ export default function CalendarPage() {
                   </>
                 );
               })()}
+              {selectedHoliday.event?.htmlContent && (
+                <div className="border-t border-gray-100 dark:border-gray-800 pt-3">
+                  <iframe
+                    srcDoc={`<style>*{box-sizing:border-box;max-width:100%}body{margin:0;overflow-x:hidden}</style>${selectedHoliday.event.htmlContent}`}
+                    sandbox="allow-scripts allow-same-origin"
+                    className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white"
+                    style={{ minHeight: 120, maxHeight: "60vh", width: "100%" }}
+                    title={`${selectedHoliday.title} display`}
+                    onLoad={(e) => {
+                      const iframe = e.currentTarget;
+                      const doc = iframe.contentDocument;
+                      if (!doc?.body) return;
+                      const meta = doc.createElement("meta");
+                      meta.name = "viewport";
+                      meta.content = "width=device-width, initial-scale=1";
+                      doc.head.appendChild(meta);
+                      const maxH = window.innerHeight * 0.6;
+                      const resize = () => {
+                        const h = doc.body.scrollHeight + 16;
+                        iframe.style.height = Math.min(h, maxH) + "px";
+                      };
+                      resize();
+                      const ro = new ResizeObserver(resize);
+                      ro.observe(doc.body);
+                    }}
+                  />
+                </div>
+              )}
+              {selectedHoliday.event?.flyer && (() => {
+                const flyer = selectedHoliday.event.flyer;
+                const isImage = flyer.mimeType.startsWith("image/");
+                const isPdf = flyer.mimeType === "application/pdf";
+                return (
+                  <div className="border-t border-gray-100 dark:border-gray-800 pt-3">
+                    <div className="text-xs text-brand-grey mb-2 flex items-center gap-1">
+                      <FileText className="w-3 h-3" /> Flyer
+                    </div>
+                    {isImage ? (
+                      <img
+                        src={flyer.fileUrl}
+                        alt={flyer.fileName}
+                        className="w-full rounded-lg border border-gray-200 dark:border-gray-700"
+                      />
+                    ) : isPdf ? (
+                      <iframe
+                        src={flyer.fileUrl}
+                        className="w-full rounded-lg border border-gray-200 dark:border-gray-700"
+                        style={{ height: "60vh" }}
+                        title={flyer.fileName}
+                      />
+                    ) : (
+                      <a
+                        href={flyer.fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 text-sm text-brand-blue hover:underline"
+                      >
+                        <FileText className="w-4 h-4" />
+                        {flyer.fileName}
+                      </a>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           )}
         </DialogContent>
+          );
+        })()}
       </Dialog>
-
-      {selectedHoliday?.event?.flyer && (
-        <HolidayFlyerDialog
-          open={flyerOpen}
-          onClose={() => setFlyerOpen(false)}
-          fileUrl={selectedHoliday.event.flyer.fileUrl}
-          fileName={selectedHoliday.event.flyer.fileName}
-          mimeType={selectedHoliday.event.flyer.mimeType}
-          holidayTitle={selectedHoliday.title}
-        />
-      )}
     </motion.div>
   );
 }
