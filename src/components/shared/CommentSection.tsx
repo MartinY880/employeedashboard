@@ -170,6 +170,7 @@ function CommentBubble({
   onReplyClick,
   onAuthorClick,
   isReply = false,
+  readOnly = false,
 }: {
   comment: UnifiedComment;
   onDelete: (id: string) => void;
@@ -177,6 +178,7 @@ function CommentBubble({
   onReplyClick?: (id: string, authorName: string) => void;
   onAuthorClick?: (name: string) => void;
   isReply?: boolean;
+  readOnly?: boolean;
 }) {
   return (
     <div className={isReply ? "ml-8" : ""}>
@@ -203,25 +205,33 @@ function CommentBubble({
           </div>
           {/* Actions row: Like · Reply · Time · Delete */}
           <div className="flex items-center gap-2.5 mt-0.5 ml-2 text-[11px]">
-            <button
-              type="button"
-              onClick={() => onLike(comment.id)}
-              className={`font-semibold transition-colors ${
-                comment.userLiked
-                  ? "text-brand-blue"
-                  : "text-gray-400 dark:text-gray-500 hover:text-brand-blue"
-              }`}
-            >
-              {comment.likes > 0 ? (
-                <span className="flex items-center gap-0.5">
-                  <ThumbsUp className={`w-3 h-3 ${comment.userLiked ? "fill-brand-blue" : ""}`} />
-                  {comment.likes}
-                </span>
-              ) : (
-                "Like"
-              )}
-            </button>
-            {!isReply && onReplyClick && (
+            {!readOnly && (
+              <button
+                type="button"
+                onClick={() => onLike(comment.id)}
+                className={`font-semibold transition-colors ${
+                  comment.userLiked
+                    ? "text-brand-blue"
+                    : "text-gray-400 dark:text-gray-500 hover:text-brand-blue"
+                }`}
+              >
+                {comment.likes > 0 ? (
+                  <span className="flex items-center gap-0.5">
+                    <ThumbsUp className={`w-3 h-3 ${comment.userLiked ? "fill-brand-blue" : ""}`} />
+                    {comment.likes}
+                  </span>
+                ) : (
+                  "Like"
+                )}
+              </button>
+            )}
+            {readOnly && comment.likes > 0 && (
+              <span className="flex items-center gap-0.5 text-gray-400 dark:text-gray-500">
+                <ThumbsUp className="w-3 h-3" />
+                {comment.likes}
+              </span>
+            )}
+            {!readOnly && !isReply && onReplyClick && (
               <button
                 type="button"
                 onClick={() => onReplyClick(comment.id, comment.authorName)}
@@ -231,7 +241,7 @@ function CommentBubble({
               </button>
             )}
             <span className="text-gray-400 dark:text-gray-500">{getTimeAgo(comment.createdAt)}</span>
-            {comment.canDelete && (
+            {!readOnly && comment.canDelete && (
               <button
                 type="button"
                 onClick={() => onDelete(comment.id)}
@@ -256,12 +266,14 @@ function CommentWithReplies({
   onLike,
   onReplyClick,
   onAuthorClick,
+  readOnly = false,
 }: {
   comment: UnifiedComment;
   onDelete: (id: string) => void;
   onLike: (id: string) => void;
   onReplyClick: (id: string, authorName: string) => void;
   onAuthorClick?: (name: string) => void;
+  readOnly?: boolean;
 }) {
   return (
     <div>
@@ -271,10 +283,11 @@ function CommentWithReplies({
         onLike={onLike}
         onReplyClick={onReplyClick}
         onAuthorClick={onAuthorClick}
+        readOnly={readOnly}
       />
       {(comment.replies || []).map((r) => (
         <div key={r.id} className="mt-1.5">
-          <CommentBubble comment={r} onDelete={onDelete} onLike={onLike} onAuthorClick={onAuthorClick} isReply />
+          <CommentBubble comment={r} onDelete={onDelete} onLike={onLike} onAuthorClick={onAuthorClick} isReply readOnly={readOnly} />
         </div>
       ))}
     </div>
@@ -330,6 +343,8 @@ export interface CommentSectionProps {
   previewCount?: number;
   /** Start the section already expanded (comments load immediately) */
   initiallyExpanded?: boolean;
+  /** Read-only mode — display comments but hide input, reply, like, and delete actions */
+  readOnly?: boolean;
 }
 
 // ─── CommentSection (inline expandable) ─────────────────────
@@ -345,6 +360,7 @@ export function CommentSection({
   compact = false,
   previewCount,
   initiallyExpanded = false,
+  readOnly = false,
 }: CommentSectionProps) {
   const [comments, setComments] = useState<UnifiedComment[]>([]);
   const [loading, setLoading] = useState(false);
@@ -539,6 +555,7 @@ export function CommentSection({
                     onLike={handleLike}
                     onReplyClick={handleReplyClick}
                     onAuthorClick={handleAuthorClick}
+                    readOnly={readOnly}
                   />
                 ))}
               </div>
@@ -560,10 +577,11 @@ export function CommentSection({
                           onLike={handleLike}
                           onReplyClick={handleReplyClick}
                           onAuthorClick={handleAuthorClick}
+                          readOnly={readOnly}
                         />
                         {(c.replies || []).slice(0, repliesToShow).map((r) => (
                           <div key={r.id} className="mt-1.5">
-                            <CommentBubble comment={r} onDelete={handleDelete} onLike={handleLike} onAuthorClick={handleAuthorClick} isReply />
+                            <CommentBubble comment={r} onDelete={handleDelete} onLike={handleLike} onAuthorClick={handleAuthorClick} isReply readOnly={readOnly} />
                           </div>
                         ))}
                       </div>
@@ -589,6 +607,7 @@ export function CommentSection({
           )}
 
           {/* Always-visible comment input */}
+          {!readOnly && (
           <div className={compact ? "col-span-full" : ""}>
             {replyTo && (
               <ReplyIndicator replyTo={replyTo} onCancel={() => setReplyTo(null)} />
@@ -622,6 +641,7 @@ export function CommentSection({
               </Button>
             </form>
           </div>
+          )}
         </>
       ) : (
       /* ── Standard toggle mode (all other widgets) ── */
@@ -681,7 +701,7 @@ export function CommentSection({
                 </div>
               ) : comments.length === 0 && loaded ? (
                 <p className="text-[11px] text-gray-400 dark:text-gray-500 italic">
-                  No comments yet — be the first!
+                  {readOnly ? "No comments." : "No comments yet — be the first!"}
                 </p>
               ) : (() => {
                 const isPreviewMode = !!previewCount && !previewExpanded;
@@ -704,6 +724,7 @@ export function CommentSection({
                           onLike={handleLike}
                           onReplyClick={handleReplyClick}
                           onAuthorClick={handleAuthorClick}
+                          readOnly={readOnly}
                         />
                       ))}
                     </div>
@@ -720,10 +741,11 @@ export function CommentSection({
                 );
               })()}
 
-              {replyTo && (
+              {!readOnly && replyTo && (
                 <ReplyIndicator replyTo={replyTo} onCancel={() => setReplyTo(null)} />
               )}
 
+              {!readOnly && (
               <form onSubmit={handleSubmit} className="flex gap-1.5 items-center">
                 <div className="shrink-0 w-6 h-6 rounded-full bg-gradient-to-br from-brand-blue/70 to-brand-blue flex items-center justify-center text-white font-bold text-[9px]">
                   {currentUserInitial || <MessageCircle className="w-3 h-3" />}
@@ -751,6 +773,7 @@ export function CommentSection({
                   )}
                 </Button>
               </form>
+              )}
             </div>
           </motion.div>
         )}

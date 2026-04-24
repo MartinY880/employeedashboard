@@ -118,7 +118,7 @@ export interface Holiday {
 
 // ─── Ideas ────────────────────────────────────────────────
 
-export type IdeaStatus = "ACTIVE" | "SELECTED" | "IN_PROGRESS" | "COMPLETED" | "ARCHIVED";
+export type IdeaStatus = "ACTIVE" | "SELECTED" | "IN_PROGRESS" | "COMPLETED" | "ARCHIVED" | "DELETED" | "DELETED_BY_ADMIN";
 
 export interface Idea {
   id: string;

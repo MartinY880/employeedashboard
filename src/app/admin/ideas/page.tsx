@@ -63,7 +63,7 @@ interface IdeaItem {
   authorId: string;
   authorName: string;
   votes: number;
-  status: "ACTIVE" | "SELECTED" | "IN_PROGRESS" | "COMPLETED" | "ARCHIVED";
+  status: "ACTIVE" | "SELECTED" | "IN_PROGRESS" | "COMPLETED" | "ARCHIVED" | "DELETED" | "DELETED_BY_ADMIN";
   createdAt: string;
   updatedAt: string;
   commentCount?: number;
@@ -83,7 +83,9 @@ const STATUS_LABELS: Record<string, string> = {
   SELECTED: "Selected for Development",
   IN_PROGRESS: "In Progress",
   COMPLETED: "Completed",
-  ARCHIVED: "Deleted by User",
+  ARCHIVED: "Archived",
+  DELETED: "Deleted by User",
+  DELETED_BY_ADMIN: "Deleted by Admin",
 };
 
 const STATUS_STYLES: Record<string, string> = {
@@ -92,6 +94,8 @@ const STATUS_STYLES: Record<string, string> = {
   IN_PROGRESS: "bg-amber-100 text-amber-700",
   COMPLETED: "bg-violet-100 text-violet-700",
   ARCHIVED: "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400",
+  DELETED: "bg-red-100 dark:bg-red-900/30 text-red-500 dark:text-red-400",
+  DELETED_BY_ADMIN: "bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400",
 };
 
 const STATUS_ICON: Record<string, React.ReactNode> = {
@@ -100,6 +104,8 @@ const STATUS_ICON: Record<string, React.ReactNode> = {
   IN_PROGRESS: <Wrench className="w-3.5 h-3.5" />,
   COMPLETED: <CheckCircle2 className="w-3.5 h-3.5" />,
   ARCHIVED: <Archive className="w-3.5 h-3.5" />,
+  DELETED: <Trash2 className="w-3.5 h-3.5" />,
+  DELETED_BY_ADMIN: <Trash2 className="w-3.5 h-3.5" />,
 };
 
 /* ------------------------------------------------------------------ */
@@ -115,6 +121,8 @@ const STATUS_ORDER: Record<string, number> = {
   IN_PROGRESS: 2,
   COMPLETED: 3,
   ARCHIVED: 4,
+  DELETED: 5,
+  DELETED_BY_ADMIN: 6,
 };
 
 export default function AdminIdeasPage() {
@@ -177,12 +185,17 @@ export default function AdminIdeasPage() {
 
   const fetchIdeas = useCallback(async () => {
     try {
-      const url = filterStatus
+      // "DELETED_ALL" is a client-side virtual filter that fetches all and filters locally
+      const url = filterStatus && filterStatus !== "DELETED_ALL"
         ? `/api/ideas?status=${filterStatus}`
         : "/api/ideas";
       const res = await fetch(url);
       const data = await res.json();
-      setIdeas(data.ideas || []);
+      let fetched = data.ideas || [];
+      if (filterStatus === "DELETED_ALL") {
+        fetched = fetched.filter((i: IdeaItem) => i.status === "DELETED" || i.status === "DELETED_BY_ADMIN");
+      }
+      setIdeas(fetched);
     } catch {
       setIdeas([]);
     } finally {
@@ -196,7 +209,7 @@ export default function AdminIdeasPage() {
 
   async function handleStatusChange(
     idea: IdeaItem,
-    newStatus: "ACTIVE" | "SELECTED" | "IN_PROGRESS" | "COMPLETED" | "ARCHIVED"
+    newStatus: "ACTIVE" | "SELECTED" | "IN_PROGRESS" | "COMPLETED" | "ARCHIVED" | "DELETED" | "DELETED_BY_ADMIN"
   ) {
     setUpdatingId(idea.id);
     try {
@@ -217,7 +230,11 @@ export default function AdminIdeasPage() {
   async function handleDelete() {
     if (!deleteTarget) return;
     try {
-      await fetch(`/api/ideas?id=${deleteTarget.id}&hard=true`, { method: "DELETE" });
+      await fetch("/api/ideas", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: deleteTarget.id, status: "DELETED_BY_ADMIN" }),
+      });
       playNotify();
       setDeleteTarget(null);
       fetchIdeas();
@@ -238,7 +255,8 @@ export default function AdminIdeasPage() {
   const selectedCount = ideas.filter((i) => i.status === "SELECTED").length;
   const inProgressCount = ideas.filter((i) => i.status === "IN_PROGRESS").length;
   const completedCount = ideas.filter((i) => i.status === "COMPLETED").length;
-  const deletedByUsersCount = ideas.filter((i) => i.status === "ARCHIVED").length;
+  const archivedCount = ideas.filter((i) => i.status === "ARCHIVED").length;
+  const deletedCount = ideas.filter((i) => i.status === "DELETED" || i.status === "DELETED_BY_ADMIN").length;
 
   async function toggleComments(ideaId: string) {
     if (expandedIdea === ideaId) {
@@ -282,7 +300,8 @@ export default function AdminIdeasPage() {
     { label: "Selected", value: "SELECTED", count: selectedCount },
     { label: "In Progress", value: "IN_PROGRESS", count: inProgressCount },
     { label: "Completed", value: "COMPLETED", count: completedCount },
-    { label: "Deleted by Users", value: "ARCHIVED", count: deletedByUsersCount },
+    { label: "Archived", value: "ARCHIVED", count: archivedCount },
+    { label: "Deleted", value: "DELETED_ALL", count: deletedCount },
   ];
 
   return (
@@ -307,7 +326,7 @@ export default function AdminIdeasPage() {
           <div>
             <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Ideas Moderation</h1>
             <p className="text-xs text-brand-grey">
-              {ideas.length} total &middot; {activeCount} active &middot; {selectedCount} selected &middot; {inProgressCount} in progress &middot; {completedCount} completed &middot; {deletedByUsersCount} deleted by users
+              {ideas.length} total &middot; {activeCount} active &middot; {selectedCount} selected &middot; {inProgressCount} in progress &middot; {completedCount} completed &middot; {archivedCount} archived &middot; {deletedCount} deleted
             </p>
           </div>
         </div>
@@ -386,7 +405,7 @@ export default function AdminIdeasPage() {
                       exit={{ opacity: 0, x: -20 }}
                       transition={{ duration: 0.2, delay: i * 0.03 }}
                       className={`border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800 dark:hover:bg-gray-800 dark:bg-gray-800/50 transition-colors ${
-                        idea.status === "ARCHIVED" ? "opacity-50" : ""
+                        idea.status === "ARCHIVED" || idea.status === "DELETED" || idea.status === "DELETED_BY_ADMIN" ? "opacity-50" : ""
                       }`}
                     >
                       <TableCell>
@@ -461,7 +480,7 @@ export default function AdminIdeasPage() {
                               value={idea.status}
                               onValueChange={(val) => {
                                 playClick();
-                                handleStatusChange(idea, val as "ACTIVE" | "SELECTED" | "IN_PROGRESS" | "COMPLETED" | "ARCHIVED");
+                                handleStatusChange(idea, val as "ACTIVE" | "SELECTED" | "IN_PROGRESS" | "COMPLETED" | "ARCHIVED" | "DELETED" | "DELETED_BY_ADMIN");
                               }}
                             >
                               <SelectTrigger className="h-7 w-[180px] text-xs gap-1 border-gray-200 dark:border-gray-700">
@@ -496,6 +515,18 @@ export default function AdminIdeasPage() {
                                   <span className="flex items-center gap-1.5">
                                     <Archive className="w-3 h-3 text-gray-500" />
                                     Archived
+                                  </span>
+                                </SelectItem>
+                                <SelectItem value="DELETED">
+                                  <span className="flex items-center gap-1.5">
+                                    <Trash2 className="w-3 h-3 text-red-500" />
+                                    Deleted by User
+                                  </span>
+                                </SelectItem>
+                                <SelectItem value="DELETED_BY_ADMIN">
+                                  <span className="flex items-center gap-1.5">
+                                    <Trash2 className="w-3 h-3 text-orange-500" />
+                                    Deleted by Admin
                                   </span>
                                 </SelectItem>
                               </SelectContent>

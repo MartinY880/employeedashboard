@@ -309,6 +309,8 @@ enum IdeaStatus {
   IN_PROGRESS
   COMPLETED
   ARCHIVED
+  DELETED
+  DELETED_BY_ADMIN
 }
 
 enum VoteDirection {

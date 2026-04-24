@@ -21,6 +21,7 @@ import {
   Trash2,
   ArrowDownWideNarrow,
   Clock,
+  Archive,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,7 +47,7 @@ const TRENDING_THRESHOLD = 15;
 
 /* ─── Comment Thread (shared by IdeaCard + SelectedIdeaRow) ── */
 
-function CommentThread({ ideaId, commentCount }: { ideaId: string; commentCount: number }) {
+function CommentThread({ ideaId, commentCount, readOnly = false }: { ideaId: string; commentCount: number; readOnly?: boolean }) {
   const fetchComments = useCallback(async (entityId: string): Promise<UnifiedComment[]> => {
     const res = await fetch(`/api/ideas/comments?ideaId=${entityId}`);
     const data = await res.json();
@@ -83,6 +84,7 @@ function CommentThread({ ideaId, commentCount }: { ideaId: string; commentCount:
       onSubmit={submitComment}
       onLike={likeComment}
       onDelete={deleteComment}
+      readOnly={readOnly}
     />
   );
 }
@@ -292,6 +294,47 @@ function SelectedIdeaRow({ idea, onAuthorClick }: { idea: Idea; onAuthorClick?: 
   );
 }
 
+/* ─── Archived Idea Row (Read-Only — no votes, comments, or delete) ── */
+
+function ArchivedIdeaRow({ idea, onAuthorClick }: { idea: Idea; onAuthorClick?: (email?: string | null, name?: string) => void }) {
+  const timeAgo = getTimeAgo(idea.createdAt);
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -8 }}
+      animate={{ opacity: 1, x: 0 }}
+      className="flex items-start gap-2.5 p-3 rounded-lg bg-gray-50/60 dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700 opacity-70"
+    >
+      <div className="flex items-center justify-center w-5 h-5 rounded-full bg-gray-200 dark:bg-gray-700 shrink-0 mt-0.5">
+        <Archive className="w-3 h-3 text-gray-400 dark:text-gray-500" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-start gap-1.5 mb-0.5">
+          <span className="text-sm font-semibold text-gray-500 dark:text-gray-400 leading-tight break-words">
+            {idea.title}
+          </span>
+          <Badge
+            variant="secondary"
+            className="text-[9px] px-1.5 py-0 bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 font-semibold shrink-0"
+          >
+            Archived
+          </Badge>
+        </div>
+        <p className="text-xs text-gray-400 dark:text-gray-500 leading-relaxed mb-1.5 whitespace-pre-wrap break-words">
+          {renderMentionContent(idea.description)}
+        </p>
+        <div className="flex items-center gap-2 text-[11px] text-gray-400 dark:text-gray-500">
+          <button type="button" onClick={() => onAuthorClick?.(idea.authorEmail, idea.authorName)} className="font-medium text-gray-400 dark:text-gray-500 hover:text-brand-blue transition-colors cursor-pointer focus:outline-none">{idea.authorName}</button>
+          <span>·</span>
+          <span>{timeAgo}</span>
+          <span>·</span>
+          <span>{idea.votes} votes</span>
+        </div>
+        <CommentThread ideaId={idea.id} commentCount={idea.commentCount ?? 0} readOnly />
+      </div>
+    </motion.div>
+  );
+}
+
 /* ─── Submit Idea Form (Inline) ────────────────────────── */
 
 function SubmitIdeaForm({
@@ -410,7 +453,7 @@ export function BeBrilliantWidget() {
   const { playSuccess, playClick } = useSounds();
   const [showForm, setShowForm] = useState(false);
   const [justSubmitted, setJustSubmitted] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<"ACTIVE" | "SELECTED" | "IN_PROGRESS" | "COMPLETED">("ACTIVE");
+  const [statusFilter, setStatusFilter] = useState<"ACTIVE" | "SELECTED" | "IN_PROGRESS" | "COMPLETED" | "ARCHIVED">("ACTIVE");
   const [wallSort, setWallSort] = useState<"votes" | "recent">("votes");
   const [currentUserDbId, setCurrentUserDbId] = useState<string | null>(null);
   const [deletingIdeaId, setDeletingIdeaId] = useState<string | null>(null);
@@ -495,12 +538,12 @@ export function BeBrilliantWidget() {
     [voteIdea, triggerDebouncedSort]
   );
 
-  const visibleIdeas = ideas.filter((i) => i.status !== "ARCHIVED");
+  const visibleIdeas = ideas.filter((i) => i.status !== "DELETED" && i.status !== "DELETED_BY_ADMIN");
   const activeIdeas = visibleIdeas.filter((i) => i.status === "ACTIVE");
 
   // If the current filter tab has no ideas (e.g. all were archived), fall back to Active
   useEffect(() => {
-    if (statusFilter !== "ACTIVE" && visibleIdeas.filter((i) => i.status === statusFilter).length === 0) {
+    if (statusFilter !== "ACTIVE" && statusFilter !== "ARCHIVED" && visibleIdeas.filter((i) => i.status === statusFilter).length === 0) {
       setStatusFilter("ACTIVE");
     }
   }, [visibleIdeas, statusFilter]);
@@ -540,6 +583,14 @@ export function BeBrilliantWidget() {
 
   // Build the sorted list for the current tab
   const getSortedForTab = useCallback((): Idea[] => {
+    if (statusFilter === "ARCHIVED") {
+      const archived = [...ideas.filter((i) => i.status === "ARCHIVED")];
+      return archived.sort((a, b) =>
+        wallSort === "votes"
+          ? b.votes - a.votes
+          : new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+    }
     const pool = visibleIdeas.filter((i) => i.status === statusFilter);
     if (statusFilter === "ACTIVE") {
       return wallSort === "votes" ? orderedActive : recentSorted;
@@ -550,7 +601,7 @@ export function BeBrilliantWidget() {
         ? b.votes - a.votes
         : new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
-  }, [visibleIdeas, statusFilter, wallSort, orderedActive, recentSorted]);
+  }, [ideas, visibleIdeas, statusFilter, wallSort, orderedActive, recentSorted]);
 
   const handleSubmit = async (title: string, description: string) => {
     await submitIdea(title, description);
@@ -674,15 +725,18 @@ export function BeBrilliantWidget() {
           {/* Status Filter Chips */}
           {visibleIdeas.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
-              {(["ACTIVE", "SELECTED", "IN_PROGRESS", "COMPLETED"] as const).map((f) => {
-                const count = visibleIdeas.filter((i) => i.status === f).length;
+              {(["ACTIVE", "SELECTED", "IN_PROGRESS", "COMPLETED", "ARCHIVED"] as const).map((f) => {
+                const count = f === "ARCHIVED"
+                  ? ideas.filter((i) => i.status === "ARCHIVED").length
+                  : visibleIdeas.filter((i) => i.status === f).length;
                 if (count === 0 && f !== "ACTIVE") return null;
-                const labels: Record<string, string> = { ACTIVE: "Active", SELECTED: "Selected", IN_PROGRESS: "In Progress", COMPLETED: "Completed" };
+                const labels: Record<string, string> = { ACTIVE: "Active", SELECTED: "Selected", IN_PROGRESS: "In Progress", COMPLETED: "Completed", ARCHIVED: "Archived" };
                 const icons: Record<string, React.ReactNode> = {
                   ACTIVE: <Lightbulb className="w-3 h-3" />,
                   SELECTED: <Rocket className="w-3 h-3" />,
                   IN_PROGRESS: <Wrench className="w-3 h-3" />,
                   COMPLETED: <CheckCircle2 className="w-3 h-3" />,
+                  ARCHIVED: <Archive className="w-3 h-3" />,
                 };
                 return (
                   <button
@@ -707,7 +761,7 @@ export function BeBrilliantWidget() {
           )}
 
           {/* Sort Toggle — shown on all tabs */}
-          {visibleIdeas.filter((i) => i.status === statusFilter).length > 0 && (
+          {(statusFilter === "ARCHIVED" ? ideas.filter((i) => i.status === "ARCHIVED").length > 0 : visibleIdeas.filter((i) => i.status === statusFilter).length > 0) && (
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">Sort:</span>
               <button
@@ -869,6 +923,39 @@ export function BeBrilliantWidget() {
               IN_PROGRESS: { label: "Ideas in Motion", icon: <Wrench className="w-3.5 h-3.5" />, color: "text-amber-600" },
               COMPLETED: { label: "Completed Ideas", icon: <CheckCircle2 className="w-3.5 h-3.5" />, color: "text-violet-600" },
             };
+
+            // Archived tab — view only, no interactions
+            if (statusFilter === "ARCHIVED") {
+              return (
+                <>
+                  <section>
+                    <h4 className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                      <Archive className="w-3.5 h-3.5" />
+                      Archived Ideas
+                    </h4>
+                    <div className="space-y-1.5">
+                      {paged.map((idea) => (
+                        <ArchivedIdeaRow key={idea.id} idea={idea} onAuthorClick={handleAuthorClick} />
+                      ))}
+                    </div>
+                  </section>
+                  {hasMore && (
+                    <div className="flex justify-center pt-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => { playClick(); setVisibleCount((c) => c + batchSize); }}
+                        className="h-8 text-xs border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:text-brand-blue hover:border-brand-blue/40 gap-1.5"
+                      >
+                        View More
+                        <span className="text-[10px] text-gray-400 dark:text-gray-500">({allForTab.length - visibleCount} remaining)</span>
+                      </Button>
+                    </div>
+                  )}
+                </>
+              );
+            }
+
             const heading = tabHeadings[statusFilter];
 
             return (

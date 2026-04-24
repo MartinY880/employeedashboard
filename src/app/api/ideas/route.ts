@@ -8,14 +8,16 @@ import { getAuthUser } from "@/lib/logto";
 import { hasPermission, PERMISSIONS } from "@/lib/rbac";
 import { createNotification } from "@/lib/notifications";
 import { extractMentions, mentionDisplayLength, stripMentionMarkup } from "@/lib/mentions";
+import { IdeaStatus } from "@/generated/prisma/client";
 
 export async function GET(request: Request) {
   try {
     const { isAuthenticated, user } = await getAuthUser();
     const { searchParams } = new URL(request.url);
     const countOnly = searchParams.get("count") === "true";
-    const status = searchParams.get("status"); // ACTIVE, SELECTED, IN_PROGRESS, COMPLETED, ARCHIVED, or null for all
-    const where = status ? { status: status as "ACTIVE" | "SELECTED" | "IN_PROGRESS" | "COMPLETED" | "ARCHIVED" } : {};
+    const status = searchParams.get("status");
+    const validStatuses = Object.values(IdeaStatus) as string[];
+    const where = status && validStatuses.includes(status) ? { status: status as IdeaStatus } : {};
 
     if (countOnly) {
       const count = await prisma.idea.count({ where });
@@ -237,14 +239,14 @@ export async function PATCH(request: Request) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
 
-      const validStatuses = ["ACTIVE", "SELECTED", "IN_PROGRESS", "COMPLETED", "ARCHIVED"];
-      if (!validStatuses.includes(status)) {
+      const patchValidStatuses = Object.values(IdeaStatus) as string[];
+      if (!patchValidStatuses.includes(status)) {
         return NextResponse.json({ error: "Invalid status" }, { status: 400 });
       }
 
       const idea = await prisma.idea.update({
         where: { id },
-        data: { status },
+        data: { status: status as IdeaStatus },
       });
 
       // Send notification + email for stage transitions (not ACTIVE or ARCHIVED)
@@ -330,10 +332,11 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ success: true, deleted: "hard" });
     }
 
-    // Default behavior: soft-delete into ARCHIVED (visible in admin, hidden from widget).
+    // User soft-delete → DELETED; admin soft-delete → DELETED_BY_ADMIN.
+    const softStatus = isAdmin && !isAuthor ? "DELETED_BY_ADMIN" : "DELETED";
     await prisma.idea.update({
       where: { id },
-      data: { status: "ARCHIVED" },
+      data: { status: softStatus },
     });
     return NextResponse.json({ success: true, deleted: "soft" });
   } catch {
