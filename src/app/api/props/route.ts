@@ -49,7 +49,6 @@ export async function GET(request: Request) {
         },
       },
       orderBy: { createdAt: "desc" },
-      take: 30,
     });
 
     const propsIds = props.map((k) => k.id);

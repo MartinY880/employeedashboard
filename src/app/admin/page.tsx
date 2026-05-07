@@ -30,6 +30,7 @@ import {
   PartyPopper,
   KeyRound,
   BarChart3,
+  Clock,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PERMISSIONS, ROUTE_PERMISSION } from "@/lib/rbac";
@@ -314,6 +315,16 @@ const adminPages = [
     color: "text-emerald-600",
     bgColor: "bg-emerald-50",
     permission: PERMISSIONS.MANAGE_ACTIVE_PIPELINE,
+  },
+  {
+    title: "Licensed States Visibility",
+    description: "Show or hide individual US states and regions in the widget on the dashboard.",
+    icon: Clock,
+    href: "/admin/timezone",
+    badge: "Visibility",
+    color: "text-brand-blue",
+    bgColor: "bg-blue-50",
+    permission: PERMISSIONS.MANAGE_TIMEZONE,
   },
 ];
 

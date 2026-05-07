@@ -27,7 +27,9 @@ export function TrophyCase() {
     const badgeCounts: Record<string, number> = {};
     PRAISE_BADGES.forEach((b) => (badgeCounts[b.key] = 0));
 
-    // Count awards per person (leaderboard)
+    // Count awards per person (leaderboard) — last 30 days only
+    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const recentProps = props.filter((k) => new Date(k.createdAt).getTime() >= thirtyDaysAgo);
     const peopleCounts: Record<string, { name: string; count: number; badges: Set<string> }> = {};
 
     props.forEach((k) => {
@@ -37,21 +39,24 @@ export function TrophyCase() {
       if (currentUserId && k.recipientId === currentUserId) {
         badgeCounts[badge] = (badgeCounts[badge] || 0) + 1;
       }
+    });
 
+    recentProps.forEach((k) => {
+      const badge = k.badge || "mvp";
       const recipName = k.recipient?.displayName || "Unknown";
       if (!peopleCounts[recipName]) {
         peopleCounts[recipName] = { name: recipName, count: 0, badges: new Set() };
       }
       peopleCounts[recipName].count++;
       peopleCounts[recipName].badges.add(badge);
-    });
+    }); // end recentProps.forEach
 
     // Top recipients
     const leaderboard = Object.values(peopleCounts)
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
 
-    // Count how many the current user received (dev user = "John Doe")
+    // Count how many the current user received/given (all time)
     const myReceivedCount = currentUserId
       ? props.filter((k) => k.recipientId === currentUserId).length
       : 0;

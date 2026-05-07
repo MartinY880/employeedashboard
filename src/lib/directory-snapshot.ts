@@ -354,6 +354,7 @@ export async function getSnapshotUserCount(): Promise<number> {
     FROM directory_snapshots
     WHERE department IS NOT NULL AND TRIM(department) <> ''
       AND job_title IS NOT NULL AND TRIM(job_title) <> ''
+      AND UPPER(TRIM(COALESCE(office_location, ''))) <> 'EXCLUDE'
   `;
   return Number(rows[0]?.count ?? BigInt(0));
 }
@@ -377,6 +378,7 @@ export async function getSnapshotFlatUsers(): Promise<GraphUser[]> {
     FROM directory_snapshots
     WHERE department IS NOT NULL AND TRIM(department) <> ''
       AND job_title IS NOT NULL AND TRIM(job_title) <> ''
+      AND UPPER(TRIM(COALESCE(office_location, ''))) <> 'EXCLUDE'
     ORDER BY display_name ASC
   `;
 
@@ -416,6 +418,7 @@ export async function searchSnapshotUsers(search: string, limit = 10): Promise<G
     WHERE
       (department IS NOT NULL AND TRIM(department) <> '')
       AND (job_title IS NOT NULL AND TRIM(job_title) <> '')
+      AND UPPER(TRIM(COALESCE(office_location, ''))) <> 'EXCLUDE'
       AND (
         display_name ILIKE ${query}
         OR COALESCE(mail, '') ILIKE ${query}
@@ -530,15 +533,18 @@ export async function getSnapshotTreeUsers(): Promise<GraphUser[]> {
       fax_number AS "faxNumber",
       manager_id AS "managerId"
     FROM directory_snapshots
-    WHERE (
-      department IS NOT NULL AND TRIM(department) <> ''
-      AND job_title IS NOT NULL AND TRIM(job_title) <> ''
-    )
-    OR LOWER(job_title) LIKE '%managing partner%'
-    OR LOWER(display_name) IN (
-      'george abro', 'nathan shamo', 'andrew shamo',
-      'anthony karana', 'kevin kajy', 'donovan shaow'
-    )
+    WHERE UPPER(TRIM(COALESCE(office_location, ''))) <> 'EXCLUDE'
+      AND (
+        (
+          department IS NOT NULL AND TRIM(department) <> ''
+          AND job_title IS NOT NULL AND TRIM(job_title) <> ''
+        )
+        OR LOWER(job_title) LIKE '%managing partner%'
+        OR LOWER(display_name) IN (
+          'george abro', 'nathan shamo', 'andrew shamo',
+          'anthony karana', 'kevin kajy', 'donovan shaow'
+        )
+      )
     ORDER BY display_name ASC
   `;
 

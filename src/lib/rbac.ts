@@ -26,6 +26,7 @@ export const PERMISSIONS = {
   MANAGE_ROLE_MAPPINGS: "manage:role_mappings",
   MANAGE_SALESFORCE_REPORT: "manage:salesforce_report",
   MANAGE_ACTIVE_PIPELINE: "manage:active_pipeline",
+  MANAGE_TIMEZONE: "manage:timezone",
   VIEW_AS_USER: "view:as_user",
 } as const;
 
@@ -58,6 +59,7 @@ export const ROUTE_PERMISSION: Record<string, Permission> = {
   "/admin/role-mappings": PERMISSIONS.MANAGE_ROLE_MAPPINGS,
   "/admin/salesforce-report": PERMISSIONS.MANAGE_SALESFORCE_REPORT,
   "/admin/active-pipeline": PERMISSIONS.MANAGE_ACTIVE_PIPELINE,
+  "/admin/timezone": PERMISSIONS.MANAGE_TIMEZONE,
 };
 
 // ─── Fallback: derive permissions from role when Logto API Resource isn't configured ───

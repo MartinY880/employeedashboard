@@ -76,7 +76,7 @@ export function EmployeeHighlight() {
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: "easeOut" }}
-        className="h-full flex flex-col bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden"
+        className="lg:h-full flex flex-col bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden"
       >
         {/* Header */}
         <div className="px-3.5 py-2 bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-950/40 dark:to-yellow-950/30 border-b border-amber-100 dark:border-amber-900 border-t-[3px] border-t-amber-400 flex items-center gap-2">
@@ -87,8 +87,8 @@ export function EmployeeHighlight() {
           <Sparkles className="w-3.5 h-3.5 text-amber-400 ml-auto" />
         </div>
 
-        {/* Content */}
-        <div className="flex-1 min-h-0 p-3 flex flex-col justify-center gap-2 overflow-hidden">
+        {/* Content — removed min-h-0 so card auto-sizes on mobile */}
+        <div className="lg:flex-1 p-3 flex flex-col lg:justify-center gap-2">
           {/* Avatar + name row */}
           <div className="flex items-center gap-3 shrink-0">
             <button
@@ -124,8 +124,8 @@ export function EmployeeHighlight() {
             </div>
           </div>
 
-          {/* Subtitle */}
-          <p className="text-[11.5px] text-gray-600 dark:text-gray-400 leading-relaxed whitespace-pre-wrap break-words overflow-y-auto min-h-0">
+          {/* Subtitle — 200 char max enforced server-side, no truncation needed */}
+          <p className="text-[11.5px] text-gray-600 dark:text-gray-400 leading-relaxed whitespace-pre-wrap break-words">
             {highlight.subtitle}
           </p>
         </div>

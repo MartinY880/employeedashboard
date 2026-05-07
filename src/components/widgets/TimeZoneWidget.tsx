@@ -1,6 +1,7 @@
 // ProConnect — Time Zone Widget
 // Sits in a narrow, tall column (col 4, row-span-2) on the dashboard.
 // Shows all 50 states + DC in a paginated two-column list that fills the available height.
+// State visibility is controlled from /admin/timezone.
 
 "use client";
 
@@ -148,6 +149,7 @@ export function TimeZoneWidget() {
   const [now, setNow] = useState<Date | null>(null);
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(0);
+  const [hiddenStates, setHiddenStates] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     setNow(new Date());
@@ -155,8 +157,25 @@ export function TimeZoneWidget() {
     return () => clearInterval(id);
   }, []);
 
+  useEffect(() => {
+    fetch("/api/timezone-visibility")
+      .then((r) => r.ok ? r.json() : {})
+      .then((data: Record<string, boolean>) => {
+        const hidden = new Set<string>();
+        for (const [name, visible] of Object.entries(data)) {
+          if (!visible) hidden.add(name);
+        }
+        setHiddenStates(hidden);
+      })
+      .catch(() => { /* keep all states visible */ });
+  }, []);
+
+  const visibleStates = hiddenStates.size > 0
+    ? STATES.filter((s) => !hiddenStates.has(s.name))
+    : STATES;
+
   const filtered = query.trim()
-    ? STATES.filter((s) => {
+    ? visibleStates.filter((s) => {
         const q = query.trim().toLowerCase();
         const baseName = s.name.split(" (")[0];
         const baseLower = baseName.toLowerCase();
@@ -167,7 +186,7 @@ export function TimeZoneWidget() {
         }
         return baseLower.startsWith(q);
       })
-    : STATES;
+    : visibleStates;
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
   const safePage = Math.min(page, totalPages - 1);
@@ -189,7 +208,7 @@ export function TimeZoneWidget() {
       <div className="px-3.5 py-2 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 border-t-[3px] border-t-brand-blue flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2 min-w-0">
           <Clock className="w-3.5 h-3.5 text-brand-blue shrink-0" />
-          <h3 className="text-sm font-bold text-brand-blue tracking-wide uppercase leading-none">US Time Zones</h3>
+          <h3 className="text-sm font-bold text-brand-blue tracking-wide uppercase leading-none">Licensed States</h3>
         </div>
         {totalPages > 1 && (
           <div className="flex items-center gap-1">
