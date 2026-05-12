@@ -55,7 +55,7 @@ export async function GET(request: Request) {
     const commentCounts = propsIds.length
       ? await prisma.propsComment.groupBy({
           by: ["propsId"],
-          where: { propsId: { in: propsIds } },
+          where: { propsId: { in: propsIds }, deletedAt: null },
           _count: { id: true },
         })
       : [];
@@ -294,7 +294,7 @@ export async function POST(request: Request) {
       type: "PROPS",
       title: "You received props! \uD83C\uDF89",
       message: `${authResult.user.name} gave you props: "${content}"`,
-      metadata: { senderName: authResult.user.name, propsId: props.id },
+      metadata: { sourceType: "props", sourceId: props.id, senderName: authResult.user.name, propsId: props.id },
     }).catch((err) => console.error("[Props] notification error:", err));
 
     return NextResponse.json({ props }, { status: 201 });

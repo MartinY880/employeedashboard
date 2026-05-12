@@ -176,7 +176,7 @@ export async function POST(request: Request) {
             type: "MENTION",
             title: "You were mentioned in a post",
             message: `${post.author.displayName} mentioned you in a MyShare post: "${plainCaption}"`,
-            metadata: { postId: post.id },
+            metadata: { sourceType: "myshare", sourceId: post.id, postId: post.id },
           });
         }
       }

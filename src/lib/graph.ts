@@ -493,35 +493,59 @@ export async function getUserCount(): Promise<number> {
  * Get a user's profile photo as a Buffer (binary JPEG/PNG from Graph API)
  * Returns null if user has no photo or on error.
  */
+const PHOTO_SIZES = [
+  "648x648",
+  "504x504",
+  "432x432",
+  "360x360",
+  "240x240",
+  "120x120",
+  "96x96",
+  "64x64",
+  "48x48",
+] as const;
+
+export type PhotoSize = typeof PHOTO_SIZES[number];
+
 export async function getUserPhoto(
   userId: string,
-  size: "48x48" | "64x64" | "96x96" | "120x120" | "240x240" | "360x360" | "432x432" | "504x504" | "648x648" = "120x120"
+  size: PhotoSize = "648x648"
 ): Promise<{ data: Buffer; contentType: string } | null> {
-  try {
-    const client = await getGraphClient();
-    const response = await client
-      .api(`/users/${userId}/photos/${size}/$value`)
-      .responseType("arraybuffer" as import("@microsoft/microsoft-graph-client").ResponseType)
-      .get();
+  const client = await getGraphClient();
 
-    return {
-      data: Buffer.from(response),
-      contentType: "image/jpeg",
-    };
-  } catch (error: unknown) {
-    const statusCode =
-      typeof error === "object" && error !== null && "statusCode" in error
-        ? Number((error as { statusCode?: number }).statusCode)
-        : undefined;
+  // Try the requested size, then fall back to progressively smaller sizes
+  const startIndex = PHOTO_SIZES.indexOf(size);
+  const sizesToTry = startIndex >= 0 ? PHOTO_SIZES.slice(startIndex) : PHOTO_SIZES;
 
-    if (statusCode === 404) {
-      // User has no photo set
-      return null;
+  for (const candidate of sizesToTry) {
+    try {
+      const response = await client
+        .api(`/users/${userId}/photos/${candidate}/$value`)
+        .responseType("arraybuffer" as import("@microsoft/microsoft-graph-client").ResponseType)
+        .get();
+
+      return {
+        data: Buffer.from(response),
+        contentType: "image/jpeg",
+      };
+    } catch (error: unknown) {
+      const statusCode =
+        typeof error === "object" && error !== null && "statusCode" in error
+          ? Number((error as { statusCode?: number }).statusCode)
+          : undefined;
+
+      if (statusCode === 404) {
+        // This size not available — try next smaller size
+        continue;
+      }
+
+      // Transient/permission/throttling/etc. should not be treated as permanent "no photo"
+      throw error;
     }
-
-    // Transient/permission/throttling/etc. should not be treated as permanent "no photo"
-    throw error;
   }
+
+  // No size available — user has no photo
+  return null;
 }
 
 // ─── OOO Functions ────────────────────────────────────────

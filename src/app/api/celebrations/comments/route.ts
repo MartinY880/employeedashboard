@@ -19,11 +19,12 @@ export async function GET(request: Request) {
     }
 
     const comments = await prisma.celebrationComment.findMany({
-      where: { celebrationId, parentId: null },
+      where: { celebrationId, parentId: null, deletedAt: null },
       orderBy: { createdAt: "asc" },
       include: {
         author: { select: { displayName: true } },
         replies: {
+          where: { deletedAt: null },
           orderBy: { createdAt: "asc" },
           include: { author: { select: { displayName: true } } },
         },
@@ -100,7 +101,7 @@ export async function POST(request: Request) {
     }
 
     if (parentId) {
-      const parent = await prisma.celebrationComment.findFirst({ where: { id: parentId, celebrationId } });
+      const parent = await prisma.celebrationComment.findFirst({ where: { id: parentId, celebrationId, deletedAt: null } });
       if (!parent) {
         return NextResponse.json({ error: "Parent comment not found" }, { status: 404 });
       }
@@ -155,7 +156,7 @@ export async function POST(request: Request) {
             type: "CELEBRATION_REPLY",
             title: "New reply on your comment",
             message: `${commenterName} replied to your comment on ${subjectLabel}: "${plainContent}"`,
-            metadata: { celebrationId, commentId: comment.id },
+            metadata: { sourceType: "celebration", sourceId: celebrationId, celebrationId, commentId: comment.id },
           });
         }
       }
@@ -189,7 +190,7 @@ export async function POST(request: Request) {
             type: "MENTION",
             title: "You were mentioned in a comment",
             message: `${commenterName} mentioned you in a Celebrations comment: "${plainContent}"`,
-            metadata: { celebrationId, commentId: comment.id },
+            metadata: { sourceType: "celebration", sourceId: celebrationId, celebrationId, commentId: comment.id },
           });
         }
       }
@@ -277,12 +278,14 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Count replies to decrement comment count accurately
-    const replyCount = await prisma.celebrationComment.count({ where: { parentId: id } });
+    // Count non-deleted replies to decrement comment count accurately
+    const replyCount = await prisma.celebrationComment.count({ where: { parentId: id, deletedAt: null } });
 
     await removeCommentHashtags(prisma, id, "CELEBRATION");
+    const now = new Date();
     await prisma.$transaction([
-      prisma.celebrationComment.delete({ where: { id } }),
+      prisma.celebrationComment.update({ where: { id }, data: { deletedAt: now } }),
+      prisma.celebrationComment.updateMany({ where: { parentId: id, deletedAt: null }, data: { deletedAt: now } }),
       prisma.celebrationEvent.update({
         where: { id: comment.celebrationId },
         data: { commentCount: { decrement: 1 + replyCount } },

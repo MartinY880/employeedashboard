@@ -115,7 +115,7 @@ export async function POST(
             type: "MYSHARE_REPLY",
             title: "New reply on your comment",
             message: `${dbUser.displayName} replied to your comment.`,
-            metadata: { postId },
+            metadata: { sourceType: "myshare", sourceId: postId, postId },
           });
         }
       } else {
@@ -131,7 +131,7 @@ export async function POST(
             type: "MYSHARE_COMMENT",
             title: "New comment on your post",
             message: `${dbUser.displayName} commented on your post.`,
-            metadata: { postId },
+            metadata: { sourceType: "myshare", sourceId: postId, postId },
           });
         }
       }
@@ -179,7 +179,7 @@ export async function POST(
             type: "MENTION",
             title: "You were mentioned in a comment",
             message: `${dbUser.displayName} mentioned you in a MyShare comment: "${mentionDisplay}"`,
-            metadata: { postId, commentId: comment.id },
+            metadata: { sourceType: "myshare", sourceId: postId, postId, commentId: comment.id },
           });
         }
       }

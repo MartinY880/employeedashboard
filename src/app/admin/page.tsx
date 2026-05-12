@@ -326,6 +326,16 @@ const adminPages = [
     bgColor: "bg-blue-50",
     permission: PERMISSIONS.MANAGE_TIMEZONE,
   },
+  {
+    title: "Comment Moderation",
+    description: "View all comments across every widget — filter by section, date, and status. Restore or delete comments.",
+    icon: MessageCircle,
+    href: "/admin/comments",
+    badge: "Moderate",
+    color: "text-violet-500",
+    bgColor: "bg-violet-50",
+    permission: PERMISSIONS.MANAGE_COMMENTS,
+  },
 ];
 
 export default function AdminPage() {

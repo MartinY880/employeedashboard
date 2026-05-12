@@ -29,7 +29,7 @@ export async function GET(request: Request) {
       orderBy: [{ votes: "desc" }, { createdAt: "desc" }],
       include: {
         author: { select: { displayName: true, email: true } },
-        _count: { select: { comments: true } },
+        _count: { select: { comments: { where: { deletedAt: null } } } },
       },
     });
 
@@ -132,7 +132,7 @@ export async function POST(request: Request) {
           type: "MENTION",
           title: "You were mentioned in an idea",
           message: `${ideaAuthorName} mentioned you in a Be Brilliant idea: "${plainDescription}"`,
-          metadata: { ideaId: idea.id },
+          metadata: { sourceType: "idea", sourceId: idea.id, ideaId: idea.id },
         });
       }
     } catch (err) {
@@ -276,7 +276,7 @@ export async function PATCH(request: Request) {
           type: notifConfig.type,
           title: notifConfig.title,
           message: notifConfig.message(idea.title),
-          metadata: { ideaId: idea.id, title: idea.title, status },
+          metadata: { sourceType: "idea", sourceId: idea.id, ideaId: idea.id, title: idea.title, status },
         }).catch((err) => console.error("[Ideas] notification error:", err));
       }
 

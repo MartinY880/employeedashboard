@@ -134,7 +134,7 @@ export async function POST(req: NextRequest) {
           type: "HIGHLIGHT",
           title: "You're in the spotlight! \u2B50",
           message: `You've been featured as an Employee Highlight: "${title}"`,
-          metadata: { highlightId: highlight.id, title },
+          metadata: { sourceType: "highlight", sourceId: highlight.id, highlightId: highlight.id, title },
         }).catch((err) => console.error("[Highlights] notification error:", err));
       }
     }

@@ -23,11 +23,12 @@ export async function GET(request: Request) {
 
     // Fetch top-level comments with their replies (one level deep)
     const comments = await prisma.videoSpotlightComment.findMany({
-      where: { videoId, parentId: null },
+      where: { videoId, parentId: null, deletedAt: null },
       orderBy: { createdAt: "asc" },
       include: {
         author: { select: { displayName: true } },
         replies: {
+          where: { deletedAt: null },
           orderBy: { createdAt: "asc" },
           include: { author: { select: { displayName: true } } },
         },
@@ -115,7 +116,7 @@ export async function POST(request: Request) {
 
     // If replying, verify parent exists and belongs to the same video
     if (parentId) {
-      const parent = await prisma.videoSpotlightComment.findFirst({ where: { id: parentId, videoId } });
+      const parent = await prisma.videoSpotlightComment.findFirst({ where: { id: parentId, videoId, deletedAt: null } });
       if (!parent) {
         return NextResponse.json({ error: "Parent comment not found" }, { status: 404 });
       }
@@ -153,7 +154,7 @@ export async function POST(request: Request) {
             type: "MENTION",
             title: "New reply on your comment",
             message: `${commenterName} replied to your comment on a Video Spotlight: "${plainContent}"`,
-            metadata: { videoId, commentId: comment.id },
+            metadata: { sourceType: "video-spotlight", sourceId: videoId, videoId, commentId: comment.id },
           });
         }
       }
@@ -187,7 +188,7 @@ export async function POST(request: Request) {
             type: "MENTION",
             title: "You were mentioned in a comment",
             message: `${commenterName} mentioned you in a Video Spotlight comment: "${plainContent}"`,
-            metadata: { videoId, commentId: comment.id },
+            metadata: { sourceType: "video-spotlight", sourceId: videoId, videoId, commentId: comment.id },
           });
         }
       }
@@ -294,7 +295,7 @@ export async function DELETE(request: Request) {
     }
 
     await removeCommentHashtags(prisma, id, "VIDEO");
-    await prisma.videoSpotlightComment.delete({ where: { id } });
+    await prisma.videoSpotlightComment.update({ where: { id }, data: { deletedAt: new Date() } });
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ error: "Failed to delete comment" }, { status: 500 });

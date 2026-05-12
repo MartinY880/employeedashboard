@@ -95,6 +95,7 @@ model PropsComment {
   parentId     String?
   likes        Int                @default(0)
   createdAt    DateTime           @default(now())
+  deletedAt    DateTime?          @map("deleted_at")
   props        PropsMessage       @relation(fields: [propsId], references: [id], onDelete: Cascade)
   author       User               @relation("PropsCommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
   parent       PropsComment?      @relation("PropsCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
@@ -104,6 +105,7 @@ model PropsComment {
   @@index([propsId, createdAt])
   @@index([parentId])
   @@index([authorId])
+  @@index([deletedAt])
   @@map("props_comments")
 }
 
@@ -180,6 +182,7 @@ model IdeaComment {
   parentId     String?
   likes        Int                @default(0)
   createdAt    DateTime           @default(now())
+  deletedAt    DateTime?          @map("deleted_at")
   idea         Idea               @relation(fields: [ideaId], references: [id], onDelete: Cascade)
   author       User               @relation("IdeaCommentAuthor", fields: [userId], references: [id], onDelete: Cascade)
   parent       IdeaComment?       @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
@@ -189,6 +192,7 @@ model IdeaComment {
   @@index([ideaId, createdAt])
   @@index([userId])
   @@index([parentId])
+  @@index([deletedAt])
   @@map("idea_comments")
 }
 
@@ -664,6 +668,7 @@ model VideoSpotlightComment {
   parentId     String?
   likes        Int                          @default(0)
   createdAt    DateTime                     @default(now())
+  deletedAt    DateTime?                    @map("deleted_at")
   video        VideoSpotlight               @relation(fields: [videoId], references: [id], onDelete: Cascade)
   author       User                         @relation("VideoSpotlightCommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
   parent       VideoSpotlightComment?       @relation("VideoCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
@@ -672,6 +677,7 @@ model VideoSpotlightComment {
 
   @@index([videoId, createdAt])
   @@index([parentId])
+  @@index([deletedAt])
   @@map("video_spotlight_comments")
 }
 
@@ -880,13 +886,14 @@ model CelebrationEvent {
 }
 
 model CelebrationComment {
-  id            String   @id @default(cuid())
-  celebrationId String   @map("celebration_id")
-  authorId      String   @map("author_id")
+  id            String    @id @default(cuid())
+  celebrationId String    @map("celebration_id")
+  authorId      String    @map("author_id")
   content       String
-  parentId      String?  @map("parent_id")
-  likes         Int      @default(0)
-  createdAt     DateTime @default(now()) @map("created_at")
+  parentId      String?   @map("parent_id")
+  likes         Int       @default(0)
+  createdAt     DateTime  @default(now()) @map("created_at")
+  deletedAt     DateTime? @map("deleted_at")
 
   celebration   CelebrationEvent        @relation(fields: [celebrationId], references: [id], onDelete: Cascade)
   author        User                    @relation("CelebrationCommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
@@ -896,6 +903,7 @@ model CelebrationComment {
 
   @@index([celebrationId, createdAt])
   @@index([parentId])
+  @@index([deletedAt])
   @@map("celebration_comments")
 }
 

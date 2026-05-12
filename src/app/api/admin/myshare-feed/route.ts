@@ -20,8 +20,9 @@ export async function GET() {
       include: {
         author: { select: { id: true, displayName: true, email: true } },
         media: { orderBy: { sortOrder: "asc" }, select: { id: true, fileUrl: true, mimeType: true } },
-        _count: { select: { likes: true, comments: true } },
+        _count: { select: { likes: true, comments: { where: { deletedAt: null } } } },
         comments: {
+          where: { deletedAt: null },
           orderBy: { createdAt: "asc" },
           include: {
             author: { select: { id: true, displayName: true, email: true } },
@@ -71,7 +72,7 @@ export async function DELETE(request: Request) {
     const commentId = searchParams.get("commentId");
 
     if (commentId) {
-      await prisma.myShareComment.delete({ where: { id: commentId } });
+      await prisma.myShareComment.update({ where: { id: commentId }, data: { deletedAt: new Date() } });
       return NextResponse.json({ ok: true });
     }
 

@@ -20,11 +20,12 @@ export async function GET(request: Request) {
 
     // Fetch top-level comments with their replies (one level deep)
     const comments = await prisma.ideaComment.findMany({
-      where: { ideaId, parentId: null },
+      where: { ideaId, parentId: null, deletedAt: null },
       orderBy: { createdAt: "asc" },
       include: {
         author: { select: { displayName: true } },
         replies: {
+          where: { deletedAt: null },
           orderBy: { createdAt: "asc" },
           include: { author: { select: { displayName: true } } },
         },
@@ -104,7 +105,7 @@ export async function POST(request: Request) {
 
     // If replying, verify parent exists and belongs to the same idea
     if (parentId) {
-      const parent = await prisma.ideaComment.findFirst({ where: { id: parentId, ideaId } });
+      const parent = await prisma.ideaComment.findFirst({ where: { id: parentId, ideaId, deletedAt: null } });
       if (!parent) {
         return NextResponse.json({ error: "Parent comment not found" }, { status: 404 });
       }
@@ -162,7 +163,7 @@ export async function POST(request: Request) {
               type: "IDEA_REPLY",
               title: "New Reply to Your Comment",
               message: `${commenterName} replied to your comment on "${idea.title}": "${plainContent}"`,
-              metadata: { ideaId, commentId: comment.id },
+              metadata: { sourceType: "idea", sourceId: ideaId, ideaId, commentId: comment.id },
             });
             alreadyNotified.add(parentComment.userId);
           }
@@ -181,7 +182,7 @@ export async function POST(request: Request) {
               type: "IDEA_COMMENT",
               title: "New Comment on Your Idea",
               message: `${commenterName} commented on your idea "${idea.title}": "${plainContent}"`,
-              metadata: { ideaId, commentId: comment.id },
+              metadata: { sourceType: "idea", sourceId: ideaId, ideaId, commentId: comment.id },
             });
             alreadyNotified.add(idea.userId);
           }
@@ -198,7 +199,7 @@ export async function POST(request: Request) {
               type: "IDEA_COMMENT",
               title: "New Comment on Your Idea",
               message: `${commenterName} commented on your idea "${idea.title}": "${plainContent}"`,
-              metadata: { ideaId, commentId: comment.id },
+              metadata: { sourceType: "idea", sourceId: ideaId, ideaId, commentId: comment.id },
             });
             alreadyNotified.add(idea.userId);
           }
@@ -248,7 +249,7 @@ export async function POST(request: Request) {
             type: "MENTION",
             title: "You were mentioned in a comment",
             message: `${commenterName} mentioned you in a comment: "${mentionDisplay}"`,
-            metadata: { ideaId, commentId: comment.id },
+            metadata: { sourceType: "idea", sourceId: ideaId, ideaId, commentId: comment.id },
           });
         }
       }
@@ -339,7 +340,7 @@ export async function DELETE(request: Request) {
     }
 
     await removeCommentHashtags(prisma, id, "IDEA");
-    await prisma.ideaComment.delete({ where: { id } });
+    await prisma.ideaComment.update({ where: { id }, data: { deletedAt: new Date() } });
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ error: "Failed to delete comment" }, { status: 500 });

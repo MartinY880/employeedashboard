@@ -37,7 +37,7 @@ export async function GET(request: Request) {
     const commentCounts = videoIds.length > 0
       ? await prisma.videoSpotlightComment.groupBy({
           by: ["videoId"],
-          where: { videoId: { in: videoIds } },
+          where: { videoId: { in: videoIds }, deletedAt: null },
           _count: { id: true },
         })
       : [];

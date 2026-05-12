@@ -196,9 +196,12 @@ function CommentBubble({
         {/* Bubble */}
         <div className="flex-1 min-w-0">
           <div className="inline-block bg-gray-100 dark:bg-gray-800 rounded-2xl px-3 py-1.5 max-w-[90%]">
-            <button type="button" onClick={() => onAuthorClick?.(comment.authorName)} className="font-semibold text-[12px] text-gray-800 dark:text-gray-200 block leading-tight hover:text-brand-blue transition-colors cursor-pointer focus:outline-none">
-              {comment.authorName}
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button type="button" onClick={() => onAuthorClick?.(comment.authorName)} className="font-semibold text-[12px] text-gray-800 dark:text-gray-200 leading-tight hover:text-brand-blue transition-colors cursor-pointer focus:outline-none">
+                {comment.authorName}
+              </button>
+              <span className="text-[10px] text-gray-400 dark:text-gray-500 font-normal">{getTimeAgo(comment.createdAt)}</span>
+            </div>
             <p className="text-[12px] text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words leading-relaxed mt-0.5">
               {renderMentionContent(comment.content)}
             </p>
@@ -221,7 +224,7 @@ function CommentBubble({
                     {comment.likes}
                   </span>
                 ) : (
-                  "Like"
+                  <span className="flex items-center gap-0.5"><ThumbsUp className="w-3 h-3" /> Like</span>
                 )}
               </button>
             )}
@@ -240,7 +243,6 @@ function CommentBubble({
                 Reply
               </button>
             )}
-            <span className="text-gray-400 dark:text-gray-500">{getTimeAgo(comment.createdAt)}</span>
             {!readOnly && comment.canDelete && (
               <button
                 type="button"

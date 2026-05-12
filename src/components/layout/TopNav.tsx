@@ -37,6 +37,7 @@ import type { AuthUser } from "@/types";
 import { hasAnyAdminPermission } from "@/lib/rbac";
 import { signOutAction } from "@/app/(auth)/sign-in/actions";
 import { renderQuickLinkIconPreview } from "@/components/widgets/QuickLinksBar";
+import { NotificationDetailDialog } from "@/components/shared/NotificationDetailDialog";
 
 const DEFAULT_NAV_LINKS = [
   { id: "dashboard", href: "/dashboard", label: "Dashboard", active: true, sortOrder: 0, iframeUrl: "", icon: "dashboard", logoUrl: "" },
@@ -98,9 +99,17 @@ function getNotificationIcon(type: string) {
   switch (type) {
     case "PROPS": return <Award className="w-4 h-4 text-amber-500 shrink-0" />;
     case "HIGHLIGHT": return <Star className="w-4 h-4 text-blue-500 shrink-0" />;
-    case "IDEA_SELECTED": return <Lightbulb className="w-4 h-4 text-green-500 shrink-0" />;
+    case "IDEA_SELECTED":
+    case "IDEA_COMMENT":
+    case "IDEA_REPLY":
+    case "IDEA_IN_REVIEW":
+    case "IDEA_APPROVED":
+    case "IDEA_IN_PROGRESS":
+    case "IDEA_COMPLETED": return <Lightbulb className="w-4 h-4 text-green-500 shrink-0" />;
     case "MYSHARE_COMMENT":
     case "MYSHARE_REPLY": return <MessageCircle className="w-4 h-4 text-indigo-500 shrink-0" />;
+    case "CELEBRATION_REPLY": return <MessageCircle className="w-4 h-4 text-pink-500 shrink-0" />;
+    case "MENTION": return <MessageCircle className="w-4 h-4 text-brand-blue shrink-0" />;
     default: return <Bell className="w-4 h-4 text-gray-400 shrink-0" />;
   }
 }
@@ -126,6 +135,8 @@ export function TopNav({ user }: TopNavProps) {
   const [notifOpen, setNotifOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [expandedNotifs, setExpandedNotifs] = useState<Set<string>>(new Set());
+  const [detailNotifId, setDetailNotifId] = useState<string | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
   const shouldUseProxyAvatar = !user.avatar || user.avatar.includes("graph.microsoft.com");
   const avatarSrc = shouldUseProxyAvatar
     ? `/api/directory/photo?userId=${encodeURIComponent(user.sub)}&email=${encodeURIComponent(user.email)}&name=${encodeURIComponent(user.name)}&size=48x48`
@@ -377,13 +388,33 @@ export function TopNav({ user }: TopNavProps) {
               </div>
             ) : (
               <>
-              {notifications.map((n: Notification) => (
+              {notifications.map((n: Notification) => {
+                const meta = n.metadata ? (() => { try { return JSON.parse(n.metadata); } catch { return null; } })() : null;
+                const hasSource = meta?.sourceType && meta?.sourceId;
+                return (
                 <div
                   key={n.id}
                   role="button"
                   tabIndex={0}
-                  onClick={() => { if (!n.read) markAsRead([n.id]); }}
-                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); if (!n.read) markAsRead([n.id]); } }}
+                  onClick={() => {
+                    if (!n.read) markAsRead([n.id]);
+                    if (hasSource) {
+                      setNotifOpen(false);
+                      setDetailNotifId(n.id);
+                      setDetailOpen(true);
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      if (!n.read) markAsRead([n.id]);
+                      if (hasSource) {
+                        setNotifOpen(false);
+                        setDetailNotifId(n.id);
+                        setDetailOpen(true);
+                      }
+                    }
+                  }}
                   className={`w-full flex items-start gap-3 px-5 py-3.5 text-left cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors border-b border-gray-100 dark:border-gray-700 last:border-0 ${
                     !n.read ? "bg-blue-50/60 dark:bg-blue-950/40" : ""
                   }`}
@@ -404,7 +435,12 @@ export function TopNav({ user }: TopNavProps) {
                       }
                     >{n.message}</p>
                     <div className="flex items-center justify-between mt-1">
-                      <p className="text-[11px] text-gray-400">{timeAgo(n.createdAt)}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-[11px] text-gray-400">{timeAgo(n.createdAt)}</p>
+                        {hasSource && (
+                          <span className="text-[11px] text-brand-blue font-medium">View &amp; Reply →</span>
+                        )}
+                      </div>
                       {n.message && n.message.length > 100 && !n.message.includes("…") && (
                         <button
                           type="button"
@@ -430,7 +466,8 @@ export function TopNav({ user }: TopNavProps) {
                     </div>
                   )}
                 </div>
-              ))}
+                );
+              })}
               <div className="px-5 py-3 border-t bg-gray-50 dark:bg-gray-800 dark:border-gray-700">
                 <button
                   onClick={() => clearAll()}
@@ -445,6 +482,15 @@ export function TopNav({ user }: TopNavProps) {
           </div>
         </DialogContent>
       </Dialog>
+
+      <NotificationDetailDialog
+        notificationId={detailNotifId}
+        open={detailOpen}
+        onOpenChange={(open) => {
+          setDetailOpen(open);
+          if (!open) setDetailNotifId(null);
+        }}
+      />
     </header>
   );
 }

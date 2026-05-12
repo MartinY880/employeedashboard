@@ -33,10 +33,7 @@ export function getPhotoUrl(
   user: { id: string; displayName: string; photoUrl?: string },
   size = 120
 ) {
-  return (
-    user.photoUrl ||
-    `/api/directory/photo?userId=${encodeURIComponent(user.id)}&name=${encodeURIComponent(user.displayName)}&size=${size}x${size}`
-  );
+  return `/api/directory/photo?userId=${encodeURIComponent(user.id)}&name=${encodeURIComponent(user.displayName)}&size=${size}x${size}`;
 }
 
 const DEPT_COLORS: Record<string, string> = {
@@ -91,7 +88,7 @@ export function ProfileDialog({
           >
             <Avatar className="h-20 w-20">
               <AvatarImage
-                src={getPhotoUrl(user, 240)}
+                src={getPhotoUrl(user, 648)}
                 alt={user.displayName}
                 loading="lazy"
                 decoding="async"
@@ -332,7 +329,7 @@ export function PersonLightbox({
                 <Avatar className="h-16 w-16 ring-4 ring-white dark:ring-gray-900 shadow-lg">
                   {user && (
                     <AvatarImage
-                      src={getPhotoUrl(user, 120)}
+                      src={getPhotoUrl(user, 648)}
                       alt={user.displayName}
                     />
                   )}
@@ -422,7 +419,7 @@ export function PersonLightbox({
             transition={{ duration: 0.2 }}
           >
             <img
-              src={getPhotoUrl(user, 480)}
+              src={getPhotoUrl(user, 648)}
               alt={user.displayName}
               className="w-64 h-64 rounded-full object-cover ring-4 ring-white/20 shadow-2xl"
             />

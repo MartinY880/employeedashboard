@@ -29,11 +29,12 @@ export async function GET(request: Request) {
     }
 
     const comments = await prisma.propsComment.findMany({
-      where: { propsId, parentId: null },
+      where: { propsId, parentId: null, deletedAt: null },
       orderBy: { createdAt: "asc" },
       include: {
         author: { select: { displayName: true } },
         replies: {
+          where: { deletedAt: null },
           orderBy: { createdAt: "asc" },
           include: { author: { select: { displayName: true } } },
         },
@@ -112,7 +113,7 @@ export async function POST(request: Request) {
     }
 
     if (parentId) {
-      const parent = await prisma.propsComment.findFirst({ where: { id: parentId, propsId } });
+      const parent = await prisma.propsComment.findFirst({ where: { id: parentId, propsId, deletedAt: null } });
       if (!parent) {
         return NextResponse.json({ error: "Parent comment not found" }, { status: 404 });
       }
@@ -151,7 +152,7 @@ export async function POST(request: Request) {
             type: "MENTION",
             title: "New reply on your comment",
             message: `${commenterName} replied to your comment on a Props post: "${plainContent}"`,
-            metadata: { propsId, commentId: comment.id },
+            metadata: { sourceType: "props", sourceId: propsId, propsId, commentId: comment.id },
           });
         }
       }
@@ -191,7 +192,7 @@ export async function POST(request: Request) {
             type: "MENTION",
             title: "You were mentioned in a comment",
             message: `${commenterName} mentioned you in a Props comment: "${plainContent}"`,
-            metadata: { propsId, commentId: comment.id },
+            metadata: { sourceType: "props", sourceId: propsId, propsId, commentId: comment.id },
           });
         }
       }
@@ -286,7 +287,7 @@ export async function DELETE(request: Request) {
     }
 
     await removeCommentHashtags(prisma, id, "PROPS");
-    await prisma.propsComment.delete({ where: { id } });
+    await prisma.propsComment.update({ where: { id }, data: { deletedAt: new Date() } });
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ error: "Failed to delete comment" }, { status: 500 });

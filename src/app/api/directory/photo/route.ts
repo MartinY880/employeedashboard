@@ -3,7 +3,7 @@
 // Falls back to ui-avatars.com when Graph is not configured or user has no photo.
 
 import { NextResponse } from "next/server";
-import { isGraphConfigured, getUserPhoto } from "@/lib/graph";
+import { isGraphConfigured, getUserPhoto, type PhotoSize } from "@/lib/graph";
 
 // In-memory cache to avoid hammering Graph API (TTL: 1 hour)
 const photoCache = new Map<string, { data: Uint8Array | null; contentType: string | null; ts: number }>();
@@ -25,7 +25,7 @@ export async function GET(request: Request) {
   const userId = searchParams.get("userId");
   const email = searchParams.get("email");
   const name = searchParams.get("name") || "?";
-  const size = (searchParams.get("size") || "120x120") as "48x48" | "64x64" | "96x96" | "120x120" | "240x240" | "360x360";
+  const size = (searchParams.get("size") || "648x648") as PhotoSize;
 
   // No usable identifier or Graph not configured — redirect to ui-avatars
   if ((!userId && !email) || userId?.startsWith("demo-") || !isGraphConfigured) {

@@ -49,10 +49,7 @@ function getPhotoUrl(
   user: { id: string; displayName: string; photoUrl?: string },
   size = 96
 ) {
-  return (
-    user.photoUrl ||
-    `/api/directory/photo?userId=${encodeURIComponent(user.id)}&name=${encodeURIComponent(user.displayName)}&size=${size}x${size}`
-  );
+  return `/api/directory/photo?userId=${encodeURIComponent(user.id)}&name=${encodeURIComponent(user.displayName)}&size=${size}x${size}`;
 }
 
 /**
