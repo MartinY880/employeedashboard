@@ -1,6 +1,8 @@
 // ProConnect — CalendarWidget
 // Upcoming holidays from the Calendar app proxy (center column)
 
+// FILE NOT USED AFTER COMBINING WITH IMPORTANT DATES, BUT KEEPING FOR REFERENCE IN CASE WE WANT TO REVERT BACK TO SEPARATE WIDGETS 
+
 "use client";
 
 import { useState, useEffect } from "react";

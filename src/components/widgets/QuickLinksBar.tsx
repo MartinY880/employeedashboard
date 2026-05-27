@@ -400,19 +400,19 @@ if (isLoading) {
   return (
     <div className="h-full flex flex-col bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
       {/* Card Header */}
- <div className="px-3.5 py-2 bg-gradient-to-r from-slate-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 border-t-[3px] border-t-brand-blue flex items-center justify-center gap-2">
-  <LinkIcon className="w-4 h-4 text-brand-blue" />
-  <h3 className="text-sm font-bold text-brand-blue tracking-wide uppercase">Quick Links</h3>
+<div className="px-3 py-1.5 bg-gradient-to-r from-slate-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 border-t-[3px] border-t-brand-blue flex items-center justify-center gap-2">
+  <LinkIcon className="w-3.5 h-3.5 text-brand-blue shrink-0" />
+  <h3 className="text-xs font-bold text-brand-blue tracking-wide uppercase">Quick Links</h3>
 </div>
 
 {/* Body */}
-<div className="flex-1 p-2.5">
+<div className="flex-1 px-2 py-1">
   {links.length === 0 ? (
     <div className="h-full flex items-center justify-center rounded-lg border border-dashed border-gray-200 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400">
       No quick links have been configured.
     </div>
   ) : (
-    <div className="h-full grid grid-cols-2 gap-1 content-start">
+    <div className="h-full grid grid-cols-2 gap-1 content-stretch">
       {links.map((link, i) => (
         <motion.a
           key={link.id}

@@ -165,12 +165,14 @@ interface CategoryLabels {
   federal: string;
   fun: string;
   company: string;
+  important_dates: string;
 }
 
 interface CategoryColors {
   federal: string;
   fun: string;
   company: string;
+  important_dates: string;
 }
 
 const DEFAULT_FORM: HolidayFormData = {
@@ -205,12 +207,14 @@ const CATEGORIES = [
   { key: "federal", label: "Federal", icon: Flag, color: "#1e40af" },
   { key: "company", label: "Company", icon: Building2, color: "#06427F" },
   { key: "fun", label: "Fun", icon: PartyPopper, color: "#16a34a" },
+  { key: "important_dates", label: "Important Dates", icon: CalendarDays, color: "#dc2626" },
 ] as const;
 
 const CATEGORY_COLORS: Record<string, string> = {
   federal: "#1e40af",
   company: "#06427F",
   fun: "#16a34a",
+  important_dates: "#dc2626",
 };
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
@@ -277,11 +281,12 @@ export default function AdminCalendarPage() {
 
   // ── Settings tab state ───────────────────────────────────
   const [apiConfigs, setApiConfigs] = useState<ApiConfig[]>([]);
-  const [categoryLabels, setCategoryLabels] = useState<CategoryLabels>({ federal: "Federal", fun: "Fun", company: "Company" });
+  const [categoryLabels, setCategoryLabels] = useState<CategoryLabels>({ federal: "Federal", fun: "Fun", company: "Company", important_dates: "Important Dates" });
   const [categoryColors, setCategoryColors] = useState<CategoryColors>({
     federal: CATEGORY_COLORS.federal,
     fun: CATEGORY_COLORS.fun,
     company: CATEGORY_COLORS.company,
+    important_dates: CATEGORY_COLORS.important_dates,
   });
   const [isApiModalOpen, setIsApiModalOpen] = useState(false);
   const [editingApi, setEditingApi] = useState<ApiConfig | null>(null);
@@ -1574,12 +1579,12 @@ export default function AdminCalendarPage() {
             <p className="text-xs text-brand-grey mb-4">
               Customize the display names and colors for holiday categories.
             </p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {(["federal", "fun", "company"] as const).map((key) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+              {(["federal", "fun", "company", "important_dates"] as const).map((key) => (
                 <div key={key}>
-                  <label className="text-xs font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1 block capitalize flex items-center gap-1.5">
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block flex items-center gap-1.5">
                     <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: categoryColors[key] }} />
-                    {key}
+                    {CATEGORIES.find((c) => c.key === key)?.label ?? key}
                   </label>
                   <Input
                     value={categoryLabels[key]}

@@ -193,6 +193,45 @@ export async function removeRoles(userId: string, roleIds: string[]): Promise<vo
   }
 }
 
+// ─── Suspend / Unsuspend ──────────────────────────────────
+
+/** Suspend a Logto user (blocks all sign-ins, revokes sessions) */
+export async function suspendUser(logtoUserId: string): Promise<boolean> {
+  const res = await mgmtFetch(`/users/${logtoUserId}/is-suspended`, {
+    method: "PATCH",
+    body: JSON.stringify({ isSuspended: true }),
+  });
+  if (res.ok) return true;
+  // Try alternative endpoint for newer Logto versions
+  if (res.status === 404) {
+    const res2 = await mgmtFetch(`/users/${logtoUserId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ isSuspended: true }),
+    });
+    if (res2.ok) return true;
+    return false;
+  }
+  throw new Error(`Failed to suspend user ${logtoUserId}: ${res.status}`);
+}
+
+/** Unsuspend (re-enable) a Logto user */
+export async function unsuspendUser(logtoUserId: string): Promise<boolean> {
+  const res = await mgmtFetch(`/users/${logtoUserId}/is-suspended`, {
+    method: "PATCH",
+    body: JSON.stringify({ isSuspended: false }),
+  });
+  if (res.ok) return true;
+  if (res.status === 404) {
+    const res2 = await mgmtFetch(`/users/${logtoUserId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ isSuspended: false }),
+    });
+    if (res2.ok) return true;
+    return false;
+  }
+  throw new Error(`Failed to unsuspend user ${logtoUserId}: ${res.status}`);
+}
+
 // ─── Job title → Logto role mapping ──────────────────────
 
 /** Map a directory job title to the desired Logto role name.

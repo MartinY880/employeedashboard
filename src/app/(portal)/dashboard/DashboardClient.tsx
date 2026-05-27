@@ -11,7 +11,6 @@ import { DirectorySearchBar } from "@/components/widgets/DirectorySearchBar";
 import { LenderAccountExecutivesDropdown } from "@/components/widgets/LenderAccountExecutivesDropdown";
 import { AlertsDropdown } from "@/components/widgets/AlertsDropdown";
 import { BeBrilliantWidget } from "@/components/widgets/BeBrilliantWidget";
-import { CalendarWidget } from "@/components/widgets/CalendarWidget";
 import { OooWidget } from "@/components/widgets/OooWidget";
 import { FeedPanel } from "@/components/widgets/FeedPanel";
 import { EmployeeHighlight } from "@/components/widgets/EmployeeHighlight";
@@ -142,7 +141,7 @@ export default function DashboardClient({ visibility, sliderConfig, showVideoSpo
         </section>
       ) : null}
 {/* Important Dates + Quick Links — side by side */}
-<section className="mb-5 grid grid-cols-1 lg:grid-cols-2 gap-4">
+<section className="mb-5 grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
   {visibility.showImportantDates && (
     <ErrorBoundary label="Important Dates" compact>
       <ImportantDatesWidget />
@@ -233,32 +232,19 @@ export default function DashboardClient({ visibility, sliderConfig, showVideoSpo
             </div>
           )}
 
-          {/* Col 2: Employee Highlight + Flyers stacked */}
-          <div className="lg:col-start-2 lg:h-full flex flex-col gap-4">
-            <div className="lg:flex-1 min-h-0 lg:h-full">
+          {/* Col 2: Flyers full height */}
+          <div className="lg:col-start-2 lg:h-full">
+            <ErrorBoundary label="Events" compact>
+              <FlyerWidget />
+            </ErrorBoundary>
+          </div>
+
+          {/* Col 3: Employee Highlight + Weather stacked */}
+          <div className="lg:col-start-3 lg:h-full flex flex-col gap-4">
+            <div className="lg:flex-1 min-h-0">
               <ErrorBoundary label="Employee Highlight" compact>
                 <EmployeeHighlight />
               </ErrorBoundary>
-            </div>
-            <div className="lg:flex-1 min-h-0 lg:h-full">
-              <ErrorBoundary label="Events" compact>
-                <FlyerWidget />
-              </ErrorBoundary>
-            </div>
-          </div>
-
-          {/* Col 3: Upcoming Dates + Weather stacked */}
-          <div className="lg:col-start-3 lg:h-full flex flex-col gap-4">
-            <div className="lg:flex-1 min-h-0 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden flex flex-col">
-              <div className="px-3.5 py-2 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 border-t-[3px] border-t-brand-blue flex items-center justify-between shrink-0">
-                <h3 className="text-sm font-bold text-brand-blue tracking-wide uppercase">Upcoming Dates</h3>
-                <p className="text-[10px] text-brand-grey">Company calendar</p>
-              </div>
-              <div className="flex-1 min-h-0 overflow-hidden">
-                <ErrorBoundary label="Calendar" compact>
-                  <CalendarWidget />
-                </ErrorBoundary>
-              </div>
             </div>
             <div className="lg:flex-1 min-h-0">
               <ErrorBoundary label="Weather Forecast" compact>

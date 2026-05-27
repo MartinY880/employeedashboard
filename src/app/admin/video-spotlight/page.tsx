@@ -22,6 +22,9 @@ import {
   Camera,
   Plus,
   Download,
+  ChevronUp,
+  ChevronDown,
+  GripVertical,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -222,6 +225,40 @@ export default function AdminVideoSpotlightPage() {
       toast.error("Failed to update video");
     } finally {
       setEditSaving(false);
+    }
+  };
+
+  /* ── Reorder ─────────────────────────────────────────── */
+
+  const handleReorder = async (index: number, direction: "up" | "down") => {
+    const newVideos = [...filtered];
+    const swapIdx = direction === "up" ? index - 1 : index + 1;
+    if (swapIdx < 0 || swapIdx >= newVideos.length) return;
+
+    [newVideos[index], newVideos[swapIdx]] = [newVideos[swapIdx], newVideos[index]];
+
+    // Build order payload with new sort positions
+    const order = newVideos.map((v, i) => ({ id: v.id, sortOrder: i }));
+
+    // Optimistically update local state
+    const updatedMap = new Map(order.map((o) => [o.id, o.sortOrder]));
+    setVideos((prev) =>
+      [...prev]
+        .map((v) => (updatedMap.has(v.id) ? { ...v, sortOrder: updatedMap.get(v.id)! } : v))
+        .sort((a, b) => a.sortOrder - b.sortOrder || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    );
+
+    try {
+      const res = await fetch("/api/video-spotlight", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ order }),
+      });
+      if (!res.ok) throw new Error();
+      toast.success("Order updated");
+    } catch {
+      toast.error("Failed to reorder");
+      fetchVideos(); // revert on failure
     }
   };
 
@@ -428,6 +465,29 @@ export default function AdminVideoSpotlightPage() {
 
                     {/* Action buttons */}
                     <div className="flex items-center gap-1 mt-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+                      {/* Reorder arrows */}
+                      <div className="flex flex-col -space-y-1 mr-0.5">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5"
+                          title="Move up"
+                          disabled={filtered.indexOf(video) === 0}
+                          onClick={() => handleReorder(filtered.indexOf(video), "up")}
+                        >
+                          <ChevronUp className="w-3 h-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5"
+                          title="Move down"
+                          disabled={filtered.indexOf(video) === filtered.length - 1}
+                          onClick={() => handleReorder(filtered.indexOf(video), "down")}
+                        >
+                          <ChevronDown className="w-3 h-3" />
+                        </Button>
+                      </div>
                       <Button
                         variant="ghost"
                         size="icon"

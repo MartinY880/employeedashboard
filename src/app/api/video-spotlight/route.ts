@@ -69,3 +69,50 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Failed to update visibility" }, { status: 500 });
   }
 }
+
+/** PUT — bulk reorder (admin only). Body: { order: [{ id, sortOrder }] } */
+export async function PUT(request: Request) {
+  try {
+    const { isAuthenticated, user } = await getAuthUser();
+    if (!isAuthenticated || !user || !hasPermission(user, PERMISSIONS.MANAGE_VIDEO_SPOTLIGHT)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const order = body.order;
+    if (!Array.isArray(order) || order.length === 0) {
+      return NextResponse.json({ error: "order array is required" }, { status: 400 });
+    }
+
+    // Validate entries
+    const updates = order
+      .filter((item: unknown) => {
+        if (!item || typeof item !== "object") return false;
+        const obj = item as Record<string, unknown>;
+        return typeof obj.id === "string" && typeof obj.sortOrder === "number";
+      })
+      .map((item: { id: string; sortOrder: number }) => ({
+        id: item.id,
+        sortOrder: item.sortOrder,
+      }));
+
+    if (updates.length === 0) {
+      return NextResponse.json({ error: "No valid entries in order array" }, { status: 400 });
+    }
+
+    // Batch update all sort orders in a transaction
+    await prisma.$transaction(
+      updates.map((u) =>
+        prisma.videoSpotlight.update({
+          where: { id: u.id },
+          data: { sortOrder: u.sortOrder },
+        })
+      )
+    );
+
+    return NextResponse.json({ success: true, updated: updates.length });
+  } catch (error) {
+    console.error("[Video Spotlight API] PUT error:", error);
+    return NextResponse.json({ error: "Failed to reorder videos" }, { status: 500 });
+  }
+}

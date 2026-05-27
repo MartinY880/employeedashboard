@@ -6,6 +6,8 @@ import {
   isM2MConfigured,
   syncUserRole,
   resolveJobTitleRoleTarget,
+  suspendUser,
+  unsuspendUser,
 } from "@/lib/logto-management";
 
 const SNAPSHOT_SYNC_TTL_MS = Number(process.env.DIRECTORY_SNAPSHOT_SYNC_TTL_MS || 15 * 60 * 1000);
@@ -337,6 +339,53 @@ export async function syncDirectorySnapshotFromGraph(): Promise<void> {
             }
           }
           console.log("[Directory Sync] Background role reconciliation complete");
+
+          // ── Disable/Re-enable check: suspend users no longer in Entra ──
+          try {
+            const activeEmails = new Set(
+              usersWithEmail.map((u) => u.mail!.toLowerCase())
+            );
+
+            // Find all DB users who have logged in (non-directory stub)
+            const dbUsers = await prisma.user.findMany({
+              where: { NOT: { logtoId: { startsWith: "directory-" } } },
+              select: { id: true, email: true, logtoId: true, disabledAt: true },
+            });
+
+            for (const dbUser of dbUsers) {
+              const emailLower = dbUser.email.toLowerCase();
+              const isInEntra = activeEmails.has(emailLower);
+
+              if (!isInEntra && !dbUser.disabledAt) {
+                // User is NOT in the active Entra set — suspend them
+                try {
+                  await suspendUser(dbUser.logtoId);
+                  await prisma.user.update({
+                    where: { id: dbUser.id },
+                    data: { disabledAt: new Date() },
+                  });
+                  console.log(`[Directory Sync] Suspended user: ${dbUser.email}`);
+                } catch (err) {
+                  console.warn(`[Directory Sync] Failed to suspend ${dbUser.email}:`, err);
+                }
+              } else if (isInEntra && dbUser.disabledAt) {
+                // User is back in Entra — re-enable them
+                try {
+                  await unsuspendUser(dbUser.logtoId);
+                  await prisma.user.update({
+                    where: { id: dbUser.id },
+                    data: { disabledAt: null },
+                  });
+                  console.log(`[Directory Sync] Re-enabled user: ${dbUser.email}`);
+                } catch (err) {
+                  console.warn(`[Directory Sync] Failed to unsuspend ${dbUser.email}:`, err);
+                }
+              }
+            }
+            console.log("[Directory Sync] Disable/re-enable check complete");
+          } catch (err) {
+            console.warn("[Directory Sync] Disable check failed:", err);
+          }
         })();
       }
     })().finally(() => {

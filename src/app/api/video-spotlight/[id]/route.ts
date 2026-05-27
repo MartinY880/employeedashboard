@@ -69,6 +69,7 @@ export async function PATCH(request: Request, { params }: Params) {
     if (body.description !== undefined) allowed.description = body.description ?? null;
     if (typeof body.featured === "boolean") allowed.featured = body.featured;
     if (typeof body.sortOrder === "number") allowed.sortOrder = body.sortOrder;
+    if (typeof body.duration === "number" && Number.isFinite(body.duration) && body.duration > 0) allowed.duration = body.duration;
     if (body.status === "active" || body.status === "archived") allowed.status = body.status;
 
     if (Object.keys(allowed).length === 0) {

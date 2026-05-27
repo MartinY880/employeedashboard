@@ -5,6 +5,57 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+/* ── Recurring important-date resolver ─────────────────────
+   Recurring important_dates are stored with a one-time resolved date.
+   On every GET we recalculate the next occurrence so they roll forward
+   automatically without any DB writes.
+ ─────────────────────────────────────────────────────────── */
+function adjustToWorkday(d: Date): Date {
+  const dow = d.getDay();
+  if (dow === 6) return new Date(d.getFullYear(), d.getMonth(), d.getDate() + 2);
+  if (dow === 0) return new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+  return d;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function resolveRecurringImportantDate(h: any): any {
+  if (h.category !== "important_dates") return h;
+  const src: string = h.source || "";
+  if (!src.startsWith("important_dates:")) return h;
+  const recurType = src.split(":")[1];
+  if (!recurType || recurType === "none") return h;
+
+  const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+  const [ty, tmRaw] = todayStr.split("-").map(Number);
+  let year = ty;
+  let month = tmRaw - 1; // 0-indexed
+
+  let resolvedDate: string;
+
+  if (recurType === "first_workday") {
+    let candidate = adjustToWorkday(new Date(year, month, 1));
+    if (candidate.toLocaleDateString("en-CA") < todayStr) {
+      month += 1;
+      if (month > 11) { month = 0; year++; }
+      candidate = adjustToWorkday(new Date(year, month, 1));
+    }
+    resolvedDate = candidate.toLocaleDateString("en-CA");
+  } else if (recurType === "monthly") {
+    const day = new Date(h.date + "T00:00:00").getDate();
+    let candidate = new Date(year, month, day);
+    if (candidate.toLocaleDateString("en-CA") < todayStr) {
+      month += 1;
+      if (month > 11) { month = 0; year++; }
+      candidate = new Date(year, month, day);
+    }
+    resolvedDate = candidate.toLocaleDateString("en-CA");
+  } else {
+    return h;
+  }
+
+  return { ...h, date: resolvedDate };
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -49,7 +100,8 @@ export async function GET(request: Request) {
       include: { event: { include: { flyer: true } } },
     });
 
-    return NextResponse.json(holidays);
+    const processed = holidays.map(resolveRecurringImportantDate);
+    return NextResponse.json(processed);
   } catch (error) {
     console.error("[Calendar API] GET error:", error);
     return NextResponse.json({ error: "Failed to fetch holidays" }, { status: 500 });

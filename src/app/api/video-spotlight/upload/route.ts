@@ -84,6 +84,11 @@ export async function POST(request: Request) {
     const bytes = await file.arrayBuffer();
     await writeFile(join(VIDEOS_DIR, storageName), Buffer.from(bytes));
 
+    // Parse duration from form data (client extracts via video metadata)
+    const rawDuration = formData.get("duration");
+    const duration = rawDuration ? parseFloat(String(rawDuration)) : null;
+    const validDuration = duration != null && Number.isFinite(duration) && duration > 0 ? duration : null;
+
     // Create DB record
     const video = await createVideoSpotlight({
       title,
@@ -91,7 +96,7 @@ export async function POST(request: Request) {
       filename: storageName,
       mimeType,
       fileSize: file.size,
-      duration: null, // set later via admin or client-side metadata extraction
+      duration: validDuration,
       authorId: dbUser.id,
     });
 

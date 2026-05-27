@@ -113,6 +113,7 @@ export async function updateVideoSpotlight(
     description: string | null;
     featured: boolean;
     sortOrder: number;
+    duration: number;
     status: string;
   }>
 ): Promise<VideoSpotlightItem | null> {

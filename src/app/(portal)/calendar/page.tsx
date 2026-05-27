@@ -38,6 +38,7 @@ const CATEGORIES = [
   { key: "federal", label: "Federal", icon: Flag, color: "#1e40af" },
   { key: "company", label: "Company", icon: Building2, color: "#06427F" },
   { key: "fun", label: "Fun", icon: PartyPopper, color: "#16a34a" },
+  { key: "important_dates", label: "Important Dates", icon: Star, color: "#dc2626" },
   { key: "observance", label: "Observance", icon: Star, color: "#9333ea" },
 ] as const;
 
@@ -45,6 +46,7 @@ const DEFAULT_CATEGORY_COLORS: Record<string, string> = {
   federal: "#1e40af",
   company: "#06427F",
   fun: "#16a34a",
+  important_dates: "#dc2626",
   observance: "#9333ea",
 };
 
@@ -373,7 +375,7 @@ export default function CalendarPage() {
                             style={getBadgeStyle(categoryColor)}
                             title={`${h.title} (click for details)`}
                           >
-                            {h.title}
+                            {h.title}{h.event?.description && h.category === "important_dates" && ` (${h.event.description})`}
                           </button>
                         );
                       })}
@@ -434,7 +436,7 @@ export default function CalendarPage() {
 
                     {/* Details */}
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-gray-800 dark:text-gray-200">{h.title}</div>
+                      <div className="text-sm font-semibold text-gray-800 dark:text-gray-200">{h.title}{h.event?.description && h.category === "important_dates" && <span className="font-normal text-gray-500 dark:text-gray-400"> ({h.event.description})</span>}</div>
                       <div className="text-xs text-brand-grey">{formatDate(h.date)}</div>
                     </div>
 
@@ -453,7 +455,7 @@ export default function CalendarPage() {
                         className="text-[10px] px-2 py-0.5 font-medium"
                         style={getBadgeStyle(categoryColor)}
                       >
-                        {h.category}
+                        {CATEGORIES.find((c) => c.key === h.category)?.label || h.category.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
                       </Badge>
                     </div>
                   </motion.div>
@@ -511,7 +513,7 @@ export default function CalendarPage() {
                     className="mt-1 text-[10px] px-2 py-0.5 font-medium"
                     style={getBadgeStyle(getCategoryColor(selectedHoliday.category))}
                   >
-                    {selectedHoliday.category}
+                    {CATEGORIES.find((c) => c.key === selectedHoliday.category)?.label || selectedHoliday.category.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
                   </Badge>
                 </div>
               </div>

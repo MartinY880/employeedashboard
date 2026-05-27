@@ -163,12 +163,34 @@ export function VideoRecorder({
     }
   }, [recorder]);
 
+  /** Extract video duration from a blob/file using a hidden video element */
+  const extractDuration = useCallback((blob: Blob): Promise<number | null> => {
+    return new Promise((resolve) => {
+      const url = URL.createObjectURL(blob);
+      const video = document.createElement("video");
+      video.preload = "metadata";
+      video.onloadedmetadata = () => {
+        const dur = Number.isFinite(video.duration) ? video.duration : null;
+        URL.revokeObjectURL(url);
+        resolve(dur);
+      };
+      video.onerror = () => {
+        URL.revokeObjectURL(url);
+        resolve(null);
+      };
+      video.src = url;
+    });
+  }, []);
+
   const handleSubmit = useCallback(async () => {
     const videoBlob = trimmedBlob || recorder.blob || uploadFile;
     if (!videoBlob || !title.trim()) return;
 
     setIsUploading(true);
     try {
+      // Extract duration client-side
+      const duration = await extractDuration(videoBlob);
+
       const formData = new FormData();
       if (videoBlob instanceof File) {
         formData.append("video", videoBlob, videoBlob.name);
@@ -179,6 +201,7 @@ export function VideoRecorder({
       }
       formData.append("title", title.trim());
       if (description.trim()) formData.append("description", description.trim());
+      if (duration != null) formData.append("duration", String(duration));
 
       const res = await fetch(uploadEndpoint, {
         method: "POST",

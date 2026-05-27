@@ -1,5 +1,5 @@
 // ProConnect — Important Dates Bulk Import API
-// POST: Parse CSV and create multiple important dates
+// POST: Parse CSV and create calendar holidays under category "important_dates"
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -14,11 +14,62 @@ interface ImportRow {
   active: boolean;
 }
 
+/* ── Date resolution helpers ────────────────────────────── */
+
+function easternToday(): Date {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  return new Date(
+    +parts.find((p) => p.type === "year")!.value,
+    +parts.find((p) => p.type === "month")!.value - 1,
+    +parts.find((p) => p.type === "day")!.value,
+  );
+}
+
+function adjustToWorkday(d: Date): Date {
+  const dow = d.getDay();
+  if (dow === 6) return new Date(d.getFullYear(), d.getMonth(), d.getDate() + 2);
+  if (dow === 0) return new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+  return d;
+}
+
+function resolveToDateStr(dateStr: string, recurType: string): string {
+  const today = easternToday();
+  const base = new Date(dateStr + "T00:00:00");
+  let resolved: Date;
+
+  if (recurType === "first_workday") {
+    let candidate = new Date(today.getFullYear(), today.getMonth(), 1);
+    candidate = adjustToWorkday(candidate);
+    if (candidate < today) {
+      candidate = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+      candidate = adjustToWorkday(candidate);
+    }
+    resolved = candidate;
+  } else if (recurType === "monthly") {
+    const day = base.getDate();
+    let next = new Date(today.getFullYear(), today.getMonth(), day);
+    if (next < today) {
+      next = new Date(today.getFullYear(), today.getMonth() + 1, day);
+    }
+    resolved = next;
+  } else {
+    resolved = base;
+  }
+
+  return resolved.toLocaleDateString("en-CA"); // YYYY-MM-DD
+}
+
+/* ── CSV parsing ─────────────────────────────────────────── */
+
 function parseCSV(text: string): ImportRow[] {
   const lines = text.split(/\r?\n/).filter((l) => l.trim());
-  if (lines.length < 2) return []; // Need header + at least one row
+  if (lines.length < 2) return [];
 
-  // Parse header
   const header = lines[0].split(",").map((h) => h.trim().toLowerCase().replace(/[^a-z_]/g, ""));
 
   const labelIdx = header.findIndex((h) => h === "label" || h === "name" || h === "title");
@@ -37,25 +88,17 @@ function parseCSV(text: string): ImportRow[] {
     const line = lines[i].trim();
     if (!line) continue;
 
-    // Simple CSV parse (handles quoted fields)
     const cols = parseCSVLine(line);
-
     const label = cols[labelIdx]?.trim();
     const dateStr = cols[dateIdx]?.trim();
-
     if (!label || !dateStr) continue;
 
-    // Validate date
     const parsed = new Date(dateStr + "T00:00:00Z");
     if (isNaN(parsed.getTime())) continue;
 
-    // Parse subtitle
     let subtitle = "";
-    if (subtitleIdx !== -1) {
-      subtitle = (cols[subtitleIdx] || "").trim();
-    }
+    if (subtitleIdx !== -1) subtitle = (cols[subtitleIdx] || "").trim();
 
-    // Parse recurrence
     let recurType = "none";
     if (recurIdx !== -1) {
       const raw = (cols[recurIdx] || "").trim().toLowerCase();
@@ -64,7 +107,6 @@ function parseCSV(text: string): ImportRow[] {
         recurType = "first_workday";
     }
 
-    // Parse active
     let active = true;
     if (activeIdx !== -1) {
       const raw = (cols[activeIdx] || "").trim().toLowerCase();
@@ -110,6 +152,8 @@ function parseCSVLine(line: string): string[] {
   return result;
 }
 
+/* ── POST ────────────────────────────────────────────────── */
+
 export async function POST(request: Request) {
   try {
     const { isAuthenticated, user } = await getAuthUser();
@@ -136,31 +180,40 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "No valid rows found in CSV" }, { status: 400 });
     }
 
-    // Get current max sort order
-    const maxOrder = await prisma.importantDate.aggregate({ _max: { sortOrder: true } });
-    let nextOrder = (maxOrder._max.sortOrder ?? -1) + 1;
+    const created = await prisma.$transaction(async (tx) => {
+      const results = [];
+      for (const row of rows) {
+        const resolvedDate = resolveToDateStr(row.date, row.recurType);
+        const source = row.recurType !== "none" ? `important_dates:${row.recurType}` : "important_dates";
 
-    const created = await prisma.$transaction(
-      rows.map((row) =>
-        prisma.importantDate.create({
+        const holiday = await tx.holiday.create({
           data: {
-            label: row.label,
-            subtitle: row.subtitle || null,
-            date: new Date(row.date + "T00:00:00Z"),
-            recurType: row.recurType,
-            active: row.active,
-            sortOrder: nextOrder++,
+            title: row.label,
+            date: resolvedDate,
+            category: "important_dates",
+            color: "#dc2626",
+            source,
+            visible: row.active,
+            recurring: row.recurType !== "none",
           },
-        })
-      )
-    );
+        });
 
-    return NextResponse.json(
-      { imported: created.length, dates: created },
-      { status: 201 }
-    );
+        if (row.subtitle) {
+          await tx.holidayEvent.create({
+            data: { holidayId: holiday.id, description: row.subtitle },
+          });
+        }
+
+        results.push(holiday);
+      }
+      return results;
+    });
+
+    return NextResponse.json({ imported: created.length, dates: created }, { status: 201 });
   } catch (error) {
     console.error("[ImportantDates Import API] POST error:", error);
     return NextResponse.json({ error: "Failed to import" }, { status: 500 });
   }
 }
+
+
