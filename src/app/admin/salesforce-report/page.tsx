@@ -25,6 +25,7 @@ import {
   Table2,
   TrendingUp,
   PieChart as PieChartIcon,
+  Share2,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -378,9 +379,28 @@ export default function SalesforceReportAdminPage() {
       {/* Section list */}
       <div className="space-y-3">
         <AnimatePresence initial={false}>
-          {sections.map((section, idx) => {
+          {(() => {
+            // Group panels by shareGroupId for display ordering
+            const displaySections: SfReportPanel[] = [];
+            const emittedGroups = new Set<string>();
+            for (const s of sections) {
+              if (s.shareGroupId) {
+                if (emittedGroups.has(s.shareGroupId)) continue;
+                emittedGroups.add(s.shareGroupId);
+                // Emit all panels in this group together
+                displaySections.push(...sections.filter((x) => x.shareGroupId === s.shareGroupId));
+              } else {
+                displaySections.push(s);
+              }
+            }
+            return displaySections;
+          })().map((section, idx, arr) => {
             const isExpanded = expandedId === section.id;
             const cols = sectionColumns[section.id] ?? [];
+            // Determine if this is a 2nd+ panel in a share group for visual indent
+            const isGroupedFollower = !!(section.shareGroupId &&
+              idx > 0 &&
+              arr[idx - 1]?.shareGroupId === section.shareGroupId);
 
             return (
               <motion.div
@@ -388,7 +408,9 @@ export default function SalesforceReportAdminPage() {
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
-                className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden"
+                className={`bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden ${
+                  isGroupedFollower ? "ml-4 border-l-2 border-l-indigo-300 dark:border-l-indigo-600" : ""
+                }`}
               >
                 {/* Collapsed header */}
                 <div
@@ -466,6 +488,11 @@ export default function SalesforceReportAdminPage() {
                       {section.visibleToSuperAdminOnly && (
                         <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-red-300 text-red-600">
                           Super admin only
+                        </Badge>
+                      )}
+                      {section.shareGroupId && (
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-indigo-300 text-indigo-600">
+                          Shared ({sections.filter((s) => s.shareGroupId === section.shareGroupId).length} reports)
                         </Badge>
                       )}
                     </div>
@@ -1181,6 +1208,54 @@ export default function SalesforceReportAdminPage() {
                             Columns will load automatically. Click &quot;Fetch Columns&quot; if needed.
                           </p>
                         )}
+
+                        {/* Add Shared Report */}
+                        <div className="border-t border-gray-100 dark:border-gray-800 pt-4">
+                          {section.shareGroupId && (
+                            <div className="mb-3">
+                              <p className="text-xs text-indigo-600 dark:text-indigo-400 font-medium mb-1">
+                                This report is grouped with {sections.filter((s) => s.shareGroupId === section.shareGroupId && s.id !== section.id).length} other report{sections.filter((s) => s.shareGroupId === section.shareGroupId && s.id !== section.id).length !== 1 ? "s" : ""} in a carousel.
+                              </p>
+                              <button
+                                type="button"
+                                onClick={() => updateSection(section.id, { shareGroupId: undefined })}
+                                className="text-xs text-red-500 hover:text-red-700 underline"
+                              >
+                                Remove from group
+                              </button>
+                            </div>
+                          )}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const groupId = section.shareGroupId || section.id;
+                              if (!section.shareGroupId) {
+                                updateSection(section.id, { shareGroupId: groupId });
+                              }
+                              const newId =
+                                typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+                                  ? crypto.randomUUID()
+                                  : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+                              const newSection: SfReportPanel = {
+                                ...DEFAULT_SECTION,
+                                id: newId,
+                                shareGroupId: groupId,
+                                order: sections.length,
+                              };
+                              setSections((prev) => [...prev, newSection]);
+                              setExpandedId(newId);
+                            }}
+                            className="gap-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50 dark:border-indigo-800 dark:text-indigo-400 dark:hover:bg-indigo-900/20"
+                          >
+                            <Share2 className="w-3.5 h-3.5" />
+                            Add Shared Report
+                          </Button>
+                          <p className="text-xs text-brand-grey mt-1.5">
+                            Shared reports appear in the same widget box with arrows to flip between them.
+                          </p>
+                        </div>
                       </div>
                     </motion.div>
                   )}

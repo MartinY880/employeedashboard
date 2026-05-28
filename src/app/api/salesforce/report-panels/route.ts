@@ -456,6 +456,7 @@ function sanitizePanel(p: Record<string, unknown>, idx: number): SfReportPanel {
     sortDirection: p.sortDirection === "desc" ? "desc" : "asc",
     visibleToRoles: Array.isArray(p.visibleToRoles) ? p.visibleToRoles.map(String).filter(Boolean) : [],
     visibleToSuperAdminOnly: Boolean(p.visibleToSuperAdminOnly),
+    shareGroupId: typeof p.shareGroupId === "string" && p.shareGroupId ? p.shareGroupId : undefined,
     order: Number.isFinite(Number(p.order)) ? Number(p.order) : idx,
   };
 }
@@ -504,6 +505,7 @@ async function loadPanelData(panel: SfReportPanel): Promise<PanelData> {
       title: panel.title,
       displayMode: panel.displayMode,
       highlightTopN: panel.highlightTopN,
+      shareGroupId: panel.shareGroupId,
     };
   }
 
@@ -571,6 +573,7 @@ async function loadPanelData(panel: SfReportPanel): Promise<PanelData> {
     title: panel.title,
     displayMode: panel.displayMode,
     highlightTopN: panel.highlightTopN,
+    shareGroupId: panel.shareGroupId,
     columns,
     rows,
     totalRows: cached.rows.length,

@@ -17,6 +17,8 @@ import {
   Eye,
   RefreshCw,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   UserSearch,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -37,6 +39,7 @@ interface UnifiedPanel {
   source: "company" | "individual";
   displayMode: "table" | "stat" | "chart" | "bar";
   highlightTopN: number;
+  shareGroupId?: string;
   columns?: { name: string; label: string }[];
   rows?: { cells: { label: string; value: string }[] }[];
   totalRows?: number;
@@ -268,11 +271,37 @@ export function UnifiedReportsWidget() {
   }, [fetchData]);
 
   // ─── Build interleaved order ──────────────────────────
-  // Company[0] → All individual → Company[1+]
-  const orderedPanels: UnifiedPanel[] = [];
-  if (companyPanels.length > 0) orderedPanels.push(companyPanels[0]);
-  orderedPanels.push(...individualPanels);
-  if (companyPanels.length > 1) orderedPanels.push(...companyPanels.slice(1));
+  // 1. Build share-group map from company panels
+  const shareGroups = new Map<string, UnifiedPanel[]>();
+  for (const p of companyPanels) {
+    if (p.shareGroupId) {
+      const existing = shareGroups.get(p.shareGroupId) || [];
+      existing.push(p);
+      shareGroups.set(p.shareGroupId, existing);
+    }
+  }
+
+  // 2. Walk companyPanels in order, emitting each group exactly once
+  type CompanySlot = UnifiedPanel | UnifiedPanel[]; // single panel or carousel group
+  const companySlots: CompanySlot[] = [];
+  const emittedGroups = new Set<string>();
+  for (const p of companyPanels) {
+    if (p.shareGroupId) {
+      if (emittedGroups.has(p.shareGroupId)) continue; // already emitted
+      emittedGroups.add(p.shareGroupId);
+      const group = shareGroups.get(p.shareGroupId)!;
+      companySlots.push(group.length > 1 ? group : group[0]);
+    } else {
+      companySlots.push(p);
+    }
+  }
+
+  // 3. Interleave: first company slot → all individual panels → remaining company slots
+  type InterleavedSlot = CompanySlot; // same shape — single panel or panel[]
+  const interleavedSlots: InterleavedSlot[] = [];
+  if (companySlots.length > 0) interleavedSlots.push(companySlots[0]);
+  for (const ip of individualPanels) interleavedSlots.push(ip);
+  if (companySlots.length > 1) interleavedSlots.push(...companySlots.slice(1));
 
   if (loading) {
     return (
@@ -291,24 +320,34 @@ export function UnifiedReportsWidget() {
     );
   }
 
-  if (orderedPanels.length === 0 && !canViewAs) return null;
+  if (interleavedSlots.length === 0 && !canViewAs) return null;
 
-  // Group stat panels into one stacked column; each non-stat panel is its own column
-  type ColumnGroup = { type: "single"; panel: UnifiedPanel } | { type: "stat-stack"; panels: UnifiedPanel[] };
+  // 4. Build ColumnGroup[] — arrays become carousel, stat panels stack, rest are single
+  type ColumnGroup = { type: "single"; panel: UnifiedPanel } | { type: "stat-stack"; panels: UnifiedPanel[] } | { type: "carousel"; panels: UnifiedPanel[] };
   const columns: ColumnGroup[] = [];
-  const statPanels = orderedPanels.filter((p) => p.displayMode === "stat");
+
+  // Collect all single (non-carousel) panels for stat-stacking logic
+  const singlePanels: UnifiedPanel[] = [];
+  for (const slot of interleavedSlots) {
+    if (!Array.isArray(slot)) singlePanels.push(slot);
+  }
+  const statPanels = singlePanels.filter((p) => p.displayMode === "stat");
   let statGroupInserted = false;
-  for (const panel of orderedPanels) {
-    if (panel.displayMode === "stat") {
+
+  for (const slot of interleavedSlots) {
+    if (Array.isArray(slot)) {
+      // Carousel group (2+ panels sharing a shareGroupId)
+      columns.push({ type: "carousel", panels: slot });
+    } else if (slot.displayMode === "stat") {
       if (!statGroupInserted && statPanels.length > 1) {
         columns.push({ type: "stat-stack", panels: statPanels });
         statGroupInserted = true;
       } else if (statPanels.length === 1) {
-        columns.push({ type: "single", panel });
+        columns.push({ type: "single", panel: slot });
       }
       // skip additional stat panels — already grouped
     } else {
-      columns.push({ type: "single", panel });
+      columns.push({ type: "single", panel: slot });
     }
   }
   const colCount = columns.length;
@@ -370,14 +409,19 @@ export function UnifiedReportsWidget() {
         <div id="unified-reports-grid" className="grid grid-cols-1 items-start">
           {columns.map((col, idx) => (
             <div
-              key={col.type === "single" ? `${col.panel.source}-${col.panel.id}` : "stat-stack"}
+              key={col.type === "single" ? `${col.panel.source}-${col.panel.id}` : col.type === "carousel" ? `carousel-${col.panels[0].id}` : "stat-stack"}
               className={`min-w-0 ${
                 idx > 0
                   ? "border-t md:border-t-0 md:border-l border-gray-100 dark:border-gray-800"
                   : ""
               }`}
             >
-              {col.type === "stat-stack" ? (
+              {col.type === "carousel" ? (
+              <CarouselSection
+                panels={col.panels}
+                onViewAll={(id) => setViewAllPanel({ id, source: "company" })}
+              />
+            ) : col.type === "stat-stack" ? (
                 <div className="flex flex-col">
                   {col.panels.map((panel, si) => (
                     <div
@@ -419,12 +463,81 @@ export function UnifiedReportsWidget() {
   );
 }
 
+// ─── Carousel Section ───────────────────────────────────
+
+interface CarouselNav {
+  index: number;
+  total: number;
+  onPrev: () => void;
+  onNext: () => void;
+}
+
+/** Inline carousel arrows + page indicator for section headers */
+function CarouselNavControls({ nav }: { nav: CarouselNav }) {
+  return (
+    <div className="flex items-center gap-1 shrink-0 bg-blue-50 dark:bg-blue-900/30 rounded-full px-1.5 py-0.5">
+      <button
+        onClick={nav.onPrev}
+        className="p-0.5 rounded-full hover:bg-brand-blue/10 disabled:opacity-30 transition-colors"
+        aria-label="Previous report"
+      >
+        <ChevronLeft className="w-4 h-4 text-brand-blue" />
+      </button>
+      <span className="text-[11px] font-semibold text-brand-blue select-none tabular-nums">
+        {nav.index + 1}/{nav.total}
+      </span>
+      <button
+        onClick={nav.onNext}
+        className="p-0.5 rounded-full hover:bg-brand-blue/10 disabled:opacity-30 transition-colors"
+        aria-label="Next report"
+      >
+        <ChevronRight className="w-4 h-4 text-brand-blue" />
+      </button>
+    </div>
+  );
+}
+
+function CarouselSection({
+  panels,
+  onViewAll,
+}: {
+  panels: UnifiedPanel[];
+  onViewAll: (id: string) => void;
+}) {
+  const [index, setIndex] = useState(0);
+  const safeIndex = Math.min(index, panels.length - 1);
+  const panel = panels[safeIndex];
+
+const nav: CarouselNav = {
+  index: safeIndex,
+  total: panels.length,
+  onPrev: () => setIndex((i) => (i <= 0 ? panels.length - 1 : i - 1)),
+  onNext: () => setIndex((i) => (i >= panels.length - 1 ? 0 : i + 1)),
+};
+
+  return (
+    <div className="flex flex-col">
+      {panel.displayMode === "stat" ? (
+        <StatSection panel={panel} carouselNav={nav} />
+      ) : panel.displayMode === "chart" ? (
+        <ChartSection panel={panel} carouselNav={nav} />
+      ) : panel.displayMode === "bar" ? (
+        <BarSection panel={panel} onViewAll={() => onViewAll(panel.id)} carouselNav={nav} />
+      ) : (
+        <TableSection panel={panel} onViewAll={() => onViewAll(panel.id)} carouselNav={nav} />
+      )}
+    </div>
+  );
+}
+
 function BarSection({
   panel,
   onViewAll,
+  carouselNav,
 }: {
   panel: UnifiedPanel;
   onViewAll?: () => void;
+  carouselNav?: CarouselNav;
 }) {
   const isCompany = panel.source === "company";
   const Icon = isCompany ? BarChart3 : Activity;
@@ -452,6 +565,7 @@ function BarSection({
           </h3>
         </div>
         <div className="flex items-center gap-3 shrink-0">
+          {carouselNav && <CarouselNavControls nav={carouselNav} />}
           {panel.fetchedAt && (
             <span className="text-[10px] text-brand-grey hidden sm:inline">
               Updated {formatRelativeTime(panel.fetchedAt)}
@@ -680,7 +794,7 @@ function ViewAsToolbar({
 
 // ─── Stat Section ───────────────────────────────────────
 
-function StatSection({ panel }: { panel: UnifiedPanel }) {
+function StatSection({ panel, carouselNav }: { panel: UnifiedPanel; carouselNav?: CarouselNav }) {
   const isCompany = panel.source === "company";
   const accentBorder = isCompany ? "border-t-brand-blue" : "border-t-emerald-500";
   return (
@@ -690,9 +804,10 @@ function StatSection({ panel }: { panel: UnifiedPanel }) {
           <TrendingUp
             className={`w-3.5 h-3.5 shrink-0 ${isCompany ? "text-brand-blue" : "text-emerald-500"}`}
           />
-          <h3 className="text-[11px] font-bold text-brand-grey tracking-wide uppercase truncate">
+          <h3 className="text-[11px] font-bold text-brand-grey tracking-wide uppercase truncate flex-1">
             {panel.statLabel || panel.title}
           </h3>
+          {carouselNav && <CarouselNavControls nav={carouselNav} />}
         </div>
         <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
           {panel.statValue ?? "—"}
@@ -709,7 +824,7 @@ function StatSection({ panel }: { panel: UnifiedPanel }) {
 
 // ─── Chart Section (Pie/Donut) ──────────────────────────
 
-function ChartSection({ panel }: { panel: UnifiedPanel }) {
+function ChartSection({ panel, carouselNav }: { panel: UnifiedPanel; carouselNav?: CarouselNav }) {
   const isCompany = panel.source === "company";
   const Icon = isCompany ? BarChart3 : Activity;
   const accentBorder = isCompany ? "border-t-brand-blue" : "border-t-emerald-500";
@@ -731,11 +846,14 @@ function ChartSection({ panel }: { panel: UnifiedPanel }) {
             {panel.title || "Report"}
           </h3>
         </div>
-        {panel.fetchedAt && (
-          <span className="text-[10px] text-brand-grey">
-            Updated {formatRelativeTime(panel.fetchedAt)}
-          </span>
-        )}
+        <div className="flex items-center gap-3 shrink-0">
+          {carouselNav && <CarouselNavControls nav={carouselNav} />}
+          {panel.fetchedAt && (
+            <span className="text-[10px] text-brand-grey">
+              Updated {formatRelativeTime(panel.fetchedAt)}
+            </span>
+          )}
+        </div>
       </div>
       <div className="p-2 flex justify-center">
         {panel.chartData && panel.chartData.length > 0 ? (
@@ -755,9 +873,11 @@ function ChartSection({ panel }: { panel: UnifiedPanel }) {
 function TableSection({
   panel,
   onViewAll,
+  carouselNav,
 }: {
   panel: UnifiedPanel;
   onViewAll?: () => void;
+  carouselNav?: CarouselNav;
 }) {
   const { title, columns, rows, totalRows, maxRows, fetchedAt, highlightTopN, grandTotals } =
     panel;
@@ -795,6 +915,7 @@ function TableSection({
           </h3>
         </div>
         <div className="flex items-center gap-3 shrink-0">
+          {carouselNav && <CarouselNavControls nav={carouselNav} />}
           {fetchedAt && (
             <span className="text-[10px] text-brand-grey hidden sm:inline">
               Updated {formatRelativeTime(fetchedAt)}

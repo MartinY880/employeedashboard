@@ -25,6 +25,7 @@ export interface SfReportPanel {
   sortDirection?: "asc" | "desc"; // sort direction (default "asc")
   visibleToRoles?: string[]; // Logto role names that can see this section (empty = everyone)
   visibleToSuperAdminOnly?: boolean; // preview mode: only SUPER_ADMIN can see this panel
+  shareGroupId?: string; // panels with same shareGroupId are grouped into one carousel on dashboard
   order: number;
 }
 
@@ -38,6 +39,7 @@ export interface PanelData {
   title: string;
   displayMode: "table" | "stat" | "chart" | "bar";
   highlightTopN: number;
+  shareGroupId?: string;
   columns?: { name: string; label: string }[];
   rows?: { cells: { label: string; value: string }[] }[];
   totalRows?: number;
