@@ -30,17 +30,28 @@ function getInitials(name: string): string {
 
 export function ClosersTableBanner() {
   const [awards, setAwards] = useState<CloserAward[]>([]);
+  const [isFetching, setIsFetching] = useState(true);
+  const [frozen, setFrozen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<DirectoryNode | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
-  useEffect(() => {
-    fetch("/api/closers-table")
+  const fetchAwards = useCallback(() => {
+    setIsFetching(true);
+    fetch("/api/closers-table", { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => {
         if (d?.awards?.length) setAwards(d.awards);
+        if (d?.freezeInfo) setFrozen(d.freezeInfo.frozen ?? false);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setIsFetching(false));
   }, []);
+
+  useEffect(() => {
+    fetchAwards();
+    const timer = setInterval(fetchAwards, 15 * 60 * 1000);
+    return () => clearInterval(timer);
+  }, [fetchAwards]);
 
   const handleCardClick = useCallback(async (award: CloserAward) => {
     if (!award.employeeId) return;
@@ -54,7 +65,7 @@ export function ClosersTableBanner() {
     } catch { /* silently fail */ }
   }, []);
 
-  if (!awards.length) return null;
+  if (!awards.length && !isFetching) return null;
 
   return (
     <section className="mb-5">
@@ -63,7 +74,7 @@ export function ClosersTableBanner() {
         <div className="px-3.5 py-2 bg-gradient-to-r from-slate-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 border-t-[3px] border-t-brand-blue flex items-center justify-center gap-2">
           <Trophy className="h-4 w-4 text-brand-blue" />
           <h3 className="text-sm font-bold text-brand-blue tracking-wide uppercase">
-            Closers Table
+            {frozen ? "Closer's Table" : "Closer's Table - Working"}
           </h3>
           <Trophy className="h-4 w-4 text-brand-blue" />
         </div>

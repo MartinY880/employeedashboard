@@ -68,8 +68,8 @@ export function DirectorySearchBar() {
   return (
     <>
       {/* Search bar */}
-      <div ref={containerRef} className="relative">
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex items-center px-3 py-2 gap-2">
+      <div ref={containerRef} className="relative min-w-0">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex items-center px-3 py-2 gap-2 overflow-hidden">
           <Search className="w-4 h-4 text-brand-grey/50 shrink-0" />
           <input
             ref={inputRef}
@@ -81,7 +81,7 @@ export function DirectorySearchBar() {
               setShowResults(true);
             }}
             onFocus={() => { if (query.trim()) setShowResults(true); }}
-            className="flex-1 text-sm bg-transparent outline-none placeholder:text-brand-grey/50 dark:text-gray-200"
+            className="flex-1 min-w-0 text-sm bg-transparent outline-none placeholder:text-brand-grey/50 dark:text-gray-200"
             disabled={isLoading}
           />
           {query && (
@@ -91,7 +91,7 @@ export function DirectorySearchBar() {
           )}
           <Link
             href="/directory"
-            className="text-[10px] text-brand-blue hover:underline font-medium shrink-0"
+            className="text-[10px] text-brand-blue hover:underline font-medium shrink-0 whitespace-nowrap"
           >
             Full Directory →
           </Link>

@@ -118,7 +118,7 @@ export async function describeReport(reportId: string): Promise<{
       });
     }
   } else if (reportFormat === "SUMMARY" || reportFormat === "MATRIX" || reportFormat === "MULTI_BLOCK") {
-    // SUMMARY/MATRIX/MULTI_BLOCK: show grouping columns + aggregate columns (no detail columns)
+    // SUMMARY/MATRIX/MULTI_BLOCK: grouping columns + aggregate columns + detail columns
     const groupingColInfo = extendedMeta?.groupingColumnInfo ?? {};
     const groupingsDown: { name: string }[] = meta?.groupingsDown ?? [];
     const groupingsAcross: { name: string }[] = meta?.groupingsAcross ?? [];
@@ -140,6 +140,23 @@ export async function describeReport(reportId: string): Promise<{
       columns.push({
         name: aggName,
         label: info.fullLabel ?? info.label ?? aggName,
+        dataType: info.dataType ?? "string",
+      });
+    }
+
+    // Also expose detail columns — they carry per-record values (e.g. User ID)
+    // when the report is executed with includeDetails=true.
+    // In the sync these are only useful if the report is TABULAR or the column
+    // is a grouping column whose cell.value = SF record ID.
+    const detailCols: string[] = meta?.detailColumns ?? [];
+    const detailColInfo = extendedMeta?.detailColumnInfo ?? {};
+    const existingNames = new Set(columns.map((c) => c.name));
+    for (const apiName of detailCols) {
+      if (existingNames.has(apiName)) continue; // already added as grouping/aggregate
+      const info = detailColInfo[apiName] ?? {};
+      columns.push({
+        name: apiName,
+        label: info.label ?? apiName,
         dataType: info.dataType ?? "string",
       });
     }
@@ -271,24 +288,32 @@ export async function executeReport(reportId: string): Promise<SfReportResult> {
  * Recursively walk SUMMARY/MATRIX groupings to produce flat summary rows.
  * Each leaf grouping maps to a factMap key like "0!T", "1!T", "0_0!T", etc.
  * We build one row per group using the group label(s) + aggregate values.
+ *
+ * IMPORTANT: For User/lookup grouping columns, SF sets `group.value` to the
+ * actual record ID (e.g. 005XXXXXXXXXXXXXXXXX). We propagate it as cell.value
+ * so the sync can use it for SF User email lookup, while cell.label stays as
+ * the human-readable display name.
  */
 function extractGroupedRows(
-  groupings: { key: string; label: string; groupings?: unknown[] }[],
+  groupings: { key: string; label: string; value?: string; groupings?: unknown[] }[],
   factMap: Record<string, { aggregates?: { label?: string; value?: unknown }[] }>,
   aggNames: string[],
-  parentLabels: string[],
+  parentEntries: { label: string; value: string }[],
   out: SfReportRow[],
 ): void {
   for (const group of groupings) {
-    const labels = [...parentLabels, group.label ?? ""];
+    const entries = [
+      ...parentEntries,
+      { label: group.label ?? "", value: group.value ?? group.label ?? "" },
+    ];
 
     // If there are sub-groupings, recurse
     if (group.groupings && (group.groupings as unknown[]).length > 0) {
       extractGroupedRows(
-        group.groupings as { key: string; label: string; groupings?: unknown[] }[],
+        group.groupings as { key: string; label: string; value?: string; groupings?: unknown[] }[],
         factMap,
         aggNames,
-        labels,
+        entries,
         out,
       );
       continue;
@@ -299,7 +324,8 @@ function extractGroupedRows(
     const fact = factMap[factKey];
     if (!fact?.aggregates) continue;
 
-    const groupCells = labels.map((l) => ({ label: l, value: l }));
+    // cell.label = display name, cell.value = SF record ID (or label if no ID)
+    const groupCells = entries.map((e) => ({ label: e.label, value: e.value }));
 
     // fact.aggregates mirrors meta.aggregates in order (1:1 positional)
     const aggCells = fact.aggregates.map((a: { label?: string; value?: unknown } | null) => ({
@@ -309,6 +335,37 @@ function extractGroupedRows(
 
     out.push({ cells: [...groupCells, ...aggCells] });
   }
+}
+
+/**
+ * Batch-resolve Salesforce User IDs → emails via SOQL.
+ * Returns a Map<sfUserId, email>. Only active users are returned.
+ * Use this when a report column contains a SF User ID (cell.value) but no email column.
+ */
+export async function getSfUserEmails(userIds: string[]): Promise<Map<string, string>> {
+  if (!userIds.length) return new Map();
+  const { token, instanceUrl } = await getAccessToken();
+  // Sanitize IDs — allow only alphanumeric chars (SF IDs are [A-Za-z0-9]{15,18})
+  const safeIds = userIds
+    .map((id) => id.replace(/[^A-Za-z0-9]/g, "").slice(0, 18))
+    .filter((id) => id.length >= 15);
+  if (!safeIds.length) return new Map();
+  const inList = safeIds.map((id) => `'${id}'`).join(",");
+  const query = `SELECT Id,Email FROM User WHERE Id IN (${inList}) AND IsActive = true`;
+  const res = await fetch(
+    `${instanceUrl}/services/data/${SF_API_VERSION}/query?q=${encodeURIComponent(query)}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Salesforce User query failed (${res.status}): ${err}`);
+  }
+  const body = await res.json();
+  const map = new Map<string, string>();
+  for (const record of body.records ?? []) {
+    if (record.Id && record.Email) map.set(record.Id as string, record.Email as string);
+  }
+  return map;
 }
 
 // ─── Execute with runtime filters (for Active Pipeline) ─
