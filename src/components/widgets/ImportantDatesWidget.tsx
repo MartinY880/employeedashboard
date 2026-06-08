@@ -175,26 +175,36 @@ export function ImportantDatesWidget() {
       .finally(() => setLoaded(true));
   }, []);
 
-  // Resolve important dates with client-side recurrence logic
+  // Resolve important dates with client-side recurrence logic.
+  // Priority: current-month dates fill slots first; next-month dates only appear
+  // once current-month dates are exhausted (i.e. there are fewer than TOTAL_CAP left).
   const etNow = easternToday();
   const curYear = etNow.getFullYear();
   const curMonth = etNow.getMonth();
+  const nextMonth = curMonth === 11 ? 0 : curMonth + 1;
+  const nextYear = curMonth === 11 ? curYear + 1 : curYear;
 
-  const resolvedImportant: UnifiedItem[] = importantDates
+  const allResolved = importantDates
     .filter((d) => d.active !== false)
     .map((d) => ({ ...d, resolved: resolveDate(d) }))
-    .filter((d) => {
-      if (d.resolved < etNow) return false;
-      const rYear = d.resolved.getFullYear();
-      const rMonth = d.resolved.getMonth();
-      if (rYear === curYear && rMonth === curMonth) return true;
-      const nextMonth = curMonth === 11 ? 0 : curMonth + 1;
-      const nextYear = curMonth === 11 ? curYear + 1 : curYear;
-      if (rYear === nextYear && rMonth === nextMonth) return true;
-      return false;
-    })
-    .sort((a, b) => a.resolved.getTime() - b.resolved.getTime())
-    .slice(0, TOTAL_CAP)
+    .filter((d) => d.resolved >= etNow)
+    .sort((a, b) => a.resolved.getTime() - b.resolved.getTime());
+
+  const currentMonthDates = allResolved.filter((d) => {
+    return d.resolved.getFullYear() === curYear && d.resolved.getMonth() === curMonth;
+  });
+
+  const nextMonthDates = allResolved.filter((d) => {
+    return d.resolved.getFullYear() === nextYear && d.resolved.getMonth() === nextMonth;
+  });
+
+  const slotsForNextMonth = currentMonthDates.length > 0 ? 0 : TOTAL_CAP;
+  const selectedDates = [
+    ...currentMonthDates,
+    ...nextMonthDates.slice(0, slotsForNextMonth),
+  ].slice(0, TOTAL_CAP);
+
+  const resolvedImportant: UnifiedItem[] = selectedDates
     .map((d) => ({
       id: d.id,
       title: d.label,

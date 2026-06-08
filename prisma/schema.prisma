@@ -19,6 +19,7 @@ model User {
   displayName String
   role        Role      @default(EMPLOYEE)
   disabledAt  DateTime? @map("disabled_at")
+  entraId     String?   @unique @map("entra_id")
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 

@@ -13,7 +13,11 @@ interface Flyer {
   filename: string;
 }
 
-export function FlyerWidget() {
+interface FlyerWidgetProps {
+  onEmpty?: () => void;
+}
+
+export function FlyerWidget({ onEmpty }: FlyerWidgetProps) {
   const [flyers, setFlyers] = useState<Flyer[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [enlarged, setEnlarged] = useState(false);
@@ -22,24 +26,16 @@ export function FlyerWidget() {
     fetch("/api/flyers?active=true")
       .then((r) => r.json())
       .then((data) => {
-        if (data.flyers?.length) setFlyers(data.flyers);
+        if (data.flyers?.length) {
+          setFlyers(data.flyers);
+        } else {
+          onEmpty?.();
+        }
       })
-      .catch(() => {});
-  }, []);
+      .catch(() => onEmpty?.());
+  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!flyers.length) {
-    return (
-      <div className="h-full flex flex-col bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
-        <div className="px-3.5 py-2 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 border-t-[3px] border-t-brand-blue flex items-center gap-2">
-          <ImageIcon className="w-3.5 h-3.5 text-brand-blue" />
-          <h3 className="text-sm font-bold text-brand-blue tracking-wide uppercase leading-none">Flyers</h3>
-        </div>
-        <div className="flex-1 flex items-center justify-center">
-          <p className="text-xs text-gray-400 dark:text-gray-500">No flyers right now</p>
-        </div>
-      </div>
-    );
-  }
+  if (!flyers.length) return null;
 
   const current = flyers[activeIndex];
   const imageUrl = `/api/flyers/image/${current.filename}`;

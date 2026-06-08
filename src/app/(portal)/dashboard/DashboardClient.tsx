@@ -57,6 +57,7 @@ export default function DashboardClient({ visibility, sliderConfig, showVideoSpo
   const [sliderMedia, setSliderMedia] = useState<DashboardSliderMedia[] | null>(null);
   const [showOoo, setShowOoo] = useState(false);
   const [celebrationDate, setCelebrationDate] = useState<string>("");
+  const [flyerHidden, setFlyerHidden] = useState(false);
   const sliderActive = sliderConfig.enabled && sliderConfig.hasMedia;
 
   // Ref for Be Brilliant column
@@ -232,15 +233,18 @@ export default function DashboardClient({ visibility, sliderConfig, showVideoSpo
             </div>
           )}
 
-          {/* Col 2: Flyers full height */}
-          <div className="lg:col-start-2 lg:h-full">
-            <ErrorBoundary label="Events" compact>
-              <FlyerWidget />
-            </ErrorBoundary>
-          </div>
+          {/* Col 2: Flyers full height — hidden when no active flyers */}
+          {!flyerHidden && (
+            <div className="lg:col-start-2 lg:h-full">
+              <ErrorBoundary label="Events" compact>
+                <FlyerWidget onEmpty={() => setFlyerHidden(true)} />
+              </ErrorBoundary>
+            </div>
+          )}
 
-          {/* Col 3: Employee Highlight + Weather stacked */}
-          <div className="lg:col-start-3 lg:h-full flex flex-col gap-4">
+          {/* Col 3: Employee Highlight + Weather stacked
+              Expands to span cols 2–3 when there are no active flyers */}
+          <div className={`lg:h-full flex flex-col gap-4 ${flyerHidden ? "lg:col-start-2 lg:col-span-2" : "lg:col-start-3"}`}>
             <div className="lg:flex-1 min-h-0">
               <ErrorBoundary label="Employee Highlight" compact>
                 <EmployeeHighlight />

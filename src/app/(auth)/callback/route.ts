@@ -82,10 +82,12 @@ export async function GET(request: NextRequest) {
           (info.username as string) ??
           email.split("@")[0] ??
           "User";
+        // Azure Object ID — immutable even when UPN/email changes
+        const entraId = (info.oid as string) || null;
 
         if (sub && email) {
           const dbRole = resolveDbRole(info);
-          await ensureDbUser(sub, email, name, dbRole);
+          await ensureDbUser(sub, email, name, dbRole, entraId);
 
           // ── Auto-sync role from directory job title via Logto Management API ──
           dbg(`M2M configured: ${isM2MConfigured}, email: ${email}`);

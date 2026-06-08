@@ -82,13 +82,15 @@ export function useCalendar(limitOrOpts: number | UseCalendarOptions = 6) {
             color: h.color || CATEGORY_COLORS[h.category] || "#06427F",
           }));
       } else {
-        // Widget mode: upcoming holidays only, limited
-        // Use Eastern Time so today doesn't roll over at 7 PM ET
+        // Widget mode: upcoming holidays only, limited.
+        // Exclude important_dates — those are fetched and resolved separately by the
+        // consuming widget; including them here would cause duplicates in the backfill.
+        // Use Eastern Time so today doesn't roll over at 7 PM ET.
         const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
         result = data
-          .filter((h: CalendarHoliday) => h.date >= today)
+          .filter((h: CalendarHoliday) => h.date >= today && h.category !== "important_dates")
           .sort((a: CalendarHoliday, b: CalendarHoliday) => a.date.localeCompare(b.date))
-          .slice(0, opts.limit ?? 6)
+          .slice(0, opts.limit ?? 100)
           .map((h: CalendarHoliday) => ({
             ...h,
             color: h.color || CATEGORY_COLORS[h.category] || "#06427F",

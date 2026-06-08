@@ -342,6 +342,12 @@ export async function syncDirectorySnapshotFromGraph(): Promise<void> {
 
           // ── Disable/Re-enable check: suspend users no longer in Entra ──
           try {
+            // Build lookup structures keyed on the immutable Azure Object ID
+            const activeEntraIds = new Set(flat.map((u) => u.id));
+            const mailToEntraId = new Map(
+              flat.filter((u) => u.mail).map((u) => [u.mail!.toLowerCase(), u.id])
+            );
+            // Fallback for users whose entraId hasn't been populated yet
             const activeEmails = new Set(
               usersWithEmail.map((u) => u.mail!.toLowerCase())
             );
@@ -349,15 +355,36 @@ export async function syncDirectorySnapshotFromGraph(): Promise<void> {
             // Find all DB users who have logged in (non-directory stub)
             const dbUsers = await prisma.user.findMany({
               where: { NOT: { logtoId: { startsWith: "directory-" } } },
-              select: { id: true, email: true, logtoId: true, disabledAt: true },
+              select: { id: true, email: true, logtoId: true, disabledAt: true, entraId: true },
             });
 
             for (const dbUser of dbUsers) {
               const emailLower = dbUser.email.toLowerCase();
-              const isInEntra = activeEmails.has(emailLower);
+
+              // Backfill entraId from the current snapshot when not yet set.
+              // Use a separate const so TypeScript can narrow it for the Prisma update.
+              let entraId: string | null = dbUser.entraId;
+              if (!entraId) {
+                const candidate = mailToEntraId.get(emailLower) ?? null;
+                if (candidate) {
+                  try {
+                    await prisma.user.update({
+                      where: { id: dbUser.id },
+                      data: { entraId: candidate },
+                    });
+                    entraId = candidate;
+                  } catch {
+                    // Ignore uniqueness conflicts — another row already owns this entraId
+                  }
+                }
+              }
+
+              // Prefer entraId match; fall back to email for users not yet backfilled
+              const isInEntra = entraId
+                ? activeEntraIds.has(entraId)
+                : activeEmails.has(emailLower);
 
               if (!isInEntra && !dbUser.disabledAt) {
-                // User is NOT in the active Entra set — suspend them
                 try {
                   await suspendUser(dbUser.logtoId);
                   await prisma.user.update({
@@ -369,7 +396,6 @@ export async function syncDirectorySnapshotFromGraph(): Promise<void> {
                   console.warn(`[Directory Sync] Failed to suspend ${dbUser.email}:`, err);
                 }
               } else if (isInEntra && dbUser.disabledAt) {
-                // User is back in Entra — re-enable them
                 try {
                   await unsuspendUser(dbUser.logtoId);
                   await prisma.user.update({
