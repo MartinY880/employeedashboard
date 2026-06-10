@@ -42,6 +42,7 @@ export async function GET(
       gif: "image/gif",
       webp: "image/webp",
       svg: "image/svg+xml",
+      pdf: "application/pdf",
     };
 
     return new NextResponse(buffer, {

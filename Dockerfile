@@ -30,7 +30,7 @@ RUN addgroup --system --gid 1001 nodejs && \
 
 # Install Prisma CLI globally and tools needed by the entrypoint migrations
 RUN npm install -g prisma@latest && \
-    apk add --no-cache postgresql-client bash ffmpeg
+    apk add --no-cache postgresql-client bash ffmpeg poppler-utils
 
 # Copy standalone output
 COPY --from=builder /app/.next/standalone ./

@@ -3,7 +3,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, ImageIcon, X } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -11,6 +11,8 @@ interface Flyer {
   id: string;
   title: string;
   filename: string;
+  thumbnailFilename: string | null;
+  mimeType: string;
 }
 
 interface FlyerWidgetProps {
@@ -21,6 +23,8 @@ export function FlyerWidget({ onEmpty }: FlyerWidgetProps) {
   const [flyers, setFlyers] = useState<Flyer[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [enlarged, setEnlarged] = useState(false);
+  const [pdfLoaded, setPdfLoaded] = useState(false);
+  const prefetchedRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     fetch("/api/flyers?active=true")
@@ -35,10 +39,34 @@ export function FlyerWidget({ onEmpty }: FlyerWidgetProps) {
       .catch(() => onEmpty?.());
   }, []);  // eslint-disable-line react-hooks/exhaustive-deps
 
+  const prefetchPdf = (url: string) => {
+    if (prefetchedRef.current.has(url)) return;
+    prefetchedRef.current.add(url);
+    const link = document.createElement("link");
+    link.rel = "prefetch";
+    link.href = url;
+    document.head.appendChild(link);
+  };
+
+  // Prefetch the full PDF for the current slide whenever the index changes
+  useEffect(() => {
+    if (flyers.length && flyers[activeIndex]?.mimeType === "application/pdf") {
+      prefetchPdf(`/api/flyers/image/${flyers[activeIndex].filename}`);
+    }
+  }, [activeIndex, flyers]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Reset loaded flag when the enlarged modal opens or the slide changes
+  useEffect(() => {
+    setPdfLoaded(false);
+  }, [enlarged, activeIndex]);
+
   if (!flyers.length) return null;
 
   const current = flyers[activeIndex];
-  const imageUrl = `/api/flyers/image/${current.filename}`;
+  const isPdf = current.mimeType === "application/pdf";
+  // PDFs always have a thumbnailFilename — use it for the carousel thumbnail
+  const thumbnailUrl = `/api/flyers/image/${current.thumbnailFilename ?? current.filename}`;
+  const fullUrl = `/api/flyers/image/${current.filename}`;
 
   const goPrev = () => setActiveIndex((i) => (i - 1 + flyers.length) % flyers.length);
   const goNext = () => setActiveIndex((i) => (i + 1) % flyers.length);
@@ -79,11 +107,12 @@ export function FlyerWidget({ onEmpty }: FlyerWidgetProps) {
         <div
           className="flex-1 min-h-[180px] lg:min-h-0 overflow-hidden cursor-pointer relative"
           onClick={() => setEnlarged(true)}
+          onMouseEnter={() => isPdf && prefetchPdf(fullUrl)}
         >
           <AnimatePresence mode="wait">
             <motion.img
               key={current.id}
-              src={imageUrl}
+              src={thumbnailUrl}
               alt={current.title}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -136,17 +165,47 @@ export function FlyerWidget({ onEmpty }: FlyerWidgetProps) {
             )}
 
             <AnimatePresence mode="wait">
-              <motion.img
-                key={current.id}
-                src={imageUrl}
-                alt={current.title}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ duration: 0.2 }}
-                className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl"
-                draggable={false}
-              />
+              {isPdf ? (
+                <div className="relative w-[min(85vh*0.773,90vw)] h-[85vh]">
+                  <motion.iframe
+                    key={current.id}
+                    src={`${fullUrl}#toolbar=0&navpanes=0&view=FitH`}
+                    title={current.title}
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ duration: 0.2 }}
+                    className="w-full h-full rounded-xl shadow-2xl border-0 bg-white"
+                    onLoad={() => setPdfLoaded(true)}
+                  />
+                  <AnimatePresence>
+                    {!pdfLoaded && (
+                      <motion.img
+                        key="thumb"
+                        src={thumbnailUrl}
+                        alt=""
+                        aria-hidden
+                        initial={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="absolute inset-0 w-full h-full object-contain rounded-xl bg-white pointer-events-none"
+                      />
+                    )}
+                  </AnimatePresence>
+                </div>
+              ) : (
+                <motion.img
+                  key={current.id}
+                  src={fullUrl}
+                  alt={current.title}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ duration: 0.2 }}
+                  className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl"
+                  draggable={false}
+                />
+              )}
             </AnimatePresence>
 
             {/* Title + counter */}

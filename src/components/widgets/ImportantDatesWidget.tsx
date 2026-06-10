@@ -6,16 +6,10 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { CalendarClock, Calendar, ExternalLink, RefreshCw, Clock, MapPin, FileText } from "lucide-react";
+import { CalendarClock, Calendar, ExternalLink, RefreshCw } from "lucide-react";
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { useCalendar, type CalendarHoliday } from "@/hooks/useCalendar";
+import { HolidayDetailDialog } from "@/components/widgets/HolidayDetailDialog";
 
 const TOTAL_CAP = 6;
 
@@ -103,15 +97,6 @@ function formatDate(d: Date): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-function formatTime(isoString: string): string {
-  return new Date(isoString).toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-    timeZone: "UTC",
-  });
-}
-
 const CATEGORY_COLORS: Record<string, string> = {
   important_dates: "#dc2626",
   federal: "#1e40af",
@@ -127,25 +112,6 @@ const CATEGORY_LABELS: Record<string, string> = {
   fun: "Fun",
   observance: "Observance",
 };
-
-function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
-  const cleaned = hex.replace("#", "").trim();
-  if (!/^[0-9a-fA-F]{6}$/.test(cleaned)) return null;
-  return {
-    r: parseInt(cleaned.slice(0, 2), 16),
-    g: parseInt(cleaned.slice(2, 4), 16),
-    b: parseInt(cleaned.slice(4, 6), 16),
-  };
-}
-
-function getBadgeStyle(color: string) {
-  const rgb = hexToRgb(color);
-  if (!rgb) return { backgroundColor: "#f3f4f6", color: "#374151" };
-  return {
-    backgroundColor: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.14)`,
-    color,
-  };
-}
 
 /* ══════════════════════════════════════════════════════════
    Widget
@@ -341,144 +307,19 @@ export function ImportantDatesWidget() {
       </div>
 
       {/* Holiday Detail Dialog */}
-      <Dialog open={!!selectedHoliday} onOpenChange={(open) => !open && setSelectedHoliday(null)}>
-        {(() => {
-          const hasRichContent = selectedHoliday?.event?.htmlContent || selectedHoliday?.event?.flyer;
-          const lbw = selectedHoliday?.event?.lightboxWidth || 90;
-          const catColor = catColors[selectedHoliday?.category || ""] || "#6b7280";
-          return (
-            <DialogContent
-              className={hasRichContent ? "max-h-[90vh] overflow-y-auto lightbox-rich" : "sm:max-w-md"}
-              style={hasRichContent ? { "--lb-width": `${lbw}vw` } as React.CSSProperties : undefined}
-            >
-              {hasRichContent && (
-                <style>{`
-                  .lightbox-rich { width: calc(100vw - 2rem) !important; max-width: calc(100vw - 2rem) !important; }
-                  @media (min-width: 768px) { .lightbox-rich { width: var(--lb-width) !important; max-width: var(--lb-width) !important; } }
-                `}</style>
-              )}
-              <DialogHeader>
-                <div className="flex items-start justify-between gap-3 pr-6">
-                  <DialogTitle className="text-lg font-semibold text-gray-900 dark:text-gray-100 leading-snug">
-                    {selectedHoliday?.category === "important_dates" ? "Important Date" : "Holiday Details"}
-                  </DialogTitle>
-                </div>
-              </DialogHeader>
-              {selectedHoliday && (
-                <div className="space-y-3 text-sm">
-                  <div>
-                    <div className="text-xs text-brand-grey">Title</div>
-                    <div className="font-semibold text-gray-900 dark:text-gray-100 break-words">{selectedHoliday.title}</div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <div className="text-xs text-brand-grey flex items-center gap-1"><Calendar className="w-3 h-3" /> Date</div>
-                      <div className="text-gray-800 dark:text-gray-200">{formatDate(new Date(selectedHoliday.date + "T00:00:00"))}</div>
-                      {selectedHoliday.event?.startTime && (
-                        <div className="text-xs text-brand-grey mt-0.5 flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          {formatTime(selectedHoliday.event.startTime)}
-                          {selectedHoliday.event.endTime && ` \u2013 ${formatTime(selectedHoliday.event.endTime)}`}
-                        </div>
-                      )}
-                    </div>
-                    <div>
-                      <div className="text-xs text-brand-grey">Category</div>
-                      <Badge
-                        variant="secondary"
-                        className="mt-1 text-[10px] px-2 py-0.5 font-medium"
-                        style={getBadgeStyle(catColor)}
-                      >
-                        {CATEGORY_LABELS[selectedHoliday.category] || selectedHoliday.category.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
-                      </Badge>
-                    </div>
-                  </div>
-                  {(selectedHoliday.event?.location || selectedHoliday.event?.description) && (
-                    <>
-                      {selectedHoliday.event?.location && (
-                        <div>
-                          <div className="text-xs text-brand-grey flex items-center gap-1"><MapPin className="w-3 h-3" /> Location</div>
-                          <div className="text-gray-800 dark:text-gray-200">{selectedHoliday.event.location}</div>
-                        </div>
-                      )}
-                      {selectedHoliday.event?.description && (
-                        <div>
-                          <div className="text-xs text-brand-grey">Details</div>
-                          <div className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{selectedHoliday.event.description}</div>
-                        </div>
-                      )}
-                    </>
-                  )}
-                  {selectedHoliday.event?.htmlContent && (
-                    <div className="border-t border-gray-100 dark:border-gray-800 pt-3">
-                      <iframe
-                        srcDoc={`<style>*{box-sizing:border-box;max-width:100%}body{margin:0;overflow-x:hidden}</style>${selectedHoliday.event.htmlContent}`}
-                        sandbox="allow-scripts allow-same-origin"
-                        className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white"
-                        style={{ minHeight: 120, maxHeight: "60vh", width: "100%" }}
-                        title={`${selectedHoliday.title} display`}
-                        onLoad={(e) => {
-                          const iframe = e.currentTarget;
-                          const doc = iframe.contentDocument;
-                          if (!doc?.body) return;
-                          const meta = doc.createElement("meta");
-                          meta.name = "viewport";
-                          meta.content = "width=device-width, initial-scale=1";
-                          doc.head.appendChild(meta);
-                          const maxH = window.innerHeight * 0.6;
-                          const resize = () => {
-                            const h = doc.body.scrollHeight + 16;
-                            iframe.style.height = Math.min(h, maxH) + "px";
-                          };
-                          resize();
-                          const ro = new ResizeObserver(resize);
-                          ro.observe(doc.body);
-                        }}
-                      />
-                    </div>
-                  )}
-                  {selectedHoliday.event?.flyer && (() => {
-                    const flyer = selectedHoliday.event.flyer;
-                    const isImage = flyer.mimeType.startsWith("image/");
-                    const isPdf = flyer.mimeType === "application/pdf";
-                    return (
-                      <div className="border-t border-gray-100 dark:border-gray-800 pt-3">
-                        <div className="text-xs text-brand-grey mb-2 flex items-center gap-1">
-                          <FileText className="w-3 h-3" /> Flyer
-                        </div>
-                        {isImage ? (
-                          <img
-                            src={flyer.fileUrl}
-                            alt={flyer.fileName}
-                            className="w-full rounded-lg border border-gray-200 dark:border-gray-700"
-                          />
-                        ) : isPdf ? (
-                          <iframe
-                            src={flyer.fileUrl}
-                            className="w-full rounded-lg border border-gray-200 dark:border-gray-700"
-                            style={{ height: "60vh" }}
-                            title={flyer.fileName}
-                          />
-                        ) : (
-                          <a
-                            href={flyer.fileUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-2 text-sm text-brand-blue hover:underline"
-                          >
-                            <FileText className="w-4 h-4" />
-                            {flyer.fileName}
-                          </a>
-                        )}
-                      </div>
-                    );
-                  })()}
-                </div>
-              )}
-            </DialogContent>
-          );
-        })()}
-      </Dialog>
+      <HolidayDetailDialog
+        holiday={selectedHoliday}
+        onClose={() => setSelectedHoliday(null)}
+        title={selectedHoliday?.category === "important_dates" ? "Important Date" : "Holiday Details"}
+        dateLabel={selectedHoliday ? formatDate(new Date(selectedHoliday.date + "T00:00:00")) : ""}
+        categoryColor={catColors[selectedHoliday?.category || ""] || "#6b7280"}
+        categoryLabel={
+          selectedHoliday
+            ? CATEGORY_LABELS[selectedHoliday.category] ||
+              selectedHoliday.category.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+            : ""
+        }
+      />
     </div>
   );
 }

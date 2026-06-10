@@ -408,6 +408,7 @@ model HolidayEvent {
   description String?   @db.Text
   htmlContent   String?   @db.Text @map("html_content")
   lightboxWidth Int?      @map("lightbox_width")
+  pdfHeight     Int?      @map("pdf_height")
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -423,6 +424,7 @@ model HolidayFlyer {
   fileUrl    String
   fileName   String
   mimeType   String   @default("application/pdf")
+  thumbnailUrl String? @map("thumbnail_url")
   fileSize   Int      @default(0)
   uploadedAt DateTime @default(now()) @map("uploaded_at")
 
@@ -628,10 +630,11 @@ model VideoSpotlight {
 }
 
 model Flyer {
-  id          String    @id @default(cuid())
-  title       String
-  filename    String                // stored filename on disk (uploads/flyers/)
-  mimeType    String    @default("image/jpeg")
+  id                String    @id @default(cuid())
+  title             String
+  filename          String                // stored filename on disk (uploads/flyers/)
+  thumbnailFilename String?               // pre-rendered PNG thumbnail (PDFs only)
+  mimeType          String    @default("image/jpeg")
   fileSize    Int       @default(0) // bytes
   sortOrder   Int       @default(0)
   status      String    @default("active") // active | archived

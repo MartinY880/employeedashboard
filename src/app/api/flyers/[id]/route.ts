@@ -77,11 +77,18 @@ export async function DELETE(
       return NextResponse.json({ error: "Flyer not found" }, { status: 404 });
     }
 
-    // Delete file from disk
+    // Delete file(s) from disk
     try {
       await unlink(join(FLYERS_DIR, flyer.filename));
     } catch {
       // File may already be gone
+    }
+    if (flyer.thumbnailFilename) {
+      try {
+        await unlink(join(FLYERS_DIR, flyer.thumbnailFilename));
+      } catch {
+        // Thumbnail may already be gone
+      }
     }
 
     await deleteFlyer(id);

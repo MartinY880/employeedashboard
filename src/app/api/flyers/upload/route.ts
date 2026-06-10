@@ -1,9 +1,11 @@
 // ProConnect — Flyer Upload API
-// POST: Upload a flyer image
+// POST: Upload a flyer image or PDF (PDFs get a server-side PNG thumbnail via pdftoppm)
 
 import { randomUUID } from "crypto";
-import { writeFile, mkdir } from "fs/promises";
+import { writeFile, mkdir, readFile, unlink } from "fs/promises";
 import { join } from "path";
+import { execFile } from "child_process";
+import { promisify } from "util";
 import { NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/logto";
 import { hasPermission, PERMISSIONS, toDbRole } from "@/lib/rbac";
@@ -11,9 +13,18 @@ import { ensureDbUser } from "@/lib/prisma";
 import { createFlyer } from "@/lib/flyer-store";
 import { UPLOADS_BASE } from "@/lib/uploads-dir";
 
+const execFileAsync = promisify(execFile);
+
 const FLYERS_DIR = join(UPLOADS_BASE, "flyers");
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
-const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml"];
+const ACCEPTED_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+  "image/svg+xml",
+  "application/pdf",
+];
 
 async function ensureFlyersDir() {
   await mkdir(FLYERS_DIR, { recursive: true });
@@ -21,13 +32,54 @@ async function ensureFlyersDir() {
 
 function getExtension(filename: string, mimeType: string): string {
   const ext = filename.split(".").pop()?.toLowerCase();
-  if (ext && ["jpg", "jpeg", "png", "gif", "webp", "svg"].includes(ext)) return ext;
+  if (ext && ["jpg", "jpeg", "png", "gif", "webp", "svg", "pdf"].includes(ext)) return ext;
   if (mimeType.includes("jpeg")) return "jpg";
   if (mimeType.includes("png")) return "png";
   if (mimeType.includes("gif")) return "gif";
   if (mimeType.includes("webp")) return "webp";
   if (mimeType.includes("svg")) return "svg";
+  if (mimeType.includes("pdf")) return "pdf";
   return "jpg";
+}
+
+async function generatePdfThumbnail(pdfPath: string, uuid: string): Promise<string | null> {
+  const outputBase = join(FLYERS_DIR, `${uuid}-thumb`);
+  try {
+    await execFileAsync("pdftoppm", [
+      "-png",
+      "-r", "150",
+      "-f", "1",
+      "-l", "1",
+      "-singlefile",
+      pdfPath,
+      outputBase,
+    ]);
+    // -singlefile writes outputBase.png (no page number suffix)
+    const thumbPath = `${outputBase}.png`;
+    // Verify it was created
+    await readFile(thumbPath);
+    return `${uuid}-thumb.png`;
+  } catch {
+    // Fallback: try without -singlefile (pdftoppm < 0.26 writes outputBase-1.png)
+    try {
+      await execFileAsync("pdftoppm", [
+        "-png",
+        "-r", "150",
+        "-f", "1",
+        "-l", "1",
+        pdfPath,
+        outputBase,
+      ]);
+      const thumbPath = `${outputBase}-1.png`;
+      await readFile(thumbPath);
+      // Rename to canonical name
+      const { rename } = await import("fs/promises");
+      await rename(thumbPath, `${outputBase}.png`);
+      return `${uuid}-thumb.png`;
+    } catch {
+      return null;
+    }
+  }
 }
 
 export async function POST(request: Request) {
@@ -48,7 +100,7 @@ export async function POST(request: Request) {
     }
 
     if (!(file instanceof File) || file.size <= 0) {
-      return NextResponse.json({ error: "An image file is required" }, { status: 400 });
+      return NextResponse.json({ error: "A file is required" }, { status: 400 });
     }
 
     if (file.size > MAX_FILE_SIZE) {
@@ -61,7 +113,7 @@ export async function POST(request: Request) {
     const mimeType = file.type || "image/jpeg";
     if (!ACCEPTED_TYPES.includes(mimeType)) {
       return NextResponse.json(
-        { error: "Unsupported image format. Accepted: JPEG, PNG, GIF, WebP, SVG" },
+        { error: "Unsupported format. Accepted: JPEG, PNG, GIF, WebP, SVG, PDF" },
         { status: 400 }
       );
     }
@@ -73,15 +125,32 @@ export async function POST(request: Request) {
       toDbRole(user.role)
     );
 
+    const uuid = randomUUID();
     const ext = getExtension(file.name, mimeType);
-    const storageName = `${randomUUID()}.${ext}`;
+    const storageName = `${uuid}.${ext}`;
     await ensureFlyersDir();
+
     const bytes = await file.arrayBuffer();
-    await writeFile(join(FLYERS_DIR, storageName), Buffer.from(bytes));
+    const filePath = join(FLYERS_DIR, storageName);
+    await writeFile(filePath, Buffer.from(bytes));
+
+    let thumbnailFilename: string | null = null;
+    if (mimeType === "application/pdf") {
+      thumbnailFilename = await generatePdfThumbnail(filePath, uuid);
+      if (!thumbnailFilename) {
+        // Clean up the uploaded PDF if thumbnail generation failed
+        await unlink(filePath).catch(() => {});
+        return NextResponse.json(
+          { error: "Failed to generate PDF thumbnail. Ensure the PDF is valid." },
+          { status: 422 }
+        );
+      }
+    }
 
     const flyer = await createFlyer({
       title,
       filename: storageName,
+      thumbnailFilename,
       mimeType,
       fileSize: file.size,
       startDate: startDate ? new Date(startDate) : null,

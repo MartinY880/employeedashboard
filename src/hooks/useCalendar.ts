@@ -10,6 +10,7 @@ export interface HolidayFlyer {
   fileUrl: string;
   fileName: string;
   mimeType: string;
+  thumbnailUrl?: string;
 }
 
 export interface HolidayEvent {
@@ -20,6 +21,7 @@ export interface HolidayEvent {
   description: string | null;
   htmlContent: string | null;
   lightboxWidth: number | null;
+  pdfHeight: number | null;
   flyer: HolidayFlyer | null;
 }
 

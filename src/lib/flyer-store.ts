@@ -8,6 +8,7 @@ export interface FlyerItem {
   id: string;
   title: string;
   filename: string;
+  thumbnailFilename: string | null;
   mimeType: string;
   fileSize: number;
   sortOrder: number;
@@ -23,6 +24,7 @@ function serialize(row: {
   id: string;
   title: string;
   filename: string;
+  thumbnailFilename: string | null;
   mimeType: string;
   fileSize: number;
   sortOrder: number;
@@ -37,6 +39,7 @@ function serialize(row: {
     id: row.id,
     title: row.title,
     filename: row.filename,
+    thumbnailFilename: row.thumbnailFilename,
     mimeType: row.mimeType,
     fileSize: row.fileSize,
     sortOrder: row.sortOrder,
@@ -100,6 +103,7 @@ export async function getFlyerById(id: string): Promise<FlyerItem | null> {
 export async function createFlyer(data: {
   title: string;
   filename: string;
+  thumbnailFilename?: string | null;
   mimeType: string;
   fileSize: number;
   startDate?: Date | null;
@@ -110,6 +114,7 @@ export async function createFlyer(data: {
     data: {
       title: data.title,
       filename: data.filename,
+      thumbnailFilename: data.thumbnailFilename ?? null,
       mimeType: data.mimeType,
       fileSize: data.fileSize,
       startDate: data.startDate ?? null,

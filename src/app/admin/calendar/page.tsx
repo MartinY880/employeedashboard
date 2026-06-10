@@ -96,6 +96,7 @@ interface HolidayEvent {
   description: string | null;
   htmlContent: string | null;
   lightboxWidth: number | null;
+  pdfHeight: number | null;
   flyer: HolidayFlyer | null;
 }
 
@@ -143,6 +144,7 @@ interface HolidayFormData {
   description: string;
   htmlContent: string;
   lightboxWidth: string;
+  pdfHeight: string;
 }
 
 interface ApiConfig {
@@ -188,6 +190,7 @@ const DEFAULT_FORM: HolidayFormData = {
   description: "",
   htmlContent: "",
   lightboxWidth: "",
+  pdfHeight: "",
 };
 
 const DEFAULT_API: ApiConfig = {
@@ -398,6 +401,7 @@ export default function AdminCalendarPage() {
       description: h.event?.description ?? "",
       htmlContent: h.event?.htmlContent ?? "",
       lightboxWidth: h.event?.lightboxWidth?.toString() ?? "",
+      pdfHeight: h.event?.pdfHeight?.toString() ?? "",
     });
     setFlyerFile(null);
     setRemoveFlyerFlag(false);
@@ -2106,6 +2110,27 @@ export default function AdminCalendarPage() {
               />
               {flyerFile && (
                 <p className="text-xs text-green-700 mt-1">{flyerFile.name} selected</p>
+              )}
+              {((editingHoliday?.event?.flyer?.mimeType === "application/pdf" && !removeFlyerFlag) ||
+                flyerFile?.type === "application/pdf") && (
+                <div className="mt-3">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                    PDF Preview Height (vh)
+                    <span className="text-xs font-normal text-brand-grey ml-1">(default 50)</span>
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      min={20}
+                      max={90}
+                      placeholder="50"
+                      value={formData.pdfHeight}
+                      onChange={(e) => setFormData({ ...formData, pdfHeight: e.target.value })}
+                      className="w-24 text-sm"
+                    />
+                    <span className="text-xs text-brand-grey">% of viewport height</span>
+                  </div>
+                </div>
               )}
             </div>
           </div>

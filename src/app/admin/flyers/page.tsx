@@ -18,6 +18,7 @@ import {
   X,
   Eye,
   ArrowUpDown,
+  FileText,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,7 @@ interface Flyer {
   id: string;
   title: string;
   filename: string;
+  thumbnailFilename: string | null;
   mimeType: string;
   fileSize: number;
   sortOrder: number;
@@ -125,7 +127,8 @@ export default function AdminFlyersPage() {
   function handleFileChange(file: File | null) {
     setUploadFile(file);
     if (file) {
-      const url = URL.createObjectURL(file);
+      // PDFs can't be previewed as <img> — use a sentinel so we show a placeholder
+      const url = file.type === "application/pdf" ? "pdf" : URL.createObjectURL(file);
       setUploadPreview(url);
       if (!uploadTitle) setUploadTitle(file.name.replace(/\.[^.]+$/, ""));
     } else {
@@ -331,7 +334,7 @@ export default function AdminFlyersPage() {
                     onClick={() => setPreviewFlyer(f)}
                   >
                     <img
-                      src={`/api/flyers/image/${f.filename}`}
+                      src={`/api/flyers/image/${f.thumbnailFilename ?? f.filename}`}
                       alt={f.title}
                       className="w-full h-full object-contain"
                     />
@@ -433,13 +436,20 @@ export default function AdminFlyersPage() {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
+                accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml,application/pdf"
                 className="hidden"
                 onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
               />
               {uploadPreview ? (
                 <div className="relative border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-                  <img src={uploadPreview} alt="Preview" className="w-full max-h-48 object-contain bg-gray-50 dark:bg-gray-800" />
+                  {uploadPreview === "pdf" ? (
+                    <div className="w-full h-48 flex flex-col items-center justify-center gap-2 bg-gray-50 dark:bg-gray-800">
+                      <FileText className="w-10 h-10 text-brand-blue" />
+                      <span className="text-xs text-gray-500">{uploadFile?.name}</span>
+                    </div>
+                  ) : (
+                    <img src={uploadPreview} alt="Preview" className="w-full max-h-48 object-contain bg-gray-50 dark:bg-gray-800" />
+                  )}
                   <button
                     type="button"
                     onClick={() => handleFileChange(null)}
@@ -455,7 +465,7 @@ export default function AdminFlyersPage() {
                   className="w-full border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg py-8 flex flex-col items-center gap-2 hover:border-brand-blue/50 transition-colors"
                 >
                   <Upload className="w-8 h-8 text-gray-300" />
-                  <span className="text-xs text-gray-400">Click to select image (JPEG, PNG, GIF, WebP, SVG)</span>
+                  <span className="text-xs text-gray-400">Click to select file (JPEG, PNG, GIF, WebP, SVG, PDF)</span>
                 </button>
               )}
             </div>
@@ -537,11 +547,19 @@ export default function AdminFlyersPage() {
       <Dialog open={!!previewFlyer} onOpenChange={(open) => { if (!open) setPreviewFlyer(null); }}>
         <DialogContent className="sm:max-w-3xl p-0 overflow-hidden">
           {previewFlyer && (
-            <img
-              src={`/api/flyers/image/${previewFlyer.filename}`}
-              alt={previewFlyer.title}
-              className="w-full max-h-[80vh] object-contain"
-            />
+            previewFlyer.mimeType === "application/pdf" ? (
+              <iframe
+                src={`/api/flyers/image/${previewFlyer.filename}`}
+                title={previewFlyer.title}
+                className="w-full h-[80vh] border-0"
+              />
+            ) : (
+              <img
+                src={`/api/flyers/image/${previewFlyer.filename}`}
+                alt={previewFlyer.title}
+                className="w-full max-h-[80vh] object-contain"
+              />
+            )
           )}
         </DialogContent>
       </Dialog>
