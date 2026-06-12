@@ -1,11 +1,11 @@
-// ProConnect — Next.js Middleware
+// ProConnect — Next.js Proxy (middleware)
 // Route protection — redirects unauthenticated users to sign-in
 // Uses lightweight cookie check; full verification happens in layouts
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Skip auth check for public routes

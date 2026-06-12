@@ -36,19 +36,22 @@ export function getPhotoUrl(
   return `/api/directory/photo?userId=${encodeURIComponent(user.id)}&name=${encodeURIComponent(user.displayName)}&size=${size}x${size}`;
 }
 
-const DEPT_COLORS: Record<string, string> = {
-  Executive: "bg-purple-100 text-purple-700",
-  Operations: "bg-blue-100 text-blue-700",
-  Sales: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400",
-  Lending: "bg-amber-100 text-amber-700",
-  Processing: "bg-sky-100 text-sky-700",
-  Underwriting: "bg-indigo-100 text-indigo-700",
-  Compliance: "bg-red-100 text-red-700",
-};
+// All departments share the same neutral badge color.
+const DEPT_COLOR = "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400";
 
-export function getDeptColor(dept: string | null) {
-  if (!dept) return "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400";
-  return DEPT_COLORS[dept] || "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400";
+export function getDeptColor(_dept: string | null) {
+  return DEPT_COLOR;
+}
+
+// Display title for a directory card. Branch members with no title are the
+// managing partners those branches were created around, so they get
+// "Managing Partner" rather than the generic "Team Member" fallback.
+export function getDisplayTitle(
+  jobTitle: string | null | undefined,
+  isBranchMember = false
+) {
+  if (jobTitle?.trim()) return jobTitle;
+  return isBranchMember ? "Managing Partner" : "Team Member";
 }
 
 // Methods used for both directory page, mention chips, and directory search within dashboard.  
@@ -61,15 +64,23 @@ export function ProfileDialog({
   user,
   open,
   onClose,
+  branchMemberIds,
 }: {
   user: DirectoryNode | null;
   open: boolean;
   onClose: () => void;
+  // IDs of users assigned to a branch (managing partners). When present and a
+  // user has no title, they're shown as "Managing Partner" instead of "Team Member".
+  branchMemberIds?: Set<string>;
 }) {
   const [photoZoom, setPhotoZoom] = useState(false);
+  const [expandedReports, setExpandedReports] = useState(false);
 
   useEffect(() => {
-    if (!open) setPhotoZoom(false);
+    if (!open) {
+      setPhotoZoom(false);
+      setExpandedReports(false);
+    }
   }, [open, user]);
 
   if (!user) return null;
@@ -158,62 +169,77 @@ export function ProfileDialog({
             <p className="text-xs font-semibold text-brand-grey uppercase tracking-wider mb-2">
               Direct Reports ({user.directReports.length})
             </p>
-            <div className="space-y-1.5">
-              {user.directReports.map((dr) => (
-                <div key={dr.id} className="flex items-center gap-2 text-sm py-1">
-                  <Avatar className="h-6 w-6">
-                    <AvatarFallback className="bg-brand-blue/10 text-brand-blue text-[9px] font-semibold">
-                      {getInitials(dr.displayName)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="text-gray-700 dark:text-gray-300 truncate">
-                    {dr.displayName}
-                  </span>
-                  <span className="text-xs text-brand-grey ml-auto shrink-0">
-                    {dr.jobTitle || "Team Member"}
-                  </span>
-                </div>
-              ))}
+            <div className={`space-y-1.5 ${expandedReports ? "max-h-[40vh] overflow-y-auto pr-1" : ""}`}>
+              {user.directReports
+                .slice(0, expandedReports ? undefined : 5)
+                .map((dr) => (
+                  <div key={dr.id} className="flex items-center gap-2 text-sm py-1">
+                    <Avatar className="h-6 w-6">
+                      <AvatarFallback className="bg-brand-blue/10 text-brand-blue text-[9px] font-semibold">
+                        {getInitials(dr.displayName)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="text-gray-700 dark:text-gray-300 truncate">
+                      {dr.displayName}
+                    </span>
+                    <span className="text-xs text-brand-grey ml-auto shrink-0">
+                      {getDisplayTitle(dr.jobTitle, branchMemberIds?.has(dr.id))}
+                    </span>
+                  </div>
+                ))}
             </div>
-          </div>
-        )}
-      </DialogContent>
-
-      {/* Full-size photo overlay */}
-      <AnimatePresence>
-        {photoZoom && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm cursor-zoom-out"
-            onClick={() => setPhotoZoom(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.8, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="relative"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <img
-                src={getPhotoUrl(user, 648)}
-                alt={user.displayName}
-                className="w-64 h-64 sm:w-80 sm:h-80 md:w-96 md:h-96 rounded-2xl object-cover shadow-2xl ring-4 ring-white/20"
-              />
+            {user.directReports.length > 5 && (
               <button
                 type="button"
-                onClick={() => setPhotoZoom(false)}
-                className="absolute -top-3 -right-3 flex h-8 w-8 items-center justify-center rounded-full bg-white dark:bg-gray-800 shadow-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                onClick={() => setExpandedReports(!expandedReports)}
+                className="mt-3 text-xs font-medium text-brand-blue hover:underline"
               >
-                <X className="w-4 h-4" />
+                {expandedReports
+                  ? "Show less"
+                  : `View all ${user.directReports.length} direct reports`}
               </button>
-            </motion.div>
-          </motion.div>
+            )}
+          </div>
         )}
-      </AnimatePresence>
+
+        {/* Full-size photo overlay — rendered INSIDE DialogContent so Radix's
+            modal pointer-lock doesn't swallow the clicks (a body-portaled
+            sibling gets pointer-events:none while the dialog is open). */}
+        <AnimatePresence>
+          {photoZoom && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm cursor-zoom-out"
+              onClick={() => setPhotoZoom(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.8, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="relative"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <img
+                  src={getPhotoUrl(user, 648)}
+                  alt={user.displayName}
+                  className="w-64 h-64 sm:w-80 sm:h-80 md:w-96 md:h-96 rounded-2xl object-cover shadow-2xl ring-4 ring-white/20"
+                />
+                <button
+                  type="button"
+                  onClick={() => setPhotoZoom(false)}
+                  className="absolute -top-3 -right-3 flex h-8 w-8 items-center justify-center rounded-full bg-white dark:bg-gray-800 shadow-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </DialogContent>
     </Dialog>
   );
 }
@@ -279,10 +305,12 @@ export function PersonLightbox({
   user,
   open,
   onClose,
+  branchMemberIds,
 }: {
   user: DirectoryNode | null;
   open: boolean;
   onClose: () => void;
+  branchMemberIds?: Set<string>;
 }) {
   const [photoZoom, setPhotoZoom] = useState(false);
 
@@ -347,7 +375,7 @@ export function PersonLightbox({
                 {user?.displayName ?? "Loading…"}
               </h2>
               <p className="text-sm text-brand-grey mt-0.5">
-                {user?.jobTitle || "Team Member"}
+                {getDisplayTitle(user?.jobTitle, user ? branchMemberIds?.has(user.id) : false)}
               </p>
 
               {user && (

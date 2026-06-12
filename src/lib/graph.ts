@@ -366,36 +366,50 @@ export async function getOrgHierarchy(): Promise<GraphUser[]> {
     }
   }
 
-  const sortTree = (nodes: GraphUser[], isRoot = false) => {
-    if (isRoot) {
-      // At root level: Managing Partners first, then alphabetical within groups
-      const MANAGING_PARTNER_NAMES = new Set([
-        "george abro",
-        "nathan shamo",
-        "andrew shamo",
-        "anthony karana",
-        "kevin kajy",
-        "donovan shaow",
-      ]);
-      const partners: GraphUser[] = [];
-      const others: GraphUser[] = [];
-      for (const node of nodes) {
-        if (
-          node.jobTitle?.toLowerCase().includes("managing partner") ||
-          MANAGING_PARTNER_NAMES.has(node.displayName.toLowerCase())
-        ) {
-          partners.push(node);
-        } else {
-          others.push(node);
-        }
-      }
-      partners.sort((a, b) => a.displayName.localeCompare(b.displayName));
-      others.sort((a, b) => a.displayName.localeCompare(b.displayName));
-      nodes.length = 0;
-      nodes.push(...partners, ...others);
-    } else {
-      nodes.sort((a, b) => a.displayName.localeCompare(b.displayName));
-    }
+  // ── DEPRECATED: hardcoded managing-partner root sort (replaced by branch system) ──
+  // Branch ordering of the root's direct reports is now applied downstream from
+  // DB branch sortOrder (see directory-snapshot.ts / DirectoryOrgChart). Kept
+  // commented for reference.
+  // const sortTreeLegacy = (nodes: GraphUser[], isRoot = false) => {
+  //   if (isRoot) {
+  //     // At root level: Managing Partners first, then alphabetical within groups
+  //     const MANAGING_PARTNER_NAMES = new Set([
+  //       "george abro",
+  //       "nathan shamo",
+  //       "andrew shamo",
+  //       "anthony karana",
+  //       "kevin kajy",
+  //       "donovan shaow",
+  //     ]);
+  //     const partners: GraphUser[] = [];
+  //     const others: GraphUser[] = [];
+  //     for (const node of nodes) {
+  //       if (
+  //         node.jobTitle?.toLowerCase().includes("managing partner") ||
+  //         MANAGING_PARTNER_NAMES.has(node.displayName.toLowerCase())
+  //       ) {
+  //         partners.push(node);
+  //       } else {
+  //         others.push(node);
+  //       }
+  //     }
+  //     partners.sort((a, b) => a.displayName.localeCompare(b.displayName));
+  //     others.sort((a, b) => a.displayName.localeCompare(b.displayName));
+  //     nodes.length = 0;
+  //     nodes.push(...partners, ...others);
+  //   } else {
+  //     nodes.sort((a, b) => a.displayName.localeCompare(b.displayName));
+  //   }
+  //   for (const node of nodes) {
+  //     if (node.directReports?.length) {
+  //       sortTreeLegacy(node.directReports);
+  //     }
+  //   }
+  // };
+
+  // Alphabetical at every level.
+  const sortTree = (nodes: GraphUser[]) => {
+    nodes.sort((a, b) => a.displayName.localeCompare(b.displayName));
     for (const node of nodes) {
       if (node.directReports?.length) {
         sortTree(node.directReports);
@@ -403,7 +417,7 @@ export async function getOrgHierarchy(): Promise<GraphUser[]> {
     }
   };
 
-  sortTree(roots, true);
+  sortTree(roots);
   const rootCount = roots.length;
   const managedCount = allUsers.length - rootCount;
   console.log("[Graph] Hierarchy built", { rootCount, managedCount, ms: Date.now() - startedAt });

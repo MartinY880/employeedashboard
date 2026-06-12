@@ -114,37 +114,50 @@ function mapRowsToTree(rows: SnapshotRow[]): GraphUser[] {
     }
   }
 
-  const MANAGING_PARTNER_NAMES = new Set([
-    "george abro",
-    "nathan shamo",
-    "andrew shamo",
-    "anthony karana",
-    "kevin kajy",
-    "donovan shaow",
-  ]);
+  // ── DEPRECATED: hardcoded managing-partner root sort (replaced by branch system) ──
+  // Branch ordering of the root's direct reports is now applied client-side in
+  // DirectoryOrgChart via branch sortOrder. Kept here commented for reference.
+  // const MANAGING_PARTNER_NAMES = new Set([
+  //   "george abro",
+  //   "nathan shamo",
+  //   "andrew shamo",
+  //   "anthony karana",
+  //   "kevin kajy",
+  //   "donovan shaow",
+  // ]);
+  //
+  // const sortTreeLegacy = (nodes: GraphUser[], isRoot = false) => {
+  //   if (isRoot) {
+  //     // At root level: Managing Partners first, then alphabetical within groups
+  //     const partners: GraphUser[] = [];
+  //     const others: GraphUser[] = [];
+  //     for (const node of nodes) {
+  //       if (
+  //         node.jobTitle?.toLowerCase().includes("managing partner") ||
+  //         MANAGING_PARTNER_NAMES.has(node.displayName.toLowerCase())
+  //       ) {
+  //         partners.push(node);
+  //       } else {
+  //         others.push(node);
+  //       }
+  //     }
+  //     partners.sort((a, b) => a.displayName.localeCompare(b.displayName));
+  //     others.sort((a, b) => a.displayName.localeCompare(b.displayName));
+  //     nodes.length = 0;
+  //     nodes.push(...partners, ...others);
+  //   } else {
+  //     nodes.sort((a, b) => a.displayName.localeCompare(b.displayName));
+  //   }
+  //   for (const node of nodes) {
+  //     if (node.directReports?.length) {
+  //       sortTreeLegacy(node.directReports);
+  //     }
+  //   }
+  // };
 
-  const sortTree = (nodes: GraphUser[], isRoot = false) => {
-    if (isRoot) {
-      // At root level: Managing Partners first, then alphabetical within groups
-      const partners: GraphUser[] = [];
-      const others: GraphUser[] = [];
-      for (const node of nodes) {
-        if (
-          node.jobTitle?.toLowerCase().includes("managing partner") ||
-          MANAGING_PARTNER_NAMES.has(node.displayName.toLowerCase())
-        ) {
-          partners.push(node);
-        } else {
-          others.push(node);
-        }
-      }
-      partners.sort((a, b) => a.displayName.localeCompare(b.displayName));
-      others.sort((a, b) => a.displayName.localeCompare(b.displayName));
-      nodes.length = 0;
-      nodes.push(...partners, ...others);
-    } else {
-      nodes.sort((a, b) => a.displayName.localeCompare(b.displayName));
-    }
+  // Alphabetical at every level.
+  const sortTree = (nodes: GraphUser[]) => {
+    nodes.sort((a, b) => a.displayName.localeCompare(b.displayName));
     for (const node of nodes) {
       if (node.directReports?.length) {
         sortTree(node.directReports);
@@ -152,7 +165,7 @@ function mapRowsToTree(rows: SnapshotRow[]): GraphUser[] {
     }
   };
 
-  sortTree(roots, true);
+  sortTree(roots);
   return roots;
 }
 
@@ -290,17 +303,18 @@ export async function syncDirectorySnapshotFromGraph(): Promise<void> {
           `;
         }
 
-        // Backfill job_title for known managing partners if Entra has it blank
-        const MANAGING_PARTNER_NAMES_DB = [
-          'george abro', 'nathan shamo', 'andrew shamo',
-          'anthony karana', 'kevin kajy', 'donovan shaow',
-        ];
-        await tx.$executeRaw`
-          UPDATE directory_snapshots
-          SET job_title = 'Managing Partner'
-          WHERE (job_title IS NULL OR TRIM(job_title) = '')
-            AND LOWER(display_name) = ANY(${MANAGING_PARTNER_NAMES_DB})
-        `;
+        // ── DEPRECATED: hardcoded managing-partner job_title backfill ──
+        // Replaced by the root-subtree inclusion model. Kept commented for reference.
+        // const MANAGING_PARTNER_NAMES_DB = [
+        //   'george abro', 'nathan shamo', 'andrew shamo',
+        //   'anthony karana', 'kevin kajy', 'donovan shaow',
+        // ];
+        // await tx.$executeRaw`
+        //   UPDATE directory_snapshots
+        //   SET job_title = 'Managing Partner'
+        //   WHERE (job_title IS NULL OR TRIM(job_title) = '')
+        //     AND LOWER(display_name) = ANY(${MANAGING_PARTNER_NAMES_DB})
+        // `;
 
         if (ids.length > 0) {
           await tx.$executeRaw`
@@ -469,6 +483,48 @@ export async function getSnapshotFlatUsers(): Promise<GraphUser[]> {
     businessPhone: row.businessPhone,
     mobilePhone: row.mobilePhone,
     faxNumber: row.faxNumber,
+    managerId: row.managerId,
+  }));
+}
+
+// Root's direct reports for branch assignment. Unlike getSnapshotFlatUsers,
+// this does NOT require department/job_title to be set — managing partners
+// often have blank Entra titles. Only EXCLUDE'd office locations are skipped.
+export async function getRootDirectReports(rootUserId: string): Promise<GraphUser[]> {
+  await ensureSnapshotTables();
+  const rows = await prisma.$queryRaw<SnapshotRow[]>`
+    SELECT
+      id,
+      display_name AS "displayName",
+      mail,
+      user_principal_name AS "userPrincipalName",
+      job_title AS "jobTitle",
+      employee_type AS "employeeType",
+      department,
+      office_location AS "officeLocation",
+      business_phone AS "businessPhone",
+      mobile_phone AS "mobilePhone",
+      fax_number AS "faxNumber",
+      manager_id AS "managerId"
+    FROM directory_snapshots
+    WHERE manager_id = ${rootUserId}
+      AND UPPER(TRIM(COALESCE(office_location, ''))) <> 'EXCLUDE'
+    ORDER BY display_name ASC
+  `;
+
+  return rows.map((row) => ({
+    id: row.id,
+    displayName: row.displayName,
+    mail: row.mail,
+    userPrincipalName: row.userPrincipalName,
+    jobTitle: row.jobTitle,
+    employeeType: row.employeeType,
+    department: row.department,
+    officeLocation: row.officeLocation,
+    businessPhone: row.businessPhone,
+    mobilePhone: row.mobilePhone,
+    faxNumber: row.faxNumber,
+    managerId: row.managerId,
   }));
 }
 
@@ -592,7 +648,48 @@ export async function getSnapshotUserById(id: string): Promise<GraphUser | null>
 
 export async function getSnapshotTreeUsers(): Promise<GraphUser[]> {
   await ensureSnapshotTables();
-  // Org chart display: require (department + jobTitle) OR be a known root/managing partner
+
+  // The org chart is anchored at the configured root account. Everyone in the
+  // root's reporting subtree is included; their branch grouping is derived from
+  // directory_branch_assignments downstream.
+  const config = await prisma.directoryConfig.findUnique({ where: { id: "singleton" } });
+  const rootUserId = config?.rootUserId ?? null;
+
+  if (rootUserId) {
+    // Recursive walk down manager_id edges from the root. EXCLUDE'd nodes are
+    // pruned along with their subtree (they never enter the CTE).
+    const rows = await prisma.$queryRaw<SnapshotRow[]>`
+      WITH RECURSIVE org_tree AS (
+        SELECT * FROM directory_snapshots
+        WHERE id = ${rootUserId}
+          AND UPPER(TRIM(COALESCE(office_location, ''))) <> 'EXCLUDE'
+        UNION ALL
+        SELECT ds.* FROM directory_snapshots ds
+        INNER JOIN org_tree ot ON ds.manager_id = ot.id
+        WHERE UPPER(TRIM(COALESCE(ds.office_location, ''))) <> 'EXCLUDE'
+      )
+      SELECT
+        id,
+        display_name AS "displayName",
+        mail,
+        user_principal_name AS "userPrincipalName",
+        job_title AS "jobTitle",
+        employee_type AS "employeeType",
+        department,
+        office_location AS "officeLocation",
+        business_phone AS "businessPhone",
+        mobile_phone AS "mobilePhone",
+        fax_number AS "faxNumber",
+        manager_id AS "managerId"
+      FROM org_tree
+      ORDER BY display_name ASC
+    `;
+    return mapRowsToTree(rows);
+  }
+
+  // ── Fallback when no root account is configured yet ──
+  // Show anyone with both department and job title so the chart isn't blank
+  // before an admin sets the root in /admin/directory.
   const rows = await prisma.$queryRaw<SnapshotRow[]>`
     SELECT
       id,
@@ -610,18 +707,63 @@ export async function getSnapshotTreeUsers(): Promise<GraphUser[]> {
     FROM directory_snapshots
     WHERE UPPER(TRIM(COALESCE(office_location, ''))) <> 'EXCLUDE'
       AND (
-        (
-          department IS NOT NULL AND TRIM(department) <> ''
-          AND job_title IS NOT NULL AND TRIM(job_title) <> ''
-        )
-        OR LOWER(job_title) LIKE '%managing partner%'
-        OR LOWER(display_name) IN (
-          'george abro', 'nathan shamo', 'andrew shamo',
-          'anthony karana', 'kevin kajy', 'donovan shaow'
-        )
+        department IS NOT NULL AND TRIM(department) <> ''
+        AND job_title IS NOT NULL AND TRIM(job_title) <> ''
       )
     ORDER BY display_name ASC
   `;
 
   return mapRowsToTree(rows);
+}
+
+/* ── Branch data ─────────────────────────────────────────── */
+
+export interface BranchData {
+  id: string;
+  name: string;
+  sortOrder: number;
+  memberIds: string[]; // Azure Object IDs of direct reports assigned to this branch
+}
+
+export interface DirectoryConfigData {
+  rootUserId: string | null;
+  rootEmail: string | null;
+  rootName: string | null;
+  sharedEmployeeTypes: string[];
+}
+
+export async function getDirectoryConfig(): Promise<DirectoryConfigData> {
+  const config = await prisma.directoryConfig.findUnique({ where: { id: "singleton" } });
+  return {
+    rootUserId: config?.rootUserId ?? null,
+    rootEmail: config?.rootEmail ?? null,
+    rootName: config?.rootName ?? null,
+    sharedEmployeeTypes: config?.sharedEmployeeTypes ?? [],
+  };
+}
+
+// Distinct, non-empty employeeType values present in the snapshot — used to
+// populate the admin "Shared Employee Types" picker and the directory filter.
+export async function getDistinctEmployeeTypes(): Promise<string[]> {
+  await ensureSnapshotTables();
+  const rows = await prisma.$queryRaw<Array<{ employeeType: string }>>`
+    SELECT DISTINCT TRIM(employee_type) AS "employeeType"
+    FROM directory_snapshots
+    WHERE employee_type IS NOT NULL AND TRIM(employee_type) <> ''
+    ORDER BY 1 ASC
+  `;
+  return rows.map((r) => r.employeeType);
+}
+
+export async function getDirectoryBranches(): Promise<BranchData[]> {
+  const branches = await prisma.directoryBranch.findMany({
+    orderBy: { sortOrder: "asc" },
+    include: { assignments: { select: { userId: true } } },
+  });
+  return branches.map((b) => ({
+    id: b.id,
+    name: b.name,
+    sortOrder: b.sortOrder,
+    memberIds: b.assignments.map((a) => a.userId),
+  }));
 }

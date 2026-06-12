@@ -255,6 +255,44 @@ model SiteBranding {
   @@map("site_branding")
 }
 
+model DirectoryConfig {
+  id                  String   @id @default("singleton")
+  rootUserId          String?  @map("root_user_id")
+  rootEmail           String?  @map("root_email")
+  rootName            String?  @map("root_name")
+  // Employee types classified as "Shared" — these users are excluded from
+  // branch grouping in the directory (they don't belong under any one branch).
+  sharedEmployeeTypes String[] @default([]) @map("shared_employee_types")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  @@map("directory_config")
+}
+
+model DirectoryBranch {
+  id          String   @id @default(cuid())
+  name        String
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  assignments DirectoryBranchAssignment[]
+
+  @@index([sortOrder])
+  @@map("directory_branches")
+}
+
+model DirectoryBranchAssignment {
+  id        String          @id @default(cuid())
+  branchId  String          @map("branch_id")
+  userId    String          @unique @map("user_id")
+  createdAt DateTime        @default(now()) @map("created_at")
+
+  branch    DirectoryBranch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@index([branchId])
+  @@map("directory_branch_assignments")
+}
+
 model DirectorySnapshot {
   id                String   @id
   displayName       String   @map("display_name")

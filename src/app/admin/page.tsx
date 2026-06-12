@@ -31,6 +31,7 @@ import {
   KeyRound,
   BarChart3,
   Clock,
+  GitBranch,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PERMISSIONS, ROUTE_PERMISSION } from "@/lib/rbac";
@@ -335,6 +336,16 @@ const adminPages = [
     color: "text-violet-500",
     bgColor: "bg-violet-50",
     permission: PERMISSIONS.MANAGE_COMMENTS,
+  },
+  {
+    title: "Directory Settings",
+    description: "Set the org chart root account and manage branches — assign root's direct reports to branches that drive the directory filters.",
+    icon: GitBranch,
+    href: "/admin/directory",
+    badge: "Config",
+    color: "text-brand-blue",
+    bgColor: "bg-blue-50",
+    permission: PERMISSIONS.MANAGE_DIRECTORY,
   },
 ];
 

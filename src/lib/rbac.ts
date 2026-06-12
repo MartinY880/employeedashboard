@@ -28,6 +28,7 @@ export const PERMISSIONS = {
   MANAGE_ACTIVE_PIPELINE: "manage:active_pipeline",
   MANAGE_TIMEZONE: "manage:timezone",
   MANAGE_COMMENTS: "manage:comments",
+  MANAGE_DIRECTORY: "manage:directory",
   VIEW_AS_USER: "view:as_user",
 } as const;
 
@@ -62,6 +63,7 @@ export const ROUTE_PERMISSION: Record<string, Permission> = {
   "/admin/active-pipeline": PERMISSIONS.MANAGE_ACTIVE_PIPELINE,
   "/admin/timezone": PERMISSIONS.MANAGE_TIMEZONE,
   "/admin/comments": PERMISSIONS.MANAGE_COMMENTS,
+  "/admin/directory": PERMISSIONS.MANAGE_DIRECTORY,
 };
 
 // ─── Fallback: derive permissions from role when Logto API Resource isn't configured ───

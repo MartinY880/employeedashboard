@@ -74,7 +74,7 @@ export function ClosersTableBanner() {
         <div className="px-3.5 py-2 bg-gradient-to-r from-slate-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 border-t-[3px] border-t-brand-blue flex items-center justify-center gap-2">
           <Trophy className="h-4 w-4 text-brand-blue" />
           <h3 className="text-sm font-bold text-brand-blue tracking-wide uppercase">
-            {frozen ? "Closer's Table" : "Closer's Table - Working"}
+            {frozen ? "Closers Table - Final" : "Closers Table - Current Standings"}
           </h3>
           <Trophy className="h-4 w-4 text-brand-blue" />
         </div>

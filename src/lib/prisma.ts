@@ -5,6 +5,7 @@ import "server-only";
 import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import pg from "pg";
+import { updateLogtoUserProfile } from "@/lib/logto-management";
 
 const connectionString = process.env.DATABASE_URL!;
 
@@ -50,6 +51,10 @@ export async function ensureDbUser(
     if (entraId && !byLogto.entraId) updates.entraId = entraId;
 
     if (Object.keys(updates).length > 0) {
+      if (updates.displayName) {
+        void updateLogtoUserProfile(logtoId, { name: updates.displayName });
+      }
+
       return prisma.user.update({
         where: { id: byLogto.id },
         data: updates,
@@ -65,12 +70,18 @@ export async function ensureDbUser(
   if (entraId) {
     const byEntraId = await prisma.user.findUnique({ where: { entraId } });
     if (byEntraId) {
+      const emailChanged = email && byEntraId.email !== email;
+      const nameChanged = byEntraId.displayName !== displayName;
+      if (nameChanged) {
+        void updateLogtoUserProfile(logtoId, { name: displayName });
+      }
+
       return prisma.user.update({
         where: { id: byEntraId.id },
         data: {
           logtoId,
-          ...(email && byEntraId.email !== email ? { email } : {}),
-          ...(byEntraId.displayName !== displayName ? { displayName } : {}),
+          ...(emailChanged ? { email } : {}),
+          ...(nameChanged ? { displayName } : {}),
           ...(byEntraId.role !== role ? { role } : {}),
         },
       });

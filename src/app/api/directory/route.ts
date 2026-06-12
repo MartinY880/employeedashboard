@@ -12,6 +12,8 @@ import {
   getSnapshotUserCount,
   searchSnapshotUsers,
   syncDirectorySnapshotFromGraph,
+  getDirectoryBranches,
+  getDirectoryConfig,
 } from "@/lib/directory-snapshot";
 
 const DIRECTORY_HTTP_MAX_AGE_SECONDS = Number(process.env.DIRECTORY_HTTP_MAX_AGE_SECONDS || 300);
@@ -256,7 +258,11 @@ export async function GET(request: Request) {
       return NextResponse.json({ users }, { headers: DIRECTORY_RESPONSE_HEADERS });
     }
 
-    const treeUsers = await getSnapshotTreeUsers();
+    const [treeUsers, branches, dirConfig] = await Promise.all([
+      getSnapshotTreeUsers(),
+      getDirectoryBranches(),
+      getDirectoryConfig(),
+    ]);
     injectPhotos(treeUsers);
     const totalUsers = countFlat(treeUsers);
     console.log("[Directory API] Tree response", {
@@ -266,7 +272,7 @@ export async function GET(request: Request) {
       lastSyncedAt: snapshotMeta.lastSyncedAt,
       ms: Date.now() - startedAt,
     });
-    return NextResponse.json({ users: treeUsers }, { headers: DIRECTORY_RESPONSE_HEADERS });
+    return NextResponse.json({ users: treeUsers, branches, config: dirConfig }, { headers: DIRECTORY_RESPONSE_HEADERS });
   } catch (error) {
     console.error("[Directory API] Error:", error);
     if (isGraphConfigured) {

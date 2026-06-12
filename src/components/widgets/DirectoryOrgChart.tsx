@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { DirectoryNode } from "@/hooks/useDirectory";
+import type { DirectoryBranch } from "@/hooks/useDirectory";
 
 /* ── Flat datum used by d3-org-chart ── */
 type OrgChartDatum = {
@@ -12,6 +13,7 @@ type OrgChartDatum = {
   department: string | null;
   employeeType?: string | null;
   photoUrl?: string;
+  branchName?: string | null;
   _isSyntheticRoot?: boolean;
 };
 
@@ -32,14 +34,14 @@ const THEME = {
     containerBorder: "border-gray-100",
   },
   dark: {
-    cardBg: "#111827",       // gray-900
-    cardBorder: "#1f2937",   // gray-800
+    cardBg: "#111827",
+    cardBorder: "#1f2937",
     cardShadow: "0 1px 3px rgba(0,0,0,0.3)",
-    nameColor: "#f3f4f6",    // gray-100
-    titleColor: "#9ca3af",   // gray-400
+    nameColor: "#f3f4f6",
+    titleColor: "#9ca3af",
     deptColor: "#9ca3af",
-    imgBorder: "#374151",    // gray-700
-    linkColor: "#4b5563",    // gray-600
+    imgBorder: "#374151",
+    linkColor: "#4b5563",
     containerBg: "dark:bg-gray-950",
     containerBorder: "dark:border-gray-800",
   },
@@ -52,31 +54,33 @@ function getPhotoUrl(
   return `/api/directory/photo?userId=${encodeURIComponent(user.id)}&name=${encodeURIComponent(user.displayName)}&size=${size}x${size}`;
 }
 
-/**
- * Flatten the tree into a flat array for d3-org-chart.
- * If there are multiple root-level nodes we add a single synthetic
- * company root so the library doesn't throw "multiple roots".
- */
-function sortNodesByHierarchy(nodes: DirectoryNode[]): DirectoryNode[] {
+function sortNodesByHierarchy(
+  nodes: DirectoryNode[],
+  branchOrderMap?: Map<string, number>
+): DirectoryNode[] {
   return [...nodes].sort((a, b) => {
+    // Sort by branch order first (if branch data provided)
+    if (branchOrderMap) {
+      const aBranch = branchOrderMap.get(a.id) ?? Number.MAX_SAFE_INTEGER;
+      const bBranch = branchOrderMap.get(b.id) ?? Number.MAX_SAFE_INTEGER;
+      if (aBranch !== bBranch) return aBranch - bBranch;
+    }
     const aHasReports = (a.directReports?.length ?? 0) > 0;
     const bHasReports = (b.directReports?.length ?? 0) > 0;
-    if (aHasReports !== bHasReports) {
-      return aHasReports ? -1 : 1;
-    }
-    const aName = a.displayName ?? "";
-    const bName = b.displayName ?? "";
-    return aName.localeCompare(bName, undefined, {
-      sensitivity: "base",
-    });
+    if (aHasReports !== bHasReports) return aHasReports ? -1 : 1;
+    return (a.displayName ?? "").localeCompare(b.displayName ?? "", undefined, { sensitivity: "base" });
   });
 }
 
-function flattenForChart(nodes: DirectoryNode[]): OrgChartDatum[] {
+function flattenForChart(
+  nodes: DirectoryNode[],
+  branchOrderMap: Map<string, number>,
+  branchNameMap: Map<string, string>
+): OrgChartDatum[] {
   const rows: OrgChartDatum[] = [];
 
   const walk = (list: DirectoryNode[], parentId: string | null) => {
-    const ordered = sortNodesByHierarchy(list);
+    const ordered = sortNodesByHierarchy(list, parentId ? branchOrderMap : undefined);
     for (const node of ordered) {
       rows.push({
         id: node.id,
@@ -86,6 +90,7 @@ function flattenForChart(nodes: DirectoryNode[]): OrgChartDatum[] {
         department: node.department,
         employeeType: node.employeeType,
         photoUrl: node.photoUrl,
+        branchName: branchNameMap.get(node.id) ?? null,
       });
       if (node.directReports?.length) {
         walk(node.directReports, node.id);
@@ -94,7 +99,6 @@ function flattenForChart(nodes: DirectoryNode[]): OrgChartDatum[] {
   };
 
   if (nodes.length > 1) {
-    // Synthetic single root so d3-org-chart doesn't error
     rows.push({
       id: SYNTHETIC_ROOT_ID,
       parentId: null,
@@ -108,22 +112,21 @@ function flattenForChart(nodes: DirectoryNode[]): OrgChartDatum[] {
     walk(nodes, SYNTHETIC_ROOT_ID);
   } else {
     walk(nodes, null);
+    if (rows.length > 0 && rows[0].parentId === null) {
+      rows[0]._isSyntheticRoot = true;
+    }
   }
 
   return rows;
 }
 
-/** Listen for Tailwind dark-mode changes on <html class="dark"> */
 function useDarkMode() {
   const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
     const html = document.documentElement;
     setIsDark(html.classList.contains("dark"));
-
-    const observer = new MutationObserver(() => {
-      setIsDark(html.classList.contains("dark"));
-    });
+    const observer = new MutationObserver(() => setIsDark(html.classList.contains("dark")));
     observer.observe(html, { attributes: true, attributeFilter: ["class"] });
     return () => observer.disconnect();
   }, []);
@@ -133,18 +136,51 @@ function useDarkMode() {
 
 export function DirectoryOrgChart({
   users,
+  branches = [],
   onSelect,
   expandAll = false,
+  matchedNodeIds,
 }: {
   users: DirectoryNode[];
+  branches?: DirectoryBranch[];
   onSelect: (user: DirectoryNode) => void;
   expandAll?: boolean;
+  // When set (search active), the chart collapses everything, then expands the
+  // path from root to each matched node plus one level below (so the match's
+  // direct reports are visible but their teams stay collapsed), and centers the
+  // viewport on the first match. Takes precedence over expandAll.
+  matchedNodeIds?: string[];
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<any>(null);
   const isDark = useDarkMode();
 
-  const flatChartData = useMemo(() => flattenForChart(users), [users]);
+  // userId -> branch sort order (for sorting root's direct reports by branch)
+  const branchOrderMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const branch of branches) {
+      for (const userId of branch.memberIds) {
+        map.set(userId, branch.sortOrder);
+      }
+    }
+    return map;
+  }, [branches]);
+
+  // userId -> branch name (for showing branch label on node card)
+  const branchNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const branch of branches) {
+      for (const userId of branch.memberIds) {
+        map.set(userId, branch.name);
+      }
+    }
+    return map;
+  }, [branches]);
+
+  const flatChartData = useMemo(
+    () => flattenForChart(users, branchOrderMap, branchNameMap),
+    [users, branchOrderMap, branchNameMap]
+  );
 
   const userById = useMemo(() => {
     const map = new Map<string, DirectoryNode>();
@@ -158,10 +194,10 @@ export function DirectoryOrgChart({
     return map;
   }, [users]);
 
+  const matchedKey = useMemo(() => (matchedNodeIds ?? []).join(","), [matchedNodeIds]);
+
   useEffect(() => {
-    if (!containerRef.current || flatChartData.length === 0) {
-      return;
-    }
+    if (!containerRef.current || flatChartData.length === 0) return;
 
     const t = isDark ? THEME.dark : THEME.light;
 
@@ -180,45 +216,66 @@ export function DirectoryOrgChart({
         .data(flatChartData)
         .nodeId((d: OrgChartDatum) => d.id)
         .parentNodeId((d: OrgChartDatum) => d.parentId)
-        .initialExpandLevel(expandAll ? 100 : 1)
-        .nodeWidth(() => 230)
-        .nodeHeight(() => 120)
+        .compact(false)
+        .initialExpandLevel(
+          matchedNodeIds && matchedNodeIds.length > 0
+            ? 0 // search active — expansion is driven programmatically below
+            : expandAll
+              ? 100
+              : 1
+        )
+        .nodeWidth((d: any) => {
+          const data: OrgChartDatum = d.data ?? d;
+          return (data._isSyntheticRoot || data.id === SYNTHETIC_ROOT_ID) ? 280 : 230;
+        })
+        .nodeHeight((d: any) => {
+          const data: OrgChartDatum = d.data ?? d;
+          if (data._isSyntheticRoot || data.id === SYNTHETIC_ROOT_ID) return 90;
+          return 120;
+        })
         .childrenMargin(() => 50)
         .siblingsMargin(() => 30)
         .compactMarginBetween(() => 25)
         .compactMarginPair(() => 20)
         .initialZoom(0.6)
         .linkUpdate(function (this: any, _d: any) {
-          // Style the SVG connector lines between nodes
-          const el = (this as any);
-          if (el && typeof el.attr === "function") {
-            el.attr("stroke", t.linkColor).attr("stroke-width", 1);
+          // d3-org-chart calls this via selection.each(), so `this` is the raw
+          // <path> DOM node — not a d3 selection. Set attributes directly.
+          const el = this as SVGPathElement | null;
+          if (el && typeof el.setAttribute === "function") {
+            el.setAttribute("stroke", t.linkColor);
+            el.setAttribute("stroke-width", "1.5");
+            el.setAttribute("fill", "none");
           }
         })
         .onNodeClick((d: any) => {
           const nodeId = d?.data?.id ?? d?.id;
-          if (!nodeId || nodeId === SYNTHETIC_ROOT_ID) return;
+          const nodeData: OrgChartDatum = d?.data ?? d;
+          if (!nodeId || nodeId === SYNTHETIC_ROOT_ID || nodeData?._isSyntheticRoot) return;
           const selected = userById.get(nodeId);
           if (selected) onSelect(selected);
         })
         .nodeContent((d: any) => {
           const data: OrgChartDatum = d.data ?? d;
 
-          // Synthetic root — branded company card
+          // Synthetic root — branded card
           if (data._isSyntheticRoot || data.id === SYNTHETIC_ROOT_ID) {
+            const rootBg = isDark ? "#0c2d4d" : "#f0f6fc";
+            const teamMembers = flatChartData.length - 1; // exclude root itself
+            const parentIds = new Set(flatChartData.map((n) => n.parentId).filter(Boolean));
+            const leaders = flatChartData.filter((n) => n.id !== SYNTHETIC_ROOT_ID && parentIds.has(n.id)).length;
+
             return `
               <div style="
-                width:220px; height:110px;
-                border:2px solid #06427F;
+                width:270px; height:80px;
+                border:1.5px solid #06427F;
                 border-radius:14px;
-                background:linear-gradient(135deg,#06427F 0%,#1a6bbf 100%);
-                display:flex; align-items:center; justify-content:center;
-                box-sizing:border-box; cursor:default;
+                background:${rootBg};
+                box-shadow:${t.cardShadow};
+                display:flex; flex-direction:column; justify-content:center; align-items:center;
+                padding:12px; box-sizing:border-box; cursor:default;
               ">
-                <div style="text-align:center;">
-                  <div style="font-size:16px;font-weight:700;color:#fff;">${data.displayName}</div>
-                  <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:4px;">Organization</div>
-                </div>
+                <div style="font-size:15px; font-weight:600; color:${t.nameColor};">${data.displayName}</div>
               </div>
             `;
           }
@@ -231,53 +288,76 @@ export function DirectoryOrgChart({
             ? `<div style="font-size:10px;color:${t.deptColor};margin-top:2px;">${data.department}</div>`
             : "";
 
+          const cardHeight = 110;
+
           return `
             <div style="
-              width:220px; height:110px;
+              width:220px; height:${cardHeight}px;
               border:1px solid ${t.cardBorder};
               border-radius:12px;
               background:${t.cardBg};
               box-shadow:${t.cardShadow};
-              display:flex; gap:10px; align-items:center;
+              display:flex; flex-direction:column; justify-content:center;
               padding:10px; box-sizing:border-box; cursor:pointer;
-            ">
-              <img
-                src="${imageUrl}"
-                alt="${data.displayName}"
-                loading="lazy"
-                style="width:44px;height:44px;border-radius:999px;object-fit:cover;flex-shrink:0;border:1px solid ${t.imgBorder};"
-                onerror="this.style.display='none'"
-              />
-              <div style="min-width:0;overflow:hidden;">
-                <div style="font-size:13px;font-weight:600;color:${t.nameColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${data.displayName}</div>
-                <div style="font-size:11px;color:${t.titleColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${data.jobTitle || "Team Member"}</div>
-                ${dept}
+              transition:all 0.2s ease;
+            "
+            onmouseenter="this.style.transform='translateY(-4px) scale(1.02)'; this.style.boxShadow='0 12px 24px rgba(0,0,0,0.15)';"
+            onmouseleave="this.style.transform='translateY(0) scale(1)'; this.style.boxShadow='${t.cardShadow}';"
+            >
+              <div style="display:flex; gap:10px; align-items:center;">
+                <img
+                  src="${imageUrl}"
+                  alt="${data.displayName}"
+                  loading="lazy"
+                  style="width:44px;height:44px;border-radius:999px;object-fit:cover;flex-shrink:0;border:1px solid ${t.imgBorder};"
+                  onerror="this.style.display='none'"
+                />
+                <div style="min-width:0;overflow:hidden;">
+                  <div style="font-size:13px;font-weight:600;color:${t.nameColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${data.displayName}</div>
+                  <div style="font-size:11px;color:${t.titleColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${data.jobTitle || (data.branchName ? "Managing Partner" : "Team Member")}</div>
+                  ${dept}
+                </div>
               </div>
             </div>
           `;
         })
         .render();
 
-      // Auto-fit after short delay to let SVG settle
-      setTimeout(() => {
-        try { chart.fit(); } catch { /* ignore */ }
-      }, 300);
+      const hasMatches = !!matchedNodeIds && matchedNodeIds.length > 0;
 
+      if (hasMatches) {
+        // Collapse everything, then for each match expand the path from root to
+        // it (setCentered handles ancestors) plus one level below the match so
+        // its direct reports are visible but their teams stay collapsed.
+        chart.collapseAll();
+        for (const id of matchedNodeIds!) {
+          chart.setCentered(id); // expands ancestors + the match, marks centered
+          chart.setExpanded(id, true); // reveal the match's direct reports
+        }
+        chart.render();
+        // setCentered scrolls to the (last) centered node; nudge it to settle.
+        setTimeout(() => {
+          try { chart.setCentered(matchedNodeIds![0]).render(); } catch { /* ignore */ }
+        }, 300);
+      } else {
+        setTimeout(() => {
+          try { chart.fit(); } catch { /* ignore */ }
+        }, 300);
+      }
     };
 
     void mount();
 
     return () => {
-      if (containerRef.current) {
-        containerRef.current.innerHTML = "";
-      }
+      if (containerRef.current) containerRef.current.innerHTML = "";
       chartRef.current = null;
     };
-  }, [flatChartData, onSelect, userById, isDark, expandAll]);
+    // matchedKey makes the array a stable dependency (re-run only when the set
+    // of matched IDs actually changes, not on every parent render).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flatChartData, onSelect, userById, isDark, expandAll, matchedKey]);
 
-  if (flatChartData.length === 0) {
-    return null;
-  }
+  if (flatChartData.length === 0) return null;
 
   return (
     <div

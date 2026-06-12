@@ -193,6 +193,28 @@ export async function removeRoles(userId: string, roleIds: string[]): Promise<vo
   }
 }
 
+// ─── Profile updates ──────────────────────────────────────
+
+/**
+ * Push a name and/or primaryEmail change back to Logto so it stays in sync
+ * with the DB. Called from ensureDbUser whenever either field changes.
+ * Silently no-ops if M2M is not configured.
+ */
+export async function updateLogtoUserProfile(
+  logtoUserId: string,
+  updates: { name?: string },
+): Promise<void> {
+  if (!isM2MConfigured || Object.keys(updates).length === 0) return;
+  try {
+    await mgmtFetch(`/users/${logtoUserId}`, {
+      method: "PATCH",
+      body: JSON.stringify(updates),
+    });
+  } catch {
+    // Non-fatal — DB is source of truth; Logto will resync on next login
+  }
+}
+
 // ─── Suspend / Unsuspend ──────────────────────────────────
 
 /** Suspend a Logto user (blocks all sign-ins, revokes sessions) */
