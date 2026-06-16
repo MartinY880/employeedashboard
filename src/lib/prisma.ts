@@ -51,8 +51,11 @@ export async function ensureDbUser(
     if (entraId && !byLogto.entraId) updates.entraId = entraId;
 
     if (Object.keys(updates).length > 0) {
-      if (updates.displayName) {
-        void updateLogtoUserProfile(logtoId, { name: updates.displayName });
+      const profileUpdates: { name?: string; primaryEmail?: string } = {};
+      if (updates.displayName) profileUpdates.name = updates.displayName;
+      if (updates.email) profileUpdates.primaryEmail = updates.email;
+      if (Object.keys(profileUpdates).length > 0) {
+        void updateLogtoUserProfile(logtoId, profileUpdates);
       }
 
       return prisma.user.update({

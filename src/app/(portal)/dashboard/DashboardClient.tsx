@@ -18,15 +18,34 @@ import { VideoSpotlightWidget } from "@/components/widgets/VideoSpotlightWidget"
 import { MyShareFeedWidget } from "@/components/widgets/MyShareFeedWidget";
 import { ImportantDatesWidget } from "@/components/widgets/ImportantDatesWidget";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
-import { DashboardSlider, type DashboardSliderStyle, type DashboardSliderMedia, type DashboardSliderObjectFit } from "@/components/widgets/DashboardSlider";
+import {
+  DashboardSlider,
+  type DashboardSliderStyle,
+  type DashboardSliderMedia,
+  type DashboardSliderObjectFit,
+} from "@/components/widgets/DashboardSlider";
 import { ClosersTableBanner } from "@/components/widgets/ClosersTableBanner";
 import { TimeZoneWidget } from "@/components/widgets/TimeZoneWidget";
 import { FlyerWidget } from "@/components/widgets/FlyerWidget";
 import { UnifiedReportsWidget } from "@/components/widgets/UnifiedReportsWidget";
 import { CelebrationsBanner } from "@/components/widgets/CelebrationsBanner";
 import Link from "next/link";
-import { Trophy, ArrowRight, Plane, X, Sparkles, ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import {
+  Trophy,
+  ArrowRight,
+  Plane,
+  X,
+  Sparkles,
+  ChevronLeft,
+  ChevronRight,
+  CalendarDays,
+  Lightbulb,
+} from "lucide-react";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 
 interface DashboardVisibilitySettings {
@@ -52,12 +71,19 @@ interface DashboardClientProps {
   showVideoSpotlight?: boolean;
 }
 
-export default function DashboardClient({ visibility, sliderConfig, showVideoSpotlight }: DashboardClientProps) {
+export default function DashboardClient({
+  visibility,
+  sliderConfig,
+  showVideoSpotlight,
+}: DashboardClientProps) {
   // Only fetch slider media when the server tells us the slider is enabled + has media
-  const [sliderMedia, setSliderMedia] = useState<DashboardSliderMedia[] | null>(null);
+  const [sliderMedia, setSliderMedia] = useState<DashboardSliderMedia[] | null>(
+    null,
+  );
   const [showOoo, setShowOoo] = useState(false);
   const [celebrationDate, setCelebrationDate] = useState<string>("");
   const [flyerHidden, setFlyerHidden] = useState(false);
+  const [showMineOnly, setShowMineOnly] = useState(false);
   const sliderActive = sliderConfig.enabled && sliderConfig.hasMedia;
 
   // Ref for Be Brilliant column
@@ -68,7 +94,9 @@ export default function DashboardClient({ visibility, sliderConfig, showVideoSpo
     let mounted = true;
     (async () => {
       try {
-        const res = await fetch("/api/dashboard-settings", { cache: "no-store" });
+        const res = await fetch("/api/dashboard-settings", {
+          cache: "no-store",
+        });
         if (!res.ok) throw new Error("slider fetch failed");
         const data = await res.json();
         if (!mounted) return;
@@ -80,7 +108,9 @@ export default function DashboardClient({ visibility, sliderConfig, showVideoSpo
         if (mounted) setSliderMedia([]);
       }
     })();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, [sliderActive]);
 
   return (
@@ -129,7 +159,8 @@ export default function DashboardClient({ visibility, sliderConfig, showVideoSpo
                     Tournament Bracket Live
                   </h2>
                   <p className="text-xs sm:text-sm text-blue-100 truncate">
-                    Follow matchups, check winners, and jump into the full bracket now.
+                    Follow matchups, check winners, and jump into the full
+                    bracket now.
                   </p>
                 </div>
               </div>
@@ -141,19 +172,21 @@ export default function DashboardClient({ visibility, sliderConfig, showVideoSpo
           </Link>
         </section>
       ) : null}
-{/* Important Dates + Quick Links — side by side */}
-<section className="mb-5 grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
-  {visibility.showImportantDates && (
-    <ErrorBoundary label="Important Dates" compact>
-      <ImportantDatesWidget />
-    </ErrorBoundary>
-  )}
-  <ErrorBoundary label="Quick Links" compact>
-    <QuickLinksBar />
-  </ErrorBoundary>
-</section>
+      {/* Important Dates + Quick Links — side by side */}
+      <section className="mb-5 grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
+        {visibility.showImportantDates && (
+          <ErrorBoundary label="Important Dates" compact>
+            <ImportantDatesWidget />
+          </ErrorBoundary>
+        )}
+        <ErrorBoundary label="Quick Links" compact>
+          <QuickLinksBar />
+        </ErrorBoundary>
+      </section>
       {/* Directory Search + Alerts Bar */}
-      <section className={`mb-5 grid grid-cols-1 ${visibility.showLenderAccountExecutives ? "lg:grid-cols-4" : "lg:grid-cols-3"} gap-4`}>
+      <section
+        className={`mb-5 grid grid-cols-1 ${visibility.showLenderAccountExecutives ? "lg:grid-cols-4" : "lg:grid-cols-3"} gap-4`}
+      >
         <ErrorBoundary label="Directory Search" compact>
           <DirectorySearchBar />
         </ErrorBoundary>
@@ -174,14 +207,19 @@ export default function DashboardClient({ visibility, sliderConfig, showVideoSpo
             className="w-full bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex items-center px-3 py-2 gap-2 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800"
           >
             <Plane className="w-4 h-4 text-brand-grey/60 shrink-0" />
-            <span className="text-sm text-gray-700 dark:text-gray-300 font-medium flex-1 text-left">Out of Office</span>
+            <span className="text-sm text-gray-700 dark:text-gray-300 font-medium flex-1 text-left">
+              Out of Office
+            </span>
           </button>
         </ErrorBoundary>
       </section>
 
       {/* OOO Lightbox */}
       {showOoo && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowOoo(false)}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          onClick={() => setShowOoo(false)}
+        >
           <div
             className="relative w-full max-w-lg mx-4 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
@@ -189,7 +227,9 @@ export default function DashboardClient({ visibility, sliderConfig, showVideoSpo
             <div className="px-5 py-3 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 border-t-[3px] border-t-brand-blue flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Plane className="h-4 w-4 text-brand-blue" />
-                <h3 className="text-sm font-bold text-brand-blue tracking-wide uppercase">Out of Office</h3>
+                <h3 className="text-sm font-bold text-brand-blue tracking-wide uppercase">
+                  Out of Office
+                </h3>
               </div>
               <button
                 type="button"
@@ -223,7 +263,6 @@ export default function DashboardClient({ visibility, sliderConfig, showVideoSpo
       {/* Spotlight + Employee Highlight + Upcoming Dates + Timezone (4-col) */}
       <section className="mb-5">
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr_1fr_1fr] gap-4 auto-rows-auto lg:auto-rows-[minmax(0,450px)]">
-
           {/* Spotlight Video — col 1 */}
           {showVideoSpotlight && (
             <div className="lg:col-start-1 lg:h-full overflow-hidden">
@@ -244,7 +283,9 @@ export default function DashboardClient({ visibility, sliderConfig, showVideoSpo
 
           {/* Col 3: Employee Highlight + Weather stacked
               Expands to span cols 2–3 when there are no active flyers */}
-          <div className={`lg:h-full flex flex-col gap-4 ${flyerHidden ? "lg:col-start-2 lg:col-span-2" : "lg:col-start-3"}`}>
+          <div
+            className={`lg:h-full flex flex-col gap-4 ${flyerHidden ? "lg:col-start-2 lg:col-span-2" : "lg:col-start-3"}`}
+          >
             <div className="lg:flex-1 min-h-0">
               <ErrorBoundary label="Employee Highlight" compact>
                 <EmployeeHighlight />
@@ -263,7 +304,6 @@ export default function DashboardClient({ visibility, sliderConfig, showVideoSpo
               <TimeZoneWidget />
             </ErrorBoundary>
           </div>
-
         </div>
       </section>
 
@@ -280,13 +320,52 @@ export default function DashboardClient({ visibility, sliderConfig, showVideoSpo
         <div ref={brilliantRef} className="min-w-0 space-y-5">
           <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
             <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 border-t-[3px] border-t-brand-blue">
-              <h3 className="text-sm font-bold text-brand-blue tracking-wide uppercase flex items-center gap-1.5">
-                Be Brilliant
-              </h3>
-              <p className="text-[11px] text-brand-grey mt-0.5">Vote on ideas &amp; share yours</p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-bold text-brand-blue tracking-wide uppercase flex items-center gap-1.5">
+                    Be Brilliant
+                  </h3>
+                  <p className="text-[11px] text-brand-grey mt-0.5">
+                    Vote on ideas &amp; share yours
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowMineOnly((v) => !v)}
+                  className="shrink-0 flex items-center gap-2 px-2.5 py-1 rounded-full border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 hover:border-brand-blue/40 transition-all"
+                  title={
+                    showMineOnly
+                      ? "Showing your ideas only"
+                      : "Show my ideas only"
+                  }
+                >
+                  <span
+                    className={`text-xs font-semibold transition-colors ${
+                      showMineOnly
+                        ? "text-brand-blue"
+                        : "text-gray-400 dark:text-gray-500"
+                    }`}
+                  >
+                    My Ideas
+                  </span>
+                  <div
+                    className={`relative w-9 h-5 rounded-full transition-colors ${
+                      showMineOnly
+                        ? "bg-brand-blue"
+                        : "bg-gray-300 dark:bg-gray-600"
+                    }`}
+                  >
+                    <div
+                      className={`absolute top-[3px] w-[14px] h-[14px] rounded-full bg-white shadow-sm transition-[left] duration-200 ${
+                        showMineOnly ? "left-[17px]" : "left-[3px]"
+                      }`}
+                    />
+                  </div>
+                </button>
+              </div>
             </div>
             <ErrorBoundary label="Be Brilliant" compact>
-              <BeBrilliantWidget />
+              <BeBrilliantWidget showMineOnly={showMineOnly} />
             </ErrorBoundary>
           </div>
         </div>
@@ -303,18 +382,27 @@ export default function DashboardClient({ visibility, sliderConfig, showVideoSpo
                       <Sparkles className="h-3.5 w-3.5" />
                       Celebrations
                     </h3>
-                    <p className="text-[11px] text-brand-grey mt-0.5">Birthdays, anniversaries &amp; milestones</p>
+                    <p className="text-[11px] text-brand-grey mt-0.5">
+                      Birthdays, anniversaries &amp; milestones
+                    </p>
                   </div>
                   {/* Inline date navigation */}
                   <div className="flex items-center gap-0.5">
                     <button
                       type="button"
                       onClick={() => {
-                        const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+                        const todayStr = new Date().toLocaleDateString(
+                          "en-CA",
+                          { timeZone: "America/New_York" },
+                        );
                         const base = celebrationDate || todayStr;
                         const d = new Date(base + "T12:00:00");
                         d.setDate(d.getDate() - 1);
-                        setCelebrationDate(d.toLocaleDateString("en-CA", { timeZone: "America/New_York" }));
+                        setCelebrationDate(
+                          d.toLocaleDateString("en-CA", {
+                            timeZone: "America/New_York",
+                          }),
+                        );
                       }}
                       className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-brand-blue transition-colors"
                       aria-label="Previous day"
@@ -328,11 +416,20 @@ export default function DashboardClient({ visibility, sliderConfig, showVideoSpo
                           className="flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
                         >
                           {(() => {
-                            const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
-                            const isToday = !celebrationDate || celebrationDate === todayStr;
+                            const todayStr = new Date().toLocaleDateString(
+                              "en-CA",
+                              { timeZone: "America/New_York" },
+                            );
+                            const isToday =
+                              !celebrationDate || celebrationDate === todayStr;
                             const label = isToday
                               ? "Today"
-                              : new Date(celebrationDate + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                              : new Date(
+                                  celebrationDate + "T12:00:00",
+                                ).toLocaleDateString("en-US", {
+                                  month: "short",
+                                  day: "numeric",
+                                });
                             return (
                               <span className="text-[11px] font-semibold text-brand-blue underline decoration-dotted underline-offset-2 select-none">
                                 {label}
@@ -346,15 +443,25 @@ export default function DashboardClient({ visibility, sliderConfig, showVideoSpo
                         <Calendar
                           mode="single"
                           selected={(() => {
-                            const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+                            const todayStr = new Date().toLocaleDateString(
+                              "en-CA",
+                              { timeZone: "America/New_York" },
+                            );
                             const d = celebrationDate || todayStr;
                             return new Date(d + "T12:00:00");
                           })()}
                           onSelect={(day) => {
                             if (day) {
-                              const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
-                              const selected = day.toLocaleDateString("en-CA", { timeZone: "America/New_York" });
-                              setCelebrationDate(selected === todayStr ? "" : selected);
+                              const todayStr = new Date().toLocaleDateString(
+                                "en-CA",
+                                { timeZone: "America/New_York" },
+                              );
+                              const selected = day.toLocaleDateString("en-CA", {
+                                timeZone: "America/New_York",
+                              });
+                              setCelebrationDate(
+                                selected === todayStr ? "" : selected,
+                              );
                             }
                           }}
                           initialFocus
@@ -364,11 +471,16 @@ export default function DashboardClient({ visibility, sliderConfig, showVideoSpo
                     <button
                       type="button"
                       onClick={() => {
-                        const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+                        const todayStr = new Date().toLocaleDateString(
+                          "en-CA",
+                          { timeZone: "America/New_York" },
+                        );
                         const base = celebrationDate || todayStr;
                         const d = new Date(base + "T12:00:00");
                         d.setDate(d.getDate() + 1);
-                        const next = d.toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+                        const next = d.toLocaleDateString("en-CA", {
+                          timeZone: "America/New_York",
+                        });
                         setCelebrationDate(next === todayStr ? "" : next);
                       }}
                       className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-brand-blue transition-colors"
@@ -380,27 +492,32 @@ export default function DashboardClient({ visibility, sliderConfig, showVideoSpo
                 </div>
               </div>
               <ErrorBoundary label="Celebrations" compact>
-                <CelebrationsBanner selectedDate={celebrationDate || undefined} onDateChange={setCelebrationDate} />
+                <CelebrationsBanner
+                  selectedDate={celebrationDate || undefined}
+                  onDateChange={setCelebrationDate}
+                />
               </ErrorBoundary>
             </div>
           )}
 
           {/* MyShare */}
           {visibility.showMyShare !== false && (
-          <div
-            data-myshare-container
-            className="relative bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden"
-          >
-            <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 border-t-[3px] border-t-brand-blue">
-              <h3 className="text-sm font-bold text-brand-blue tracking-wide uppercase flex items-center gap-1.5">
-                MyShare
-              </h3>
-              <p className="text-[11px] text-brand-grey mt-0.5">Share moments &amp; celebrate wins</p>
+            <div
+              data-myshare-container
+              className="relative bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden"
+            >
+              <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 border-t-[3px] border-t-brand-blue">
+                <h3 className="text-sm font-bold text-brand-blue tracking-wide uppercase flex items-center gap-1.5">
+                  MyShare
+                </h3>
+                <p className="text-[11px] text-brand-grey mt-0.5">
+                  Share moments &amp; celebrate wins
+                </p>
+              </div>
+              <ErrorBoundary label="MyShare" compact>
+                <MyShareFeedWidget />
+              </ErrorBoundary>
             </div>
-            <ErrorBoundary label="MyShare" compact>
-              <MyShareFeedWidget />
-            </ErrorBoundary>
-          </div>
           )}
         </div>
       </div>

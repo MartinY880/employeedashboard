@@ -37,7 +37,10 @@ import {
 import { useIdeas } from "@/hooks/useIdeas";
 import { useSounds } from "@/components/shared/SoundProvider";
 import { MentionInput } from "@/components/shared/MentionInput";
-import { CommentSection, renderMentionContent } from "@/components/shared/CommentSection";
+import {
+  CommentSection,
+  renderMentionContent,
+} from "@/components/shared/CommentSection";
 import { PersonLightbox } from "@/components/shared/ProfileDialog";
 import { type DirectoryNode } from "@/hooks/useDirectory";
 import { mentionDisplayLength } from "@/lib/mentions";
@@ -47,34 +50,62 @@ const TRENDING_THRESHOLD = 15;
 
 /* ─── Comment Thread (shared by IdeaCard + SelectedIdeaRow) ── */
 
-function CommentThread({ ideaId, commentCount, readOnly = false }: { ideaId: string; commentCount: number; readOnly?: boolean }) {
-  const fetchComments = useCallback(async (entityId: string): Promise<UnifiedComment[]> => {
-    const res = await fetch(`/api/ideas/comments?ideaId=${entityId}`);
-    const data = await res.json();
-    return data.comments || [];
-  }, []);
+function CommentThread({
+  ideaId,
+  commentCount,
+  readOnly = false,
+}: {
+  ideaId: string;
+  commentCount: number;
+  readOnly?: boolean;
+}) {
+  const fetchComments = useCallback(
+    async (entityId: string): Promise<UnifiedComment[]> => {
+      const res = await fetch(`/api/ideas/comments?ideaId=${entityId}`);
+      const data = await res.json();
+      return data.comments || [];
+    },
+    [],
+  );
 
-  const submitComment = useCallback(async (entityId: string, content: string, parentId?: string): Promise<UnifiedComment> => {
-    const res = await fetch("/api/ideas/comments", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ideaId: entityId, content, parentId: parentId || null }),
-    });
-    const data = await res.json();
-    return data.comment;
-  }, []);
+  const submitComment = useCallback(
+    async (
+      entityId: string,
+      content: string,
+      parentId?: string,
+    ): Promise<UnifiedComment> => {
+      const res = await fetch("/api/ideas/comments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ideaId: entityId,
+          content,
+          parentId: parentId || null,
+        }),
+      });
+      const data = await res.json();
+      return data.comment;
+    },
+    [],
+  );
 
-  const likeComment = useCallback(async (_entityId: string, commentId: string): Promise<void> => {
-    await fetch("/api/ideas/comments", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ commentId }),
-    });
-  }, []);
+  const likeComment = useCallback(
+    async (_entityId: string, commentId: string): Promise<void> => {
+      await fetch("/api/ideas/comments", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ commentId }),
+      });
+    },
+    [],
+  );
 
-  const deleteComment = useCallback(async (_entityId: string, commentId: string): Promise<void> => {
-    await fetch(`/api/ideas/comments?id=${commentId}`, { method: "DELETE" });
-  }, []);
+  const deleteComment = useCallback(
+    async (_entityId: string, commentId: string): Promise<void> => {
+      await fetch(`/api/ideas/comments?id=${commentId}`, { method: "DELETE" });
+    },
+    [],
+  );
 
   return (
     <CommentSection
@@ -202,7 +233,11 @@ function IdeaCard({
               title="Delete idea"
               aria-label="Delete idea"
             >
-              {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+              {isDeleting ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Trash2 className="w-3.5 h-3.5" />
+              )}
             </button>
           )}
         </div>
@@ -210,21 +245,36 @@ function IdeaCard({
           {renderMentionContent(idea.description)}
         </p>
         <div className="flex items-center gap-2 text-[11px] text-gray-400 dark:text-gray-500">
-          <button type="button" onClick={() => onAuthorClick?.(idea.authorEmail, idea.authorName)} className="font-medium text-gray-500 dark:text-gray-400 hover:text-brand-blue transition-colors cursor-pointer focus:outline-none">{idea.authorName}</button>
+          <button
+            type="button"
+            onClick={() => onAuthorClick?.(idea.authorEmail, idea.authorName)}
+            className="font-medium text-gray-500 dark:text-gray-400 hover:text-brand-blue transition-colors cursor-pointer focus:outline-none"
+          >
+            {idea.authorName}
+          </button>
           <span>·</span>
           <span>{timeAgo}</span>
         </div>
         <CommentThread ideaId={idea.id} commentCount={idea.commentCount ?? 0} />
       </div>
-
-
     </motion.div>
   );
 }
 
 /* ─── Selected / In Progress / Completed Idea Row ──────── */
 
-const STAGE_CONFIG: Record<string, { label: string; icon: React.ReactNode; bgClass: string; borderClass: string; iconBgClass: string; badgeBgClass: string; badgeTextClass: string }> = {
+const STAGE_CONFIG: Record<
+  string,
+  {
+    label: string;
+    icon: React.ReactNode;
+    bgClass: string;
+    borderClass: string;
+    iconBgClass: string;
+    badgeBgClass: string;
+    badgeTextClass: string;
+  }
+> = {
   SELECTED: {
     label: "Selected",
     icon: <Rocket className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />,
@@ -245,7 +295,9 @@ const STAGE_CONFIG: Record<string, { label: string; icon: React.ReactNode; bgCla
   },
   COMPLETED: {
     label: "Completed",
-    icon: <CheckCircle2 className="w-3 h-3 text-violet-600 dark:text-violet-400" />,
+    icon: (
+      <CheckCircle2 className="w-3 h-3 text-violet-600 dark:text-violet-400" />
+    ),
     bgClass: "bg-violet-50/60 dark:bg-violet-950/40",
     borderClass: "border-violet-100 dark:border-violet-800/50",
     iconBgClass: "bg-violet-100 dark:bg-violet-900/60",
@@ -254,7 +306,13 @@ const STAGE_CONFIG: Record<string, { label: string; icon: React.ReactNode; bgCla
   },
 };
 
-function SelectedIdeaRow({ idea, onAuthorClick }: { idea: Idea; onAuthorClick?: (email?: string | null, name?: string) => void }) {
+function SelectedIdeaRow({
+  idea,
+  onAuthorClick,
+}: {
+  idea: Idea;
+  onAuthorClick?: (email?: string | null, name?: string) => void;
+}) {
   const timeAgo = getTimeAgo(idea.createdAt);
   const config = STAGE_CONFIG[idea.status] || STAGE_CONFIG.SELECTED;
   return (
@@ -263,7 +321,9 @@ function SelectedIdeaRow({ idea, onAuthorClick }: { idea: Idea; onAuthorClick?: 
       animate={{ opacity: 1, x: 0 }}
       className={`flex items-start gap-2.5 p-3 rounded-lg ${config.bgClass} border ${config.borderClass}`}
     >
-      <div className={`flex items-center justify-center w-5 h-5 rounded-full ${config.iconBgClass} shrink-0 mt-0.5`}>
+      <div
+        className={`flex items-center justify-center w-5 h-5 rounded-full ${config.iconBgClass} shrink-0 mt-0.5`}
+      >
         {config.icon}
       </div>
       <div className="flex-1 min-w-0">
@@ -282,7 +342,13 @@ function SelectedIdeaRow({ idea, onAuthorClick }: { idea: Idea; onAuthorClick?: 
           {renderMentionContent(idea.description)}
         </p>
         <div className="flex items-center gap-2 text-[11px] text-gray-400 dark:text-gray-500">
-          <button type="button" onClick={() => onAuthorClick?.(idea.authorEmail, idea.authorName)} className="font-medium text-gray-500 dark:text-gray-400 hover:text-brand-blue transition-colors cursor-pointer focus:outline-none">{idea.authorName}</button>
+          <button
+            type="button"
+            onClick={() => onAuthorClick?.(idea.authorEmail, idea.authorName)}
+            className="font-medium text-gray-500 dark:text-gray-400 hover:text-brand-blue transition-colors cursor-pointer focus:outline-none"
+          >
+            {idea.authorName}
+          </button>
           <span>·</span>
           <span>{timeAgo}</span>
           <span>·</span>
@@ -296,7 +362,13 @@ function SelectedIdeaRow({ idea, onAuthorClick }: { idea: Idea; onAuthorClick?: 
 
 /* ─── Archived Idea Row (Read-Only — no votes, comments, or delete) ── */
 
-function ArchivedIdeaRow({ idea, onAuthorClick }: { idea: Idea; onAuthorClick?: (email?: string | null, name?: string) => void }) {
+function ArchivedIdeaRow({
+  idea,
+  onAuthorClick,
+}: {
+  idea: Idea;
+  onAuthorClick?: (email?: string | null, name?: string) => void;
+}) {
   const timeAgo = getTimeAgo(idea.createdAt);
   return (
     <motion.div
@@ -323,13 +395,23 @@ function ArchivedIdeaRow({ idea, onAuthorClick }: { idea: Idea; onAuthorClick?: 
           {renderMentionContent(idea.description)}
         </p>
         <div className="flex items-center gap-2 text-[11px] text-gray-400 dark:text-gray-500">
-          <button type="button" onClick={() => onAuthorClick?.(idea.authorEmail, idea.authorName)} className="font-medium text-gray-400 dark:text-gray-500 hover:text-brand-blue transition-colors cursor-pointer focus:outline-none">{idea.authorName}</button>
+          <button
+            type="button"
+            onClick={() => onAuthorClick?.(idea.authorEmail, idea.authorName)}
+            className="font-medium text-gray-400 dark:text-gray-500 hover:text-brand-blue transition-colors cursor-pointer focus:outline-none"
+          >
+            {idea.authorName}
+          </button>
           <span>·</span>
           <span>{timeAgo}</span>
           <span>·</span>
           <span>{idea.votes} votes</span>
         </div>
-        <CommentThread ideaId={idea.id} commentCount={idea.commentCount ?? 0} readOnly />
+        <CommentThread
+          ideaId={idea.id}
+          commentCount={idea.commentCount ?? 0}
+          readOnly
+        />
       </div>
     </motion.div>
   );
@@ -409,15 +491,19 @@ function SubmitIdeaForm({
           maxLength={500}
           rows={3}
         />
-        <span className={`absolute bottom-1.5 right-2 text-[10px] tabular-nums ${
-          descriptionLength >= 480 ? "text-red-400" : descriptionLength >= 400 ? "text-amber-400" : "text-gray-300 dark:text-gray-600"
-        }`}>
+        <span
+          className={`absolute bottom-1.5 right-2 text-[10px] tabular-nums ${
+            descriptionLength >= 480
+              ? "text-red-400"
+              : descriptionLength >= 400
+                ? "text-amber-400"
+                : "text-gray-300 dark:text-gray-600"
+          }`}
+        >
           {descriptionLength}/500
         </span>
       </div>
-      {error && (
-        <p className="text-xs text-red-500 font-medium">{error}</p>
-      )}
+      {error && <p className="text-xs text-red-500 font-medium">{error}</p>}
       <div className="flex justify-end gap-2">
         <Button
           type="button"
@@ -448,12 +534,25 @@ function SubmitIdeaForm({
 
 /* ─── Main Be Brilliant Widget ─────────────────────────── */
 
-export function BeBrilliantWidget() {
-  const { ideas, isLoading, submitIdea, voteIdea, userVotesByIdea, deleteIdea } = useIdeas();
+export function BeBrilliantWidget({
+  showMineOnly = false,
+}: {
+  showMineOnly?: boolean;
+}) {
+  const {
+    ideas,
+    isLoading,
+    submitIdea,
+    voteIdea,
+    userVotesByIdea,
+    deleteIdea,
+  } = useIdeas();
   const { playSuccess, playClick } = useSounds();
   const [showForm, setShowForm] = useState(false);
   const [justSubmitted, setJustSubmitted] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<"ACTIVE" | "SELECTED" | "IN_PROGRESS" | "COMPLETED" | "ARCHIVED">("ACTIVE");
+  const [statusFilter, setStatusFilter] = useState<
+    "ACTIVE" | "SELECTED" | "IN_PROGRESS" | "COMPLETED" | "ARCHIVED"
+  >("ACTIVE");
   const [wallSort, setWallSort] = useState<"votes" | "recent">("votes");
   const [currentUserDbId, setCurrentUserDbId] = useState<string | null>(null);
   const [deletingIdeaId, setDeletingIdeaId] = useState<string | null>(null);
@@ -461,24 +560,33 @@ export function BeBrilliantWidget() {
   const [profileUser, setProfileUser] = useState<DirectoryNode | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
 
-  const handleAuthorClick = useCallback(async (email?: string | null, name?: string) => {
-    if (!email && !name) return;
-    try {
-      const q = email || name || "";
-      const res = await fetch(`/api/directory?mode=flat&search=${encodeURIComponent(q)}`);
-      const data = await res.json();
-      let users = data?.users || [];
-      if (users.length === 0 && name && email && name !== email) {
-        const res2 = await fetch(`/api/directory?mode=flat&search=${encodeURIComponent(name)}`);
-        const data2 = await res2.json();
-        users = data2?.users || [];
+  const handleAuthorClick = useCallback(
+    async (email?: string | null, name?: string) => {
+      if (!email && !name) return;
+      try {
+        const q = email || name || "";
+        const res = await fetch(
+          `/api/directory?mode=flat&search=${encodeURIComponent(q)}`,
+        );
+        const data = await res.json();
+        let users = data?.users || [];
+        if (users.length === 0 && name && email && name !== email) {
+          const res2 = await fetch(
+            `/api/directory?mode=flat&search=${encodeURIComponent(name)}`,
+          );
+          const data2 = await res2.json();
+          users = data2?.users || [];
+        }
+        if (users.length > 0) {
+          setProfileUser(users[0]);
+          setProfileOpen(true);
+        }
+      } catch {
+        /* silently fail */
       }
-      if (users.length > 0) {
-        setProfileUser(users[0]);
-        setProfileOpen(true);
-      }
-    } catch { /* silently fail */ }
-  }, []);
+    },
+    [],
+  );
 
   // Active tab cards (IdeaCard) are taller; status tabs (SelectedIdeaRow) are compact
   const batchSize = 5;
@@ -487,7 +595,7 @@ export function BeBrilliantWidget() {
   // Reset visible count to the appropriate batch when tab or sort changes
   useEffect(() => {
     setVisibleCount(8);
-  }, [statusFilter, wallSort]);
+  }, [statusFilter, wallSort, showMineOnly]);
 
   // Debounced re-sort: keep a "frozen" sort order while voting,
   // then re-sort 1.5s after the last vote click
@@ -516,7 +624,9 @@ export function BeBrilliantWidget() {
         if (!res.ok) return;
         const data = await res.json();
         if (mounted) {
-          setCurrentUserDbId(typeof data?.dbUserId === "string" ? data.dbUserId : null);
+          setCurrentUserDbId(
+            typeof data?.dbUserId === "string" ? data.dbUserId : null,
+          );
         }
       } catch {
         // silent
@@ -535,15 +645,21 @@ export function BeBrilliantWidget() {
         triggerDebouncedSort();
       }
     },
-    [voteIdea, triggerDebouncedSort]
+    [voteIdea, triggerDebouncedSort],
   );
 
-  const visibleIdeas = ideas.filter((i) => i.status !== "DELETED" && i.status !== "DELETED_BY_ADMIN");
+  const visibleIdeas = ideas.filter(
+    (i) => i.status !== "DELETED" && i.status !== "DELETED_BY_ADMIN",
+  );
   const activeIdeas = visibleIdeas.filter((i) => i.status === "ACTIVE");
 
   // If the current filter tab has no ideas (e.g. all were archived), fall back to Active
   useEffect(() => {
-    if (statusFilter !== "ACTIVE" && statusFilter !== "ARCHIVED" && visibleIdeas.filter((i) => i.status === statusFilter).length === 0) {
+    if (
+      statusFilter !== "ACTIVE" &&
+      statusFilter !== "ARCHIVED" &&
+      visibleIdeas.filter((i) => i.status === statusFilter).length === 0
+    ) {
       setStatusFilter("ACTIVE");
     }
   }, [visibleIdeas, statusFilter]);
@@ -573,35 +689,49 @@ export function BeBrilliantWidget() {
 
   // "Most Recent" sort — by createdAt descending
   const recentSorted = [...activeIdeas].sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
   );
 
-  const trendingIdeas = orderedActive
-    .filter((i) => i.votes >= TRENDING_THRESHOLD);
-  const freshIdeas = orderedActive
-    .filter((i) => i.votes < TRENDING_THRESHOLD);
+  const trendingIdeas = orderedActive.filter(
+    (i) => i.votes >= TRENDING_THRESHOLD,
+  );
+  const freshIdeas = orderedActive.filter((i) => i.votes < TRENDING_THRESHOLD);
 
-  // Build the sorted list for the current tab
+  // Build the sorted list for the current tab, cross-filtered by showMineOnly
   const getSortedForTab = useCallback((): Idea[] => {
+    const mine = (list: Idea[]) =>
+      showMineOnly && currentUserDbId
+        ? list.filter((i) => i.userId === currentUserDbId)
+        : list;
+
     if (statusFilter === "ARCHIVED") {
-      const archived = [...ideas.filter((i) => i.status === "ARCHIVED")];
-      return archived.sort((a, b) =>
-        wallSort === "votes"
-          ? b.votes - a.votes
-          : new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      return mine([...ideas.filter((i) => i.status === "ARCHIVED")]).sort(
+        (a, b) =>
+          wallSort === "votes"
+            ? b.votes - a.votes
+            : new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
       );
     }
-    const pool = visibleIdeas.filter((i) => i.status === statusFilter);
     if (statusFilter === "ACTIVE") {
-      return wallSort === "votes" ? orderedActive : recentSorted;
+      const base = wallSort === "votes" ? orderedActive : recentSorted;
+      return mine(base);
     }
-    // For non-active tabs: apply sort
-    return [...pool].sort((a, b) =>
+    const pool = visibleIdeas.filter((i) => i.status === statusFilter);
+    return mine([...pool]).sort((a, b) =>
       wallSort === "votes"
         ? b.votes - a.votes
-        : new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        : new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
-  }, [ideas, visibleIdeas, statusFilter, wallSort, orderedActive, recentSorted]);
+  }, [
+    ideas,
+    visibleIdeas,
+    statusFilter,
+    wallSort,
+    orderedActive,
+    recentSorted,
+    currentUserDbId,
+    showMineOnly,
+  ]);
 
   const handleSubmit = async (title: string, description: string) => {
     await submitIdea(title, description);
@@ -617,21 +747,21 @@ export function BeBrilliantWidget() {
       if (idea.status === "IN_PROGRESS" || idea.status === "COMPLETED") return;
       setDeleteTargetIdea(idea);
     },
-    [deletingIdeaId]
+    [deletingIdeaId],
   );
 
   const confirmDeleteIdea = useCallback(async () => {
     if (!deleteTargetIdea || deletingIdeaId) return;
-      try {
+    try {
       setDeletingIdeaId(deleteTargetIdea.id);
       await deleteIdea(deleteTargetIdea.id);
       setDeleteTargetIdea(null);
       playSuccess();
-      } catch {
-        // silent
-      } finally {
-        setDeletingIdeaId(null);
-      }
+    } catch {
+      // silent
+    } finally {
+      setDeletingIdeaId(null);
+    }
   }, [deleteIdea, deleteTargetIdea, deletingIdeaId, playSuccess]);
 
   if (isLoading) {
@@ -653,7 +783,10 @@ export function BeBrilliantWidget() {
 
   return (
     <>
-      <Dialog open={!!deleteTargetIdea} onOpenChange={(open) => !open && setDeleteTargetIdea(null)}>
+      <Dialog
+        open={!!deleteTargetIdea}
+        onOpenChange={(open) => !open && setDeleteTargetIdea(null)}
+      >
         <DialogContent className="sm:max-w-[420px]">
           <DialogHeader>
             <DialogTitle className="text-red-600">Delete Idea</DialogTitle>
@@ -662,11 +795,23 @@ export function BeBrilliantWidget() {
             Are you sure you want to delete this idea?
           </p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteTargetIdea(null)} disabled={!!deletingIdeaId}>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteTargetIdea(null)}
+              disabled={!!deletingIdeaId}
+            >
               Cancel
             </Button>
-            <Button variant="destructive" onClick={() => void confirmDeleteIdea()} disabled={!!deletingIdeaId}>
-              {deletingIdeaId ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5 mr-1.5" />}
+            <Button
+              variant="destructive"
+              onClick={() => void confirmDeleteIdea()}
+              disabled={!!deletingIdeaId}
+            >
+              {deletingIdeaId ? (
+                <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+              ) : (
+                <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+              )}
               Delete
             </Button>
           </DialogFooter>
@@ -674,268 +819,421 @@ export function BeBrilliantWidget() {
       </Dialog>
 
       <div>
-      {/* Tab Content */}
-      <div className="p-4 space-y-4">
-        {/* Success Banner */}
-        <AnimatePresence>
-          {justSubmitted && (
-            <motion.div
-              initial={{ opacity: 0, y: -6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-medium"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              Your idea has been submitted!
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* Tab Content */}
+        <div className="p-4 space-y-4">
+          {/* Success Banner */}
+          <AnimatePresence>
+            {justSubmitted && (
+              <motion.div
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-medium"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                Your idea has been submitted!
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-        <div className="space-y-4">
-          {/* Submit Row */}
-          <div className="flex items-center gap-2">
-            <AnimatePresence mode="wait">
-              {!showForm ? (
-                <motion.div key="btn" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      playClick();
-                      setShowForm(true);
-                    }}
-                    className="w-full h-8 text-xs border-dashed border-brand-blue/30 text-brand-blue hover:bg-brand-blue/5 hover:border-brand-blue/50 gap-1.5"
+          <div className="space-y-4">
+            {/* Submit Row */}
+            <div className="flex items-center gap-2">
+              <AnimatePresence mode="wait">
+                {!showForm ? (
+                  <motion.div
+                    key="btn"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="flex-1"
                   >
-                    <Plus className="w-3.5 h-3.5" />
-                    Submit an Idea
-                  </Button>
-                </motion.div>
-              ) : (
-                <div className="flex-1">
-                  <SubmitIdeaForm
-                    key="form"
-                    onSubmit={handleSubmit}
-                    onCancel={() => setShowForm(false)}
-                  />
-                </div>
-              )}
-            </AnimatePresence>
-          </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        playClick();
+                        setShowForm(true);
+                      }}
+                      className="w-full h-8 text-xs border-dashed border-brand-blue/30 text-brand-blue hover:bg-brand-blue/5 hover:border-brand-blue/50 gap-1.5"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Submit an Idea
+                    </Button>
+                  </motion.div>
+                ) : (
+                  <div className="flex-1">
+                    <SubmitIdeaForm
+                      key="form"
+                      onSubmit={handleSubmit}
+                      onCancel={() => setShowForm(false)}
+                    />
+                  </div>
+                )}
+              </AnimatePresence>
+            </div>
 
-          {/* Status Filter Chips */}
-          {visibleIdeas.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {(["ACTIVE", "SELECTED", "IN_PROGRESS", "COMPLETED", "ARCHIVED"] as const).map((f) => {
-                const count = f === "ARCHIVED"
-                  ? ideas.filter((i) => i.status === "ARCHIVED").length
-                  : visibleIdeas.filter((i) => i.status === f).length;
-                if (count === 0 && f !== "ACTIVE") return null;
-                const labels: Record<string, string> = { ACTIVE: "Active", SELECTED: "Selected", IN_PROGRESS: "In Progress", COMPLETED: "Completed", ARCHIVED: "Archived" };
-                const icons: Record<string, React.ReactNode> = {
-                  ACTIVE: <Lightbulb className="w-3 h-3" />,
-                  SELECTED: <Rocket className="w-3 h-3" />,
-                  IN_PROGRESS: <Wrench className="w-3 h-3" />,
-                  COMPLETED: <CheckCircle2 className="w-3 h-3" />,
-                  ARCHIVED: <Archive className="w-3 h-3" />,
-                };
+            {/* Status Filter Chips + Mine Toggle */}
+            {visibleIdeas.length > 0 && (
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex flex-wrap gap-1.5">
+                  {(
+                    [
+                      "ACTIVE",
+                      "SELECTED",
+                      "IN_PROGRESS",
+                      "COMPLETED",
+                      "ARCHIVED",
+                    ] as const
+                  ).map((f) => {
+                    const pool =
+                      showMineOnly && currentUserDbId
+                        ? ideas.filter((i) => i.userId === currentUserDbId)
+                        : ideas;
+                    const count =
+                      f === "ARCHIVED"
+                        ? pool.filter((i) => i.status === "ARCHIVED").length
+                        : pool.filter((i) => i.status === f).length;
+                    if (count === 0 && f !== "ACTIVE") return null;
+                    const labels: Record<string, string> = {
+                      ACTIVE: "Active",
+                      SELECTED: "Selected",
+                      IN_PROGRESS: "In Progress",
+                      COMPLETED: "Completed",
+                      ARCHIVED: "Archived",
+                    };
+                    const icons: Record<string, React.ReactNode> = {
+                      ACTIVE: <Lightbulb className="w-3 h-3" />,
+                      SELECTED: <Rocket className="w-3 h-3" />,
+                      IN_PROGRESS: <Wrench className="w-3 h-3" />,
+                      COMPLETED: <CheckCircle2 className="w-3 h-3" />,
+                      ARCHIVED: <Archive className="w-3 h-3" />,
+                    };
+                    return (
+                      <button
+                        key={f}
+                        type="button"
+                        onClick={() => {
+                          playClick();
+                          setStatusFilter(f);
+                        }}
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all border ${
+                          statusFilter === f
+                            ? "bg-brand-blue text-white border-brand-blue shadow-sm"
+                            : "bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:border-brand-blue/40 hover:text-brand-blue"
+                        }`}
+                      >
+                        {icons[f]}
+                        {labels[f]}
+                        <span
+                          className={`text-[9px] px-1 py-0 rounded-full font-bold ${
+                            statusFilter === f
+                              ? "bg-white/20 text-white"
+                              : "bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400"
+                          }`}
+                        >
+                          {count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Sort Toggle — shown on all tabs */}
+            {(statusFilter === "ARCHIVED"
+              ? ideas.filter((i) => i.status === "ARCHIVED").length > 0
+              : visibleIdeas.filter((i) => i.status === statusFilter).length >
+                0) && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                  Sort:
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    playClick();
+                    setWallSort("votes");
+                  }}
+                  className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold transition-all border ${
+                    wallSort === "votes"
+                      ? "bg-brand-blue text-white border-brand-blue shadow-sm"
+                      : "bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:border-brand-blue/40 hover:text-brand-blue"
+                  }`}
+                >
+                  <ArrowDownWideNarrow className="w-3 h-3" />
+                  Highest Votes
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    playClick();
+                    setWallSort("recent");
+                  }}
+                  className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold transition-all border ${
+                    wallSort === "recent"
+                      ? "bg-brand-blue text-white border-brand-blue shadow-sm"
+                      : "bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:border-brand-blue/40 hover:text-brand-blue"
+                  }`}
+                >
+                  <Clock className="w-3 h-3" />
+                  Most Recent
+                </button>
+              </div>
+            )}
+
+            {/* ── Filtered Content ── */}
+            {(() => {
+              const allForTab = getSortedForTab();
+              const paged = allForTab.slice(0, visibleCount);
+              const hasMore = allForTab.length > visibleCount;
+
+              if (allForTab.length === 0) {
+                const hasAnyMyIdeas =
+                  showMineOnly &&
+                  currentUserDbId &&
+                  ideas.some(
+                    (i) =>
+                      i.userId === currentUserDbId &&
+                      i.status !== "DELETED" &&
+                      i.status !== "DELETED_BY_ADMIN",
+                  );
                 return (
-                  <button
-                    key={f}
-                    type="button"
-                    onClick={() => { playClick(); setStatusFilter(f); }}
-                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all border ${
-                      statusFilter === f
-                        ? "bg-brand-blue text-white border-brand-blue shadow-sm"
-                        : "bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:border-brand-blue/40 hover:text-brand-blue"
-                    }`}
-                  >
-                    {icons[f]}
-                    {labels[f]}
-                    <span className={`text-[9px] px-1 py-0 rounded-full font-bold ${
-                      statusFilter === f ? "bg-white/20 text-white" : "bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400"
-                    }`}>{count}</span>
-                  </button>
+                  <div className="text-center py-6">
+                    <Lightbulb className="w-8 h-8 text-brand-grey/30 mx-auto mb-2" />
+                    <p className="text-sm text-brand-grey">
+                      {showMineOnly && !hasAnyMyIdeas
+                        ? "You have no ideas here yet — share your first one!"
+                        : "No ideas match this filter."}
+                    </p>
+                  </div>
                 );
-              })}
-            </div>
-          )}
+              }
 
-          {/* Sort Toggle — shown on all tabs */}
-          {(statusFilter === "ARCHIVED" ? ideas.filter((i) => i.status === "ARCHIVED").length > 0 : visibleIdeas.filter((i) => i.status === statusFilter).length > 0) && (
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">Sort:</span>
-              <button
-                type="button"
-                onClick={() => { playClick(); setWallSort("votes"); }}
-                className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold transition-all border ${
-                  wallSort === "votes"
-                    ? "bg-brand-blue text-white border-brand-blue shadow-sm"
-                    : "bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:border-brand-blue/40 hover:text-brand-blue"
-                }`}
-              >
-                <ArrowDownWideNarrow className="w-3 h-3" />
-                Highest Votes
-              </button>
-              <button
-                type="button"
-                onClick={() => { playClick(); setWallSort("recent"); }}
-                className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold transition-all border ${
-                  wallSort === "recent"
-                    ? "bg-brand-blue text-white border-brand-blue shadow-sm"
-                    : "bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:border-brand-blue/40 hover:text-brand-blue"
-                }`}
-              >
-                <Clock className="w-3 h-3" />
-                Most Recent
-              </button>
-            </div>
-          )}
+              if (statusFilter === "ACTIVE") {
+                return (
+                  <>
+                    {wallSort === "votes" ? (
+                      <>
+                        {(() => {
+                          const pagedTrending = paged.filter(
+                            (i) => i.votes >= TRENDING_THRESHOLD,
+                          );
+                          const pagedFresh = paged.filter(
+                            (i) => i.votes < TRENDING_THRESHOLD,
+                          );
+                          return (
+                            <>
+                              {pagedTrending.length > 0 && (
+                                <section>
+                                  <h4 className="text-[11px] font-bold text-orange-600 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                    <Flame className="w-3.5 h-3.5" />
+                                    Trending Now
+                                    <Badge
+                                      variant="secondary"
+                                      className="text-[9px] px-1.5 py-0 bg-orange-100 text-orange-600 font-semibold ml-auto"
+                                    >
+                                      {TRENDING_THRESHOLD}+ votes
+                                    </Badge>
+                                  </h4>
+                                  <div className="space-y-2">
+                                    <AnimatePresence mode="popLayout">
+                                      {pagedTrending.map((idea) => (
+                                        <IdeaCard
+                                          key={idea.id}
+                                          idea={idea}
+                                          onVote={handleVote}
+                                          onDeleteIdea={() =>
+                                            void handleDeleteIdea(idea)
+                                          }
+                                          canDeleteIdea={
+                                            currentUserDbId === idea.userId &&
+                                            idea.status !== "IN_PROGRESS" &&
+                                            idea.status !== "COMPLETED"
+                                          }
+                                          isDeleting={
+                                            deletingIdeaId === idea.id
+                                          }
+                                          userVote={userVotesByIdea[idea.id]}
+                                          isTrending
+                                          onAuthorClick={handleAuthorClick}
+                                        />
+                                      ))}
+                                    </AnimatePresence>
+                                  </div>
+                                </section>
+                              )}
+                              {pagedFresh.length > 0 && (
+                                <section>
+                                  <h4 className="text-[11px] font-bold text-brand-blue uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                    <Sparkles className="w-3.5 h-3.5" />
+                                    Fresh Ideas
+                                  </h4>
+                                  <div className="space-y-2">
+                                    <AnimatePresence mode="popLayout">
+                                      {pagedFresh.map((idea) => (
+                                        <IdeaCard
+                                          key={idea.id}
+                                          idea={idea}
+                                          onVote={handleVote}
+                                          onDeleteIdea={() =>
+                                            void handleDeleteIdea(idea)
+                                          }
+                                          canDeleteIdea={
+                                            currentUserDbId === idea.userId &&
+                                            idea.status !== "IN_PROGRESS" &&
+                                            idea.status !== "COMPLETED"
+                                          }
+                                          isDeleting={
+                                            deletingIdeaId === idea.id
+                                          }
+                                          userVote={userVotesByIdea[idea.id]}
+                                          onAuthorClick={handleAuthorClick}
+                                        />
+                                      ))}
+                                    </AnimatePresence>
+                                  </div>
+                                </section>
+                              )}
+                            </>
+                          );
+                        })()}
+                      </>
+                    ) : (
+                      <section>
+                        <h4 className="text-[11px] font-bold text-brand-blue uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                          <Sparkles className="w-3.5 h-3.5" />
+                          Fresh Ideas
+                        </h4>
+                        <div className="space-y-2">
+                          <AnimatePresence mode="popLayout">
+                            {paged.map((idea) => (
+                              <IdeaCard
+                                key={idea.id}
+                                idea={idea}
+                                onVote={handleVote}
+                                onDeleteIdea={() => void handleDeleteIdea(idea)}
+                                canDeleteIdea={
+                                  currentUserDbId === idea.userId &&
+                                  idea.status !== "IN_PROGRESS" &&
+                                  idea.status !== "COMPLETED"
+                                }
+                                isDeleting={deletingIdeaId === idea.id}
+                                userVote={userVotesByIdea[idea.id]}
+                                isTrending={idea.votes >= TRENDING_THRESHOLD}
+                                onAuthorClick={handleAuthorClick}
+                              />
+                            ))}
+                          </AnimatePresence>
+                        </div>
+                      </section>
+                    )}
+                    {hasMore && (
+                      <div className="flex justify-center pt-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            playClick();
+                            setVisibleCount((c) => c + batchSize);
+                          }}
+                          className="h-8 text-xs border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:text-brand-blue hover:border-brand-blue/40 gap-1.5"
+                        >
+                          View More
+                          <span className="text-[10px] text-gray-400 dark:text-gray-500">
+                            ({allForTab.length - visibleCount} remaining)
+                          </span>
+                        </Button>
+                      </div>
+                    )}
+                  </>
+                );
+              }
 
-          {/* ── Filtered Content ── */}
-          {(() => {
-            const allForTab = getSortedForTab();
-            const paged = allForTab.slice(0, visibleCount);
-            const hasMore = allForTab.length > visibleCount;
+              // Non-active tabs: Selected / In Progress / Completed
+              const tabHeadings: Record<
+                string,
+                { label: string; icon: React.ReactNode; color: string }
+              > = {
+                SELECTED: {
+                  label: "Selected Ideas",
+                  icon: <Rocket className="w-3.5 h-3.5" />,
+                  color: "text-emerald-600",
+                },
+                IN_PROGRESS: {
+                  label: "Ideas in Motion",
+                  icon: <Wrench className="w-3.5 h-3.5" />,
+                  color: "text-amber-600",
+                },
+                COMPLETED: {
+                  label: "Completed Ideas",
+                  icon: <CheckCircle2 className="w-3.5 h-3.5" />,
+                  color: "text-violet-600",
+                },
+              };
 
-            if (allForTab.length === 0) {
-              return (
-                <div className="text-center py-6">
-                  <Lightbulb className="w-8 h-8 text-brand-grey/30 mx-auto mb-2" />
-                  <p className="text-sm text-brand-grey">No ideas match this filter.</p>
-                </div>
-              );
-            }
-
-            if (statusFilter === "ACTIVE") {
-              return (
-                <>
-                  {wallSort === "votes" ? (
-                    <>
-                      {(() => {
-                        const pagedTrending = paged.filter((i) => i.votes >= TRENDING_THRESHOLD);
-                        const pagedFresh = paged.filter((i) => i.votes < TRENDING_THRESHOLD);
-                        return (
-                          <>
-                            {pagedTrending.length > 0 && (
-                              <section>
-                                <h4 className="text-[11px] font-bold text-orange-600 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                                  <Flame className="w-3.5 h-3.5" />
-                                  Trending Now
-                                  <Badge
-                                    variant="secondary"
-                                    className="text-[9px] px-1.5 py-0 bg-orange-100 text-orange-600 font-semibold ml-auto"
-                                  >
-                                    {TRENDING_THRESHOLD}+ votes
-                                  </Badge>
-                                </h4>
-                                <div className="space-y-2">
-                                  <AnimatePresence mode="popLayout">
-                                    {pagedTrending.map((idea) => (
-                                      <IdeaCard
-                                        key={idea.id}
-                                        idea={idea}
-                                        onVote={handleVote}
-                                        onDeleteIdea={() => void handleDeleteIdea(idea)}
-                                        canDeleteIdea={currentUserDbId === idea.userId && idea.status !== "IN_PROGRESS" && idea.status !== "COMPLETED"}
-                                        isDeleting={deletingIdeaId === idea.id}
-                                        userVote={userVotesByIdea[idea.id]}
-                                        isTrending
-                                        onAuthorClick={handleAuthorClick}
-                                      />
-                                    ))}
-                                  </AnimatePresence>
-                                </div>
-                              </section>
-                            )}
-                            {pagedFresh.length > 0 && (
-                              <section>
-                                <h4 className="text-[11px] font-bold text-brand-blue uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                                  <Sparkles className="w-3.5 h-3.5" />
-                                  Fresh Ideas
-                                </h4>
-                                <div className="space-y-2">
-                                  <AnimatePresence mode="popLayout">
-                                    {pagedFresh.map((idea) => (
-                                      <IdeaCard
-                                        key={idea.id}
-                                        idea={idea}
-                                        onVote={handleVote}
-                                        onDeleteIdea={() => void handleDeleteIdea(idea)}
-                                        canDeleteIdea={currentUserDbId === idea.userId && idea.status !== "IN_PROGRESS" && idea.status !== "COMPLETED"}
-                                        isDeleting={deletingIdeaId === idea.id}
-                                        userVote={userVotesByIdea[idea.id]}
-                                        onAuthorClick={handleAuthorClick}
-                                      />
-                                    ))}
-                                  </AnimatePresence>
-                                </div>
-                              </section>
-                            )}
-                          </>
-                        );
-                      })()}
-                    </>
-                  ) : (
+              // Archived tab — view only, no interactions
+              if (statusFilter === "ARCHIVED") {
+                return (
+                  <>
                     <section>
-                      <h4 className="text-[11px] font-bold text-brand-blue uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                        <Sparkles className="w-3.5 h-3.5" />
-                        Fresh Ideas
+                      <h4 className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                        <Archive className="w-3.5 h-3.5" />
+                        Archived Ideas
                       </h4>
-                      <div className="space-y-2">
-                        <AnimatePresence mode="popLayout">
-                          {paged.map((idea) => (
-                            <IdeaCard
-                              key={idea.id}
-                              idea={idea}
-                              onVote={handleVote}
-                              onDeleteIdea={() => void handleDeleteIdea(idea)}
-                              canDeleteIdea={currentUserDbId === idea.userId && idea.status !== "IN_PROGRESS" && idea.status !== "COMPLETED"}
-                              isDeleting={deletingIdeaId === idea.id}
-                              userVote={userVotesByIdea[idea.id]}
-                              isTrending={idea.votes >= TRENDING_THRESHOLD}
-                              onAuthorClick={handleAuthorClick}
-                            />
-                          ))}
-                        </AnimatePresence>
+                      <div className="space-y-1.5">
+                        {paged.map((idea) => (
+                          <ArchivedIdeaRow
+                            key={idea.id}
+                            idea={idea}
+                            onAuthorClick={handleAuthorClick}
+                          />
+                        ))}
                       </div>
                     </section>
-                  )}
-                  {hasMore && (
-                    <div className="flex justify-center pt-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => { playClick(); setVisibleCount((c) => c + batchSize); }}
-                        className="h-8 text-xs border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:text-brand-blue hover:border-brand-blue/40 gap-1.5"
-                      >
-                        View More
-                        <span className="text-[10px] text-gray-400 dark:text-gray-500">({allForTab.length - visibleCount} remaining)</span>
-                      </Button>
-                    </div>
-                  )}
-                </>
-              );
-            }
+                    {hasMore && (
+                      <div className="flex justify-center pt-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            playClick();
+                            setVisibleCount((c) => c + batchSize);
+                          }}
+                          className="h-8 text-xs border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:text-brand-blue hover:border-brand-blue/40 gap-1.5"
+                        >
+                          View More
+                          <span className="text-[10px] text-gray-400 dark:text-gray-500">
+                            ({allForTab.length - visibleCount} remaining)
+                          </span>
+                        </Button>
+                      </div>
+                    )}
+                  </>
+                );
+              }
 
-            // Non-active tabs: Selected / In Progress / Completed
-            const tabHeadings: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
-              SELECTED: { label: "Selected Ideas", icon: <Rocket className="w-3.5 h-3.5" />, color: "text-emerald-600" },
-              IN_PROGRESS: { label: "Ideas in Motion", icon: <Wrench className="w-3.5 h-3.5" />, color: "text-amber-600" },
-              COMPLETED: { label: "Completed Ideas", icon: <CheckCircle2 className="w-3.5 h-3.5" />, color: "text-violet-600" },
-            };
+              const heading = tabHeadings[statusFilter];
 
-            // Archived tab — view only, no interactions
-            if (statusFilter === "ARCHIVED") {
               return (
                 <>
                   <section>
-                    <h4 className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                      <Archive className="w-3.5 h-3.5" />
-                      Archived Ideas
-                    </h4>
+                    {heading && (
+                      <h4
+                        className={`text-[11px] font-bold ${heading.color} uppercase tracking-wider mb-2 flex items-center gap-1.5`}
+                      >
+                        {heading.icon}
+                        {heading.label}
+                      </h4>
+                    )}
                     <div className="space-y-1.5">
                       {paged.map((idea) => (
-                        <ArchivedIdeaRow key={idea.id} idea={idea} onAuthorClick={handleAuthorClick} />
+                        <SelectedIdeaRow
+                          key={idea.id}
+                          idea={idea}
+                          onAuthorClick={handleAuthorClick}
+                        />
                       ))}
                     </div>
                   </section>
@@ -944,53 +1242,24 @@ export function BeBrilliantWidget() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => { playClick(); setVisibleCount((c) => c + batchSize); }}
+                        onClick={() => {
+                          playClick();
+                          setVisibleCount((c) => c + batchSize);
+                        }}
                         className="h-8 text-xs border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:text-brand-blue hover:border-brand-blue/40 gap-1.5"
                       >
                         View More
-                        <span className="text-[10px] text-gray-400 dark:text-gray-500">({allForTab.length - visibleCount} remaining)</span>
+                        <span className="text-[10px] text-gray-400 dark:text-gray-500">
+                          ({allForTab.length - visibleCount} remaining)
+                        </span>
                       </Button>
                     </div>
                   )}
                 </>
               );
-            }
-
-            const heading = tabHeadings[statusFilter];
-
-            return (
-              <>
-                <section>
-                  {heading && (
-                    <h4 className={`text-[11px] font-bold ${heading.color} uppercase tracking-wider mb-2 flex items-center gap-1.5`}>
-                      {heading.icon}
-                      {heading.label}
-                    </h4>
-                  )}
-                  <div className="space-y-1.5">
-                    {paged.map((idea) => (
-                      <SelectedIdeaRow key={idea.id} idea={idea} onAuthorClick={handleAuthorClick} />
-                    ))}
-                  </div>
-                </section>
-                {hasMore && (
-                  <div className="flex justify-center pt-1">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => { playClick(); setVisibleCount((c) => c + batchSize); }}
-                      className="h-8 text-xs border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:text-brand-blue hover:border-brand-blue/40 gap-1.5"
-                    >
-                      View More
-                      <span className="text-[10px] text-gray-400 dark:text-gray-500">({allForTab.length - visibleCount} remaining)</span>
-                    </Button>
-                  </div>
-                )}
-              </>
-            );
-          })()}
+            })()}
+          </div>
         </div>
-      </div>
       </div>
 
       <PersonLightbox

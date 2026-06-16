@@ -8,6 +8,7 @@ import {
   resolveJobTitleRoleTarget,
   suspendUser,
   unsuspendUser,
+  updateLogtoUserProfile,
 } from "@/lib/logto-management";
 
 const SNAPSHOT_SYNC_TTL_MS = Number(process.env.DIRECTORY_SNAPSHOT_SYNC_TTL_MS || 15 * 60 * 1000);
@@ -425,6 +426,50 @@ export async function syncDirectorySnapshotFromGraph(): Promise<void> {
             console.log("[Directory Sync] Disable/re-enable check complete");
           } catch (err) {
             console.warn("[Directory Sync] Disable check failed:", err);
+          }
+
+          // ── UPN/email reconciliation: sync email changes from Azure back to DB + Logto ──
+          try {
+            // Build entraId → new mail map from the live snapshot
+            const entraIdToMail = new Map<string, string>(
+              flat
+                .filter((u) => u.mail)
+                .map((u) => [u.id, u.mail!])
+            );
+
+            const entraIds = [...entraIdToMail.keys()];
+            if (entraIds.length > 0) {
+              const dbUsers = await prisma.user.findMany({
+                where: { entraId: { in: entraIds } },
+                select: { id: true, email: true, logtoId: true, entraId: true },
+              });
+
+              for (const dbUser of dbUsers) {
+                if (!dbUser.entraId) continue;
+                const newEmail = entraIdToMail.get(dbUser.entraId);
+                if (!newEmail || newEmail.toLowerCase() === dbUser.email.toLowerCase()) continue;
+
+                try {
+                  await prisma.user.update({
+                    where: { id: dbUser.id },
+                    data: { email: newEmail },
+                  });
+                  await updateLogtoUserProfile(dbUser.logtoId, { primaryEmail: newEmail });
+                  console.log(`[Directory Sync] UPN changed: ${dbUser.email} → ${newEmail}`);
+                } catch (err: unknown) {
+                  // Unique constraint = another row already owns the new email (e.g. a stub)
+                  const msg = err instanceof Error ? err.message : String(err);
+                  if (msg.includes("Unique constraint")) {
+                    console.warn(`[Directory Sync] UPN update skipped for ${dbUser.email} → ${newEmail}: email already exists`);
+                  } else {
+                    console.warn(`[Directory Sync] UPN update failed for ${dbUser.email}:`, err);
+                  }
+                }
+              }
+            }
+            console.log("[Directory Sync] UPN reconciliation complete");
+          } catch (err) {
+            console.warn("[Directory Sync] UPN reconciliation failed:", err);
           }
         })();
       }

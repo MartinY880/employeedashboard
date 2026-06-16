@@ -202,7 +202,7 @@ export async function removeRoles(userId: string, roleIds: string[]): Promise<vo
  */
 export async function updateLogtoUserProfile(
   logtoUserId: string,
-  updates: { name?: string },
+  updates: { name?: string; primaryEmail?: string },
 ): Promise<void> {
   if (!isM2MConfigured || Object.keys(updates).length === 0) return;
   try {
