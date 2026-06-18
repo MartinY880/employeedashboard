@@ -26,6 +26,7 @@ export interface ResourceItem {
 const DATA_DIR = join(process.cwd(), "src", "data");
 const FILES_DIR = join(UPLOADS_BASE, "resources");
 const RESOURCES_FILE = join(DATA_DIR, "resources.json");
+const CATEGORY_ORDER_FILE = join(DATA_DIR, "resources-category-order.json");
 
 export const ALLOWED_DOCUMENT_MIME_TYPES = new Set([
   "application/pdf",
@@ -153,6 +154,30 @@ export async function loadResources(): Promise<ResourceItem[]> {
 export async function saveResources(resources: ResourceItem[]): Promise<void> {
   await mkdir(DATA_DIR, { recursive: true });
   await writeFile(RESOURCES_FILE, JSON.stringify(normalizeResources(resources), null, 2), "utf-8");
+}
+
+export async function loadCategoryOrder(): Promise<string[]> {
+  try {
+    const raw = await readFile(CATEGORY_ORDER_FILE, "utf-8");
+    return JSON.parse(raw) as string[];
+  } catch {
+    return [];
+  }
+}
+
+export async function saveCategoryOrder(order: string[]): Promise<void> {
+  await mkdir(DATA_DIR, { recursive: true });
+  await writeFile(CATEGORY_ORDER_FILE, JSON.stringify(order, null, 2), "utf-8");
+}
+
+export function sortCategoriesByOrder(categories: string[], order: string[]): string[] {
+  if (order.length === 0) return categories;
+  const orderMap = new Map(order.map((cat, i) => [cat, i]));
+  return [...categories].sort((a, b) => {
+    const ai = orderMap.has(a) ? orderMap.get(a)! : order.length;
+    const bi = orderMap.has(b) ? orderMap.get(b)! : order.length;
+    return ai - bi;
+  });
 }
 
 export async function ensureResourceFilesDir(): Promise<void> {

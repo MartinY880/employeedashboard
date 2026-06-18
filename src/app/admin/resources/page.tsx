@@ -5,6 +5,8 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
+  ChevronDown,
+  ChevronUp,
   Download,
   Eye,
   EyeOff,
@@ -72,18 +74,36 @@ export default function AdminResourcesPage() {
   const [uploadFile, setUploadFile] = useState<File | null>(null);
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [categoryOrder, setCategoryOrder] = useState<string[]>([]);
+  const [savingCategoryOrder, setSavingCategoryOrder] = useState(false);
 
   const sortedResources = useMemo(
     () => [...resources].sort((a, b) => a.sortOrder - b.sortOrder),
     [resources]
   );
 
+  const allCategories = useMemo(() => {
+    const cats = [...new Set(resources.map((r) => r.category))];
+    if (categoryOrder.length === 0) return cats;
+    const orderMap = new Map(categoryOrder.map((c, i) => [c, i]));
+    return [...cats].sort((a, b) => {
+      const ai = orderMap.has(a) ? orderMap.get(a)! : categoryOrder.length;
+      const bi = orderMap.has(b) ? orderMap.get(b)! : categoryOrder.length;
+      return ai - bi;
+    });
+  }, [resources, categoryOrder]);
+
   const fetchResources = useCallback(async () => {
     try {
       setIsLoading(true);
-      const response = await fetch("/api/resources?all=true", { cache: "no-store" });
-      const data = await response.json();
-      setResources((data.resources || []) as ResourceItem[]);
+      const [resResponse, orderResponse] = await Promise.all([
+        fetch("/api/resources?all=true", { cache: "no-store" }),
+        fetch("/api/resources/category-order", { cache: "no-store" }),
+      ]);
+      const resData = await resResponse.json();
+      const orderData = await orderResponse.json();
+      setResources((resData.resources || []) as ResourceItem[]);
+      setCategoryOrder((orderData.order || []) as string[]);
     } catch {
       console.error("Failed to fetch resources");
     } finally {
@@ -94,6 +114,72 @@ export default function AdminResourcesPage() {
   useEffect(() => {
     fetchResources();
   }, [fetchResources]);
+
+  const saveCategoryOrderToServer = async (order: string[]) => {
+    setSavingCategoryOrder(true);
+    try {
+      await fetch("/api/resources/category-order", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ order }),
+      });
+      setCategoryOrder(order);
+      playSuccess();
+    } catch {
+      console.error("Failed to save category order");
+    } finally {
+      setSavingCategoryOrder(false);
+    }
+  };
+
+  const moveCategoryUp = (index: number) => {
+    if (index === 0) return;
+    const next = [...allCategories];
+    [next[index - 1], next[index]] = [next[index], next[index - 1]];
+    setCategoryOrder(next);
+    saveCategoryOrderToServer(next);
+  };
+
+  const moveCategoryDown = (index: number) => {
+    if (index === allCategories.length - 1) return;
+    const next = [...allCategories];
+    [next[index], next[index + 1]] = [next[index + 1], next[index]];
+    setCategoryOrder(next);
+    saveCategoryOrderToServer(next);
+  };
+
+  const moveResourceInCategory = async (category: string, fromIndex: number, direction: "up" | "down") => {
+    const inCat = sortedResources.filter((r) => r.category === category);
+    const toIndex = direction === "up" ? fromIndex - 1 : fromIndex + 1;
+    if (toIndex < 0 || toIndex >= inCat.length) return;
+
+    const reordered = [...inCat];
+    [reordered[fromIndex], reordered[toIndex]] = [reordered[toIndex], reordered[fromIndex]];
+
+    // Assign new sortOrders based on position across all resources
+    // Use a base offset so categories stay grouped — find the min sortOrder in this group
+    const minOrder = Math.min(...inCat.map((r) => r.sortOrder));
+    const updates = reordered.map((r, i) => ({ id: r.id, sortOrder: minOrder + i }));
+
+    // Optimistic update
+    setResources((prev) =>
+      prev.map((r) => {
+        const u = updates.find((u) => u.id === r.id);
+        return u ? { ...r, sortOrder: u.sortOrder } : r;
+      })
+    );
+
+    await Promise.all(
+      updates.map((u) =>
+        fetch("/api/resources", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(u),
+        })
+      )
+    );
+    playPop();
+  };
 
   const resetForm = () => {
     setFormTitle("");
@@ -260,122 +346,170 @@ export default function AdminResourcesPage() {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
-        {isLoading ? (
-          <div className="p-6 space-y-3">
-            {[...Array(4)].map((_, i) => (
-              <Skeleton key={i} className="h-12 w-full rounded-lg" />
-            ))}
-          </div>
-        ) : sortedResources.length === 0 ? (
-          <div className="py-16 text-center">
-            <FolderOpen className="w-10 h-10 mx-auto mb-3 text-brand-grey/30" />
-            <p className="text-brand-grey text-sm">No resources yet</p>
-            <Button onClick={openCreate} variant="outline" className="mt-4 text-sm">
-              <Plus className="w-3.5 h-3.5 mr-1" />
-              Create your first resource
-            </Button>
-          </div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Title</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Target</TableHead>
-                <TableHead className="w-24">Status</TableHead>
-                <TableHead className="w-48 text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sortedResources.map((resource) => (
-                <TableRow key={resource.id} className={!resource.active ? "opacity-55" : ""}>
-                  <TableCell>
-                    <div className="space-y-0.5">
-                      <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{resource.title}</p>
-                      <p className="text-xs text-brand-grey max-w-md truncate">{resource.description}</p>
+      {isLoading ? (
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6 space-y-3">
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} className="h-12 w-full rounded-lg" />
+          ))}
+        </div>
+      ) : sortedResources.length === 0 ? (
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm py-16 text-center">
+          <FolderOpen className="w-10 h-10 mx-auto mb-3 text-brand-grey/30" />
+          <p className="text-brand-grey text-sm">No resources yet</p>
+          <Button onClick={openCreate} variant="outline" className="mt-4 text-sm">
+            <Plus className="w-3.5 h-3.5 mr-1" />
+            Create your first resource
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {allCategories.map((category, catIdx) => {
+            const inCat = sortedResources.filter((r) => r.category === category);
+            return (
+              <div key={category} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+                {/* Category header */}
+                <div className="flex items-center gap-2 px-4 py-2.5 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/60">
+                  <span className="text-xs font-semibold text-brand-blue uppercase tracking-wider flex-1">{category}</span>
+                  <span className="text-[10px] text-brand-grey">{inCat.length} item{inCat.length !== 1 ? "s" : ""}</span>
+                  {allCategories.length > 1 && (
+                    <div className="flex items-center gap-0.5 ml-2 border-l border-gray-200 dark:border-gray-700 pl-2">
+                      <button
+                        onClick={() => moveCategoryUp(catIdx)}
+                        disabled={catIdx === 0 || savingCategoryOrder}
+                        className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        title="Move category up"
+                      >
+                        <ChevronUp className="w-3.5 h-3.5 text-brand-grey" />
+                      </button>
+                      <button
+                        onClick={() => moveCategoryDown(catIdx)}
+                        disabled={catIdx === allCategories.length - 1 || savingCategoryOrder}
+                        className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        title="Move category down"
+                      >
+                        <ChevronDown className="w-3.5 h-3.5 text-brand-grey" />
+                      </button>
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="text-[10px]">
-                      {resource.category}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {resource.kind === "document" ? (
-                      <div className="text-xs text-gray-700 dark:text-gray-300 max-w-[260px] truncate">
-                        {resource.document?.originalName || "Document"}
-                      </div>
-                    ) : (
-                      <a
-                        href={resource.href}
-                        target={resource.href.startsWith("http") ? "_blank" : undefined}
-                        rel={resource.href.startsWith("http") ? "noopener noreferrer" : undefined}
-                        className="text-xs text-brand-blue hover:underline flex items-center gap-1 max-w-[260px] truncate"
-                      >
-                        {resource.href}
-                        <ExternalLink className="w-3 h-3 shrink-0" />
-                      </a>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={resource.active ? "bg-green-100 text-green-700 text-[10px]" : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 text-[10px]"}>
-                      {resource.active ? "Visible" : "Hidden"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 w-7 p-0"
-                        onClick={() => handleToggle(resource)}
-                        title={resource.active ? "Hide resource" : "Show resource"}
-                      >
-                        {resource.active ? (
-                          <EyeOff className="w-3.5 h-3.5 text-brand-grey" />
-                        ) : (
-                          <Eye className="w-3.5 h-3.5 text-green-600" />
-                        )}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 w-7 p-0"
-                        onClick={() => openEdit(resource)}
-                      >
-                        <Pencil className="w-3.5 h-3.5 text-brand-blue" />
-                      </Button>
-                      {resource.kind === "document" ? (
-                        <>
-                          <a href={`/resources/view/${resource.id}`} target="_blank" rel="noopener noreferrer">
-                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="View document">
-                              <ExternalLink className="w-3.5 h-3.5 text-brand-blue" />
+                  )}
+                </div>
+
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-8 pl-4"></TableHead>
+                      <TableHead>Title</TableHead>
+                      <TableHead>Target</TableHead>
+                      <TableHead className="w-24">Status</TableHead>
+                      <TableHead className="w-48 text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {inCat.map((resource, resIdx) => (
+                      <TableRow key={resource.id} className={!resource.active ? "opacity-55" : ""}>
+                        <TableCell className="pl-4 pr-0">
+                          <div className="flex flex-col gap-0.5">
+                            <button
+                              onClick={() => moveResourceInCategory(category, resIdx, "up")}
+                              disabled={resIdx === 0}
+                              className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+                              title="Move up"
+                            >
+                              <ChevronUp className="w-3.5 h-3.5 text-brand-grey" />
+                            </button>
+                            <button
+                              onClick={() => moveResourceInCategory(category, resIdx, "down")}
+                              disabled={resIdx === inCat.length - 1}
+                              className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+                              title="Move down"
+                            >
+                              <ChevronDown className="w-3.5 h-3.5 text-brand-grey" />
+                            </button>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-0.5">
+                            <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{resource.title}</p>
+                            <p className="text-xs text-brand-grey max-w-md truncate">{resource.description}</p>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {resource.kind === "document" ? (
+                            <div className="text-xs text-gray-700 dark:text-gray-300 max-w-[260px] truncate">
+                              {resource.document?.originalName || "Document"}
+                            </div>
+                          ) : (
+                            <a
+                              href={resource.href}
+                              target={resource.href.startsWith("http") ? "_blank" : undefined}
+                              rel={resource.href.startsWith("http") ? "noopener noreferrer" : undefined}
+                              className="text-xs text-brand-blue hover:underline flex items-center gap-1 max-w-[260px] truncate"
+                            >
+                              {resource.href}
+                              <ExternalLink className="w-3 h-3 shrink-0" />
+                            </a>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={resource.active ? "bg-green-100 text-green-700 text-[10px]" : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-[10px]"}>
+                            {resource.active ? "Visible" : "Hidden"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 w-7 p-0"
+                              onClick={() => handleToggle(resource)}
+                              title={resource.active ? "Hide resource" : "Show resource"}
+                            >
+                              {resource.active ? (
+                                <EyeOff className="w-3.5 h-3.5 text-brand-grey" />
+                              ) : (
+                                <Eye className="w-3.5 h-3.5 text-green-600" />
+                              )}
                             </Button>
-                          </a>
-                          <a href={`/api/resources/file/${resource.id}?download=true`}>
-                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="Download document">
-                              <Download className="w-3.5 h-3.5 text-brand-grey" />
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 w-7 p-0"
+                              onClick={() => openEdit(resource)}
+                            >
+                              <Pencil className="w-3.5 h-3.5 text-brand-blue" />
                             </Button>
-                          </a>
-                        </>
-                      ) : null}
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 w-7 p-0 hover:bg-red-50"
-                        onClick={() => setDeletingId(resource.id)}
-                      >
-                        <Trash2 className="w-3.5 h-3.5 text-red-500" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </div>
+                            {resource.kind === "document" ? (
+                              <>
+                                <a href={`/resources/view/${resource.id}`} target="_blank" rel="noopener noreferrer">
+                                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="View document">
+                                    <ExternalLink className="w-3.5 h-3.5 text-brand-blue" />
+                                  </Button>
+                                </a>
+                                <a href={`/api/resources/file/${resource.id}?download=true`}>
+                                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="Download document">
+                                    <Download className="w-3.5 h-3.5 text-brand-grey" />
+                                  </Button>
+                                </a>
+                              </>
+                            ) : null}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 w-7 p-0 hover:bg-red-50"
+                              onClick={() => setDeletingId(resource.id)}
+                            >
+                              <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <Dialog
         open={dialogOpen}

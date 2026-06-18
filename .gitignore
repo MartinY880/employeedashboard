@@ -67,6 +67,10 @@ start
 # User uploads (managed at runtime, not in source control)
 /uploads/
 
+# Runtime data files (managed via admin UI, not source control)
+src/data/resources.json
+src/data/resources-category-order.json
+
 # Database backups & dumps
 *.sql
 !/prisma/migrations/**/*.sql

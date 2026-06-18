@@ -68,14 +68,20 @@ function isExternalUrl(href: string) {
 export default function ResourcesPage() {
   const { playClick } = useSounds();
   const [resources, setResources] = useState<ResourceLink[]>([]);
+  const [categoryOrder, setCategoryOrder] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     async function fetchResources() {
       try {
-        const response = await fetch("/api/resources", { cache: "no-store" });
-        const data = await response.json();
-        setResources((data.resources || []) as ResourceLink[]);
+        const [resResponse, orderResponse] = await Promise.all([
+          fetch("/api/resources", { cache: "no-store" }),
+          fetch("/api/resources/category-order", { cache: "no-store" }),
+        ]);
+        const resData = await resResponse.json();
+        const orderData = await orderResponse.json();
+        setResources((resData.resources || []) as ResourceLink[]);
+        setCategoryOrder((orderData.order || []) as string[]);
       } catch {
         setResources([]);
       } finally {
@@ -90,8 +96,15 @@ export default function ResourcesPage() {
     const visible = resources
       .filter((resource) => resource.active)
       .sort((a, b) => a.sortOrder - b.sortOrder);
-    return [...new Set(visible.map((resource) => resource.category))];
-  }, [resources]);
+    const unique = [...new Set(visible.map((resource) => resource.category))];
+    if (categoryOrder.length === 0) return unique;
+    const orderMap = new Map(categoryOrder.map((c, i) => [c, i]));
+    return [...unique].sort((a, b) => {
+      const ai = orderMap.has(a) ? orderMap.get(a)! : categoryOrder.length;
+      const bi = orderMap.has(b) ? orderMap.get(b)! : categoryOrder.length;
+      return ai - bi;
+    });
+  }, [resources, categoryOrder]);
 
   return (
     <motion.div
