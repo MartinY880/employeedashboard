@@ -230,7 +230,7 @@ function CelebrationRow({ item, onPersonClick }: { item: CelebrationItem; onPers
 export function CelebrationsBanner({ selectedDate, onDateChange }: { selectedDate?: string; onDateChange?: (date: string) => void }) {
   const [data, setData] = useState<CelebrationsData | null>(null);
   const [filter, setFilter] = useState<FilterType>("all");
-  const [showCount, setShowCount] = useState(5);
+  const [showCount, setShowCount] = useState(4);
   const [nextUp, setNextUp] = useState<NextUpItem | null>(null);
 
   const [profileUser, setProfileUser] = useState<DirectoryNode | null>(null);
@@ -275,7 +275,7 @@ export function CelebrationsBanner({ selectedDate, onDateChange }: { selectedDat
       })
       .catch(() => {});
     setFilter("all");
-    setShowCount(5);
+    setShowCount(4);
   }, [dateToFetch, isToday]);
 
   // Build available filters
@@ -331,7 +331,7 @@ export function CelebrationsBanner({ selectedDate, onDateChange }: { selectedDat
               return (
                 <motion.button
                   key={f.key}
-                  onClick={() => { setFilter(f.key); setShowCount(5); }}
+                  onClick={() => { setFilter(f.key); setShowCount(4); }}
                   whileTap={{ scale: 0.97 }}
                   className={cn(
                     "relative flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors duration-150",

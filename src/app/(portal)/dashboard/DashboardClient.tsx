@@ -86,8 +86,46 @@ export default function DashboardClient({
   const [showMineOnly, setShowMineOnly] = useState(false);
   const sliderActive = sliderConfig.enabled && sliderConfig.hasMedia;
 
-  // Ref for Be Brilliant column
+  // Ref for Be Brilliant column + measured height so the Props/Feed column
+  // can match it exactly (Be Brilliant height is dynamic — varies with how
+  // many ideas render). CSS grid can't target a single column's height, so
+  // we measure and apply it. Only applies on lg+ (the 3-col layout).
   const brilliantRef = useRef<HTMLDivElement>(null);
+  const [feedHeight, setFeedHeight] = useState<number | null>(null);
+  const [celebrationsHeight, setCelebrationsHeight] = useState<number>(0);
+  // Once the user clicks "View More" in MyShare, drop the height cap so the
+  // card grows freely to show the rest of the posts (no scroll).
+  const [myShareExpanded, setMyShareExpanded] = useState(false);
+  const celebrationsRoRef = useRef<ResizeObserver | null>(null);
+  const celebrationsRef = useCallback((el: HTMLDivElement | null) => {
+    if (celebrationsRoRef.current) {
+      celebrationsRoRef.current.disconnect();
+      celebrationsRoRef.current = null;
+    }
+    if (!el) { setCelebrationsHeight(0); return; }
+    setCelebrationsHeight(el.offsetHeight);
+    const ro = new ResizeObserver(() => setCelebrationsHeight(el.offsetHeight));
+    ro.observe(el);
+    celebrationsRoRef.current = ro;
+  }, []);
+
+  useEffect(() => {
+    const el = brilliantRef.current;
+    if (!el) return;
+    const mql = window.matchMedia("(min-width: 1024px)");
+    const measure = () => {
+      setFeedHeight(mql.matches ? el.offsetHeight : null);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    mql.addEventListener("change", measure);
+    return () => {
+      ro.disconnect();
+      mql.removeEventListener("change", measure);
+    };
+  }, []);
+
 
   useEffect(() => {
     if (!sliderActive) return;
@@ -309,8 +347,12 @@ export default function DashboardClient({
 
       {/* 3-Column Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-[320px_1.3fr_0.7fr] gap-5 items-start">
-        {/* Left: Feed */}
-        <div className="space-y-5">
+        {/* Left: Feed — capped to Be Brilliant's height (scrolls when long),
+            shrinks to content when short (see feedHeight) */}
+        <div
+          className="flex flex-col min-h-0"
+          style={feedHeight ? { maxHeight: feedHeight } : undefined}
+        >
           <ErrorBoundary label="Feed">
             <FeedPanel />
           </ErrorBoundary>
@@ -370,11 +412,16 @@ export default function DashboardClient({
           </div>
         </div>
 
-        {/* Right: Celebrations + MyShare Feed */}
-        <div className="min-w-0 space-y-5">
+        {/* Right: Celebrations + MyShare Feed — capped to Be Brilliant's height
+            so the column never exceeds it (MyShare auto-fits within whatever
+            space remains below Celebrations). View More overrides this on the
+            widget level since MyShare has no scroll. */}
+        <div
+          className="min-w-0 flex flex-col gap-5"
+        >
           {/* Celebrations */}
           {visibility.showCelebrations !== false && (
-            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+            <div ref={celebrationsRef} className="shrink-0 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
               <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 border-t-[3px] border-t-brand-blue">
                 <div className="flex items-center justify-between">
                   <div>
@@ -500,13 +547,20 @@ export default function DashboardClient({
             </div>
           )}
 
-          {/* MyShare */}
+          {/* MyShare — grows to fill the space below Celebrations so the column
+              reaches Be Brilliant's bottom edge. No scroll: if content is taller
+              (e.g. View More), it simply extends past Be Brilliant. */}
           {visibility.showMyShare !== false && (
             <div
               data-myshare-container
-              className="relative bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden"
+              className={`relative flex flex-col flex-1 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm ${myShareExpanded ? "" : "overflow-hidden"}`}
+              style={
+                !myShareExpanded && feedHeight && celebrationsHeight
+                  ? { maxHeight: feedHeight - celebrationsHeight - 20 }
+                  : undefined
+              }
             >
-              <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 border-t-[3px] border-t-brand-blue">
+              <div className="shrink-0 px-4 py-3 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 border-t-[3px] border-t-brand-blue">
                 <h3 className="text-sm font-bold text-brand-blue tracking-wide uppercase flex items-center gap-1.5">
                   MyShare
                 </h3>
@@ -514,9 +568,11 @@ export default function DashboardClient({
                   Share moments &amp; celebrate wins
                 </p>
               </div>
-              <ErrorBoundary label="MyShare" compact>
-                <MyShareFeedWidget />
-              </ErrorBoundary>
+              <div className="flex-1 min-h-0 flex flex-col">
+                <ErrorBoundary label="MyShare" compact>
+                  <MyShareFeedWidget onExpand={() => setMyShareExpanded(true)} />
+                </ErrorBoundary>
+              </div>
             </div>
           )}
         </div>

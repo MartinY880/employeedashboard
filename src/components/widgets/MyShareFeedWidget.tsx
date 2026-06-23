@@ -22,7 +22,7 @@ import { useMyShareFeed } from "@/hooks/useMyShareFeed";
 import { MySharePostCard } from "./MySharePostCard";
 import { useSounds } from "@/components/shared/SoundProvider";
 
-export function MyShareFeedWidget() {
+export function MyShareFeedWidget({ onExpand }: { onExpand?: () => void } = {}) {
   const {
     posts,
     isLoading,
@@ -45,11 +45,16 @@ export function MyShareFeedWidget() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [isSending, setIsSending] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState("");
+  const [currentUserId, setCurrentUserId] = useState(""); 
   const [isAdmin, setIsAdmin] = useState(false);
   const [showCount, setShowCount] = useState(4);
   const fileRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<MentionInputHandle>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const feedRef = useRef<HTMLDivElement>(null);
+  // True once the user manually clicks "View More" — stops auto-fit from
+  // fighting their choice (View More is allowed to grow past the column).
+  const userExpandedRef = useRef(false);
 
   useEffect(() => {
     fetch("/api/me")
@@ -64,6 +69,41 @@ export function MyShareFeedWidget() {
   useEffect(() => {
     return () => previewUrls.forEach(URL.revokeObjectURL);
   }, [previewUrls]);
+
+  // Auto-fit: show as many posts as fit in the available height. The card is
+  // flex-stretched to fill the column (down to Be Brilliant's bottom), so when
+  // the rendered content is shorter than the card we reveal more posts until it
+  // fills. Variable post heights are handled by measuring, not by a fixed count.
+  // Skipped once the user clicks "View More" (they opted into growing past it).
+  useEffect(() => {
+    if (isLoading || userExpandedRef.current) return;
+    const el = rootRef.current;
+    if (!el) return;
+    // el (this widget) is flex-stretched to fill its card down to Be Brilliant's
+    // bottom, so its own height isn't the content height. Instead, measure how
+    // much of el is empty: scrollHeight (what the content WANTS) vs clientHeight
+    // (what it gets). The gap below = clientHeight - actual content height.
+    const scroller = el.firstElementChild as HTMLElement | null; // posts area (flex-1)
+    if (!scroller) return;
+    const gap = scroller.clientHeight - scroller.scrollHeight;
+    if (gap <= 8) return;
+    // Estimate the next post's height from the posts already rendered, and only
+    // reveal another if it would actually FIT in the gap — so we stop short of
+    // Be Brilliant's bottom rather than overshooting past it. Fall back to a
+    // conservative guess before any cards have rendered.
+    const feedEl = feedRef.current;
+    const shown = Math.min(showCount, posts.length);
+    const estPostHeight =
+      feedEl && shown > 0 ? feedEl.offsetHeight / shown : 160;
+    if (gap < estPostHeight + 16) return;
+    if (showCount < posts.length) {
+      setShowCount((prev) => prev + 1);
+    } else if (nextCursor && !isLoadingMore) {
+      // Still room for another but all loaded posts shown → fetch the next page.
+      loadMore();
+      setShowCount((prev) => prev + 1);
+    }
+  }, [isLoading, posts, showCount, nextCursor, isLoadingMore, loadMore]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -150,7 +190,8 @@ export function MyShareFeedWidget() {
   }
 
   return (
-    <div className="p-4 space-y-3">
+    <div ref={rootRef} className="flex-1 flex flex-col min-h-0">
+    <div className={`p-4 space-y-3 ${userExpandedRef.current ? "" : "flex-1 overflow-hidden"}`}>
       {/* Compose Toggle */}
       {!showCompose ? (
         <Button
@@ -283,44 +324,52 @@ export function MyShareFeedWidget() {
           </p>
         </div>
       ) : (
-        <AnimatePresence>
-          {posts.slice(0, showCount).map((post) => (
-            <MySharePostCard
-              key={post.id}
-              post={post}
-              onLike={() => toggleLike(post.id)}
-              onDelete={() => deletePost(post.id)}
-              onFetchComments={fetchComments}
-              onAddComment={addComment}
-              onToggleCommentLike={toggleCommentLike}
-              onDeleteComment={deleteComment}
-              canDelete={post.authorId === currentUserId}
-            />
-          ))}
-        </AnimatePresence>
+        <div ref={feedRef} className="space-y-3">
+          <AnimatePresence>
+            {posts.slice(0, showCount).map((post) => (
+              <MySharePostCard
+                key={post.id}
+                post={post}
+                onLike={() => toggleLike(post.id)}
+                onDelete={() => deletePost(post.id)}
+                onFetchComments={fetchComments}
+                onAddComment={addComment}
+                onToggleCommentLike={toggleCommentLike}
+                onDeleteComment={deleteComment}
+                canDelete={post.authorId === currentUserId}
+              />
+            ))}
+          </AnimatePresence>
+        </div>
       )}
 
-      {/* View More */}
+    </div>
+
+      {/* View More — outside the clipped area so it's always visible */}
       {(showCount < posts.length || nextCursor) && (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            if (showCount + 4 <= posts.length || !nextCursor) {
-              setShowCount((prev) => prev + 4);
-            } else {
-              loadMore();
-              setShowCount((prev) => prev + 4);
-            }
-          }}
-          disabled={isLoadingMore}
-          className="w-full h-8 text-[11px] font-medium text-gray-500 dark:text-gray-400 border-dashed border-gray-300 dark:border-gray-600 hover:border-brand-blue hover:text-brand-blue dark:hover:border-brand-blue dark:hover:text-brand-blue transition-colors gap-1.5"
-        >
-          {isLoadingMore ? (
-            <Loader2 className="w-3 h-3 animate-spin" />
-          ) : null}
-          {isLoadingMore ? "Loading…" : "View More"}
-        </Button>
+        <div className="shrink-0 px-4 pb-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              userExpandedRef.current = true;
+              onExpand?.();
+              if (showCount + 4 <= posts.length || !nextCursor) {
+                setShowCount((prev) => prev + 4);
+              } else {
+                loadMore();
+                setShowCount((prev) => prev + 4);
+              }
+            }}
+            disabled={isLoadingMore}
+            className="w-full h-8 text-[11px] font-medium text-gray-500 dark:text-gray-400 border-dashed border-gray-300 dark:border-gray-600 hover:border-brand-blue hover:text-brand-blue dark:hover:border-brand-blue dark:hover:text-brand-blue transition-colors gap-1.5"
+          >
+            {isLoadingMore ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : null}
+            {isLoadingMore ? "Loading…" : "View More"}
+          </Button>
+        </div>
       )}
     </div>
   );
