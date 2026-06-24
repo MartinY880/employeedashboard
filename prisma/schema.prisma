@@ -640,6 +640,29 @@ model LenderAccountExecutive {
   @@map("lender_account_executives")
 }
 
+// Training videos 
+
+model TrainingVideo {
+  id            String    @id @default(cuid())
+  title         String
+  description   String?
+  zoomUrl       String    @map("zoom_url")
+  thumbnailUrl  String?   @map("thumbnail_url")
+  presenter     String?
+  category      String    @default("General")
+  recordedAt    DateTime? @map("recorded_at")
+  sortOrder     Int       @default(0) @map("sort_order")
+  featured      Boolean   @default(false)
+  active        Boolean   @default(true)
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@index([active, sortOrder])
+  @@index([category])
+  @@index([featured])
+  @@map("training_videos")
+}
+
 // ─── Video Spotlight ──────────────────────────────────────
 
 model VideoSpotlight {

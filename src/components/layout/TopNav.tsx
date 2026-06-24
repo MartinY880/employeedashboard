@@ -6,7 +6,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { LayoutDashboard, Users, CalendarDays, BookOpen, LogOut, Bell, ShieldCheck, Volume2, VolumeX, Trophy, Award, Star, Lightbulb, CheckCheck, Trash2, Link2, PanelTop, Settings, Moon, Sun, Briefcase, Menu, X, MessageCircle } from "lucide-react";
+import { LayoutDashboard, Users, CalendarDays, BookOpen, LogOut, Bell, ShieldCheck, Volume2, VolumeX, Trophy, Award, Star, Lightbulb, CheckCheck, Trash2, Link2, PanelTop, Settings, Moon, Sun, Briefcase, Menu, X, MessageCircle, GraduationCap } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -60,7 +60,9 @@ const NAV_ICON_MAP: Record<string, LucideIcon> = {
   star: Star,
   link: Link2,
   vendors: Briefcase,
+  training: GraduationCap,
 };
+
 
 function getNavIcon(href: string, iframeUrl?: string, icon?: string) {
   if (icon && NAV_ICON_MAP[icon]) return NAV_ICON_MAP[icon];

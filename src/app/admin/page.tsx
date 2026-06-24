@@ -32,6 +32,7 @@ import {
   BarChart3,
   Clock,
   GitBranch,
+  GraduationCap,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PERMISSIONS, ROUTE_PERMISSION } from "@/lib/rbac";
@@ -226,6 +227,16 @@ const adminPages = [
     color: "text-rose-500",
     bgColor: "bg-rose-50",
     permission: PERMISSIONS.MANAGE_VIDEO_SPOTLIGHT,
+  },
+  {
+    title: "Training Videos",
+    description: "Add and manage Zoom training recordings — set titles, categories, presenters, thumbnails, and feature top videos.",
+    icon: GraduationCap,
+    href: "/admin/training-videos",
+    badge: "CRUD",
+    color: "text-brand-blue",
+    bgColor: "bg-blue-50",
+    permission: PERMISSIONS.MANAGE_TRAINING_VIDEOS,
   },
   {
     title: "Flyer Management",
