@@ -33,6 +33,7 @@ import {
   Clock,
   GitBranch,
   GraduationCap,
+  MessageSquareQuote,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PERMISSIONS, ROUTE_PERMISSION } from "@/lib/rbac";
@@ -357,6 +358,16 @@ const adminPages = [
     color: "text-brand-blue",
     bgColor: "bg-blue-50",
     permission: PERMISSIONS.MANAGE_DIRECTORY,
+  },
+  {
+    title: "Rebuttal of the Day",
+    description: "Manage objection/rebuttal pairs that rotate daily on the dashboard — add, edit, toggle active status, or delete entries.",
+    icon: MessageSquareQuote,
+    href: "/admin/rebuttals",
+    badge: "CRUD",
+    color: "text-brand-blue",
+    bgColor: "bg-blue-50",
+    permission: PERMISSIONS.MANAGE_REBUTTALS,
   },
 ];
 

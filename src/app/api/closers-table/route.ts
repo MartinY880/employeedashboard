@@ -69,11 +69,10 @@ export async function GET() {
       }
 
       const dayOfMonth = lastDayClose?.getDate() ?? 0;
-      // Date check is always the source of truth.
-      // manualPaused lets admins freeze early (before the date) but can't
-      // keep things frozen past the 1st of the next month reset.
-      const dateBasedClose = !!lastDayClose && today > lastDayClose;
-      const isAfterClose = dateBasedClose || manualPaused;
+      // Last Day To Close no longer freezes the table — it must keep syncing past
+      // that date so standings stay accurate. Only an explicit admin manual pause
+      // can freeze updates now (and that still auto-resets on the 1st of the month).
+      const isAfterClose = manualPaused;
       const isFirstOfMonth = today.getDate() === 1;
 
       // Format this month's Last Day To Close as YYYY-MM-DD

@@ -26,6 +26,7 @@ import {
   ArrowDown,
   ChevronDown,
   Moon,
+  Bot,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -97,6 +98,10 @@ interface WeatherSettings {
   city: string;
 }
 
+interface AiBotSettings {
+  enabled: boolean;
+}
+
 const DEFAULT_SMTP: SmtpSettings = {
   host: "",
   port: "587",
@@ -116,6 +121,10 @@ const DEFAULT_DASHBOARD_VISIBILITY: DashboardVisibilitySettings = {
 
 const DEFAULT_WEATHER_SETTINGS: WeatherSettings = {
   city: "",
+};
+
+const DEFAULT_AI_BOT_SETTINGS: AiBotSettings = {
+  enabled: true,
 };
 
 const ICON_INITIAL_RESULTS = 80;
@@ -147,6 +156,8 @@ export default function AdminBrandingPage() {
   const [initialDashboardVisibility, setInitialDashboardVisibility] = useState<DashboardVisibilitySettings>(DEFAULT_DASHBOARD_VISIBILITY);
   const [weatherSettings, setWeatherSettings] = useState<WeatherSettings>(DEFAULT_WEATHER_SETTINGS);
   const [initialWeatherSettings, setInitialWeatherSettings] = useState<WeatherSettings>(DEFAULT_WEATHER_SETTINGS);
+  const [aiBotSettings, setAiBotSettings] = useState<AiBotSettings>(DEFAULT_AI_BOT_SETTINGS);
+  const [initialAiBotSettings, setInitialAiBotSettings] = useState<AiBotSettings>(DEFAULT_AI_BOT_SETTINGS);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [testEmail, setTestEmail] = useState("");
@@ -188,6 +199,9 @@ export default function AdminBrandingPage() {
         const weather = { ...DEFAULT_WEATHER_SETTINGS, ...(data.weatherSettings || {}) };
         setWeatherSettings(weather);
         setInitialWeatherSettings(weather);
+        const aiBot = { ...DEFAULT_AI_BOT_SETTINGS, ...(data.aiBotSettings || {}) };
+        setAiBotSettings(aiBot);
+        setInitialAiBotSettings(aiBot);
 
       }
     } catch {
@@ -295,6 +309,7 @@ export default function AdminBrandingPage() {
         sortOrder: index,
       }))));
       formData.append("dashboardVisibility", JSON.stringify(dashboardVisibility));
+      formData.append("aiBotEnabled", aiBotSettings.enabled ? "true" : "false");
 
       const res = await fetch("/api/branding", {
         method: "POST",
@@ -321,6 +336,9 @@ export default function AdminBrandingPage() {
       const updatedVisibility = { ...DEFAULT_DASHBOARD_VISIBILITY, ...(updated.dashboardVisibility || {}) };
       setDashboardVisibility(updatedVisibility);
       setInitialDashboardVisibility(updatedVisibility);
+      const updatedAiBot = { ...DEFAULT_AI_BOT_SETTINGS, ...(updated.aiBotSettings || {}) };
+      setAiBotSettings(updatedAiBot);
+      setInitialAiBotSettings(updatedAiBot);
       const updatedMenu = Array.isArray(updated.topNavMenu) ? updated.topNavMenu : [];
       setTopNavMenu(updatedMenu);
       setInitialTopNavMenu(updatedMenu);
@@ -356,6 +374,7 @@ export default function AdminBrandingPage() {
   const menuChanged = JSON.stringify(topNavMenu) !== JSON.stringify(initialTopNavMenu);
   const visibilityChanged = JSON.stringify(dashboardVisibility) !== JSON.stringify(initialDashboardVisibility);
   const weatherChanged = JSON.stringify(weatherSettings) !== JSON.stringify(initialWeatherSettings);
+  const aiBotChanged = JSON.stringify(aiBotSettings) !== JSON.stringify(initialAiBotSettings);
   const hasChanges =
     logoFile !== null ||
     darkLogoFile !== null ||
@@ -365,7 +384,8 @@ export default function AdminBrandingPage() {
     removeFavicon ||
     weatherChanged ||
     menuChanged ||
-    visibilityChanged;
+    visibilityChanged ||
+    aiBotChanged;
 
   const filteredIconOptions = useMemo(() => {
     if (!iconMenuOpenFor) return [];
@@ -912,6 +932,33 @@ export default function AdminBrandingPage() {
             </label>
           ))}
         </div>
+      </div>
+
+      {/* AI Assistant */}
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Bot className="w-5 h-5 text-brand-blue" />
+          <div>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">AI Assistant</h2>
+            <p className="text-sm text-brand-grey mt-0.5">Control the IT Help Desk chat bot shown to logged-in users.</p>
+          </div>
+        </div>
+        <label className="flex items-center justify-between p-3 rounded-lg border border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer transition-colors">
+          <div>
+            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Enable AI Bot</p>
+            <p className="text-xs text-gray-400 mt-0.5">Show the floating IT Help Desk chat widget across the portal.</p>
+          </div>
+          <div className="relative">
+            <input
+              type="checkbox"
+              checked={aiBotSettings.enabled}
+              onChange={() => setAiBotSettings((prev) => ({ ...prev, enabled: !prev.enabled }))}
+              className="sr-only peer"
+            />
+            <div className="w-10 h-5 bg-gray-200 dark:bg-gray-700 rounded-full peer peer-checked:bg-brand-blue transition-colors" />
+            <div className="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform peer-checked:translate-x-5" />
+          </div>
+        </label>
       </div>
 
       {/* Weather Settings */}

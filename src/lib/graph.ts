@@ -553,6 +553,18 @@ export async function getUserPhoto(
         continue;
       }
 
+      const code =
+        typeof error === "object" && error !== null && "code" in error
+          ? String((error as { code?: string }).code)
+          : undefined;
+
+      // Permanent: the id we were given isn't a valid Graph identity (e.g. a local
+      // DB/Salesforce id rather than a GUID/UPN). No photo will ever exist for it,
+      // so return null and let the caller cache the miss instead of retrying forever.
+      if (statusCode === 400 && code === "ErrorBadRequestInvalidTargetIdentity") {
+        return null;
+      }
+
       // Transient/permission/throttling/etc. should not be treated as permanent "no photo"
       throw error;
     }

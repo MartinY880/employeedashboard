@@ -115,19 +115,28 @@ async function _doSync(
         sfEmailMap = await getSfUserEmails(idsToFetch);
       }
 
+      // Resolve all emails → Entra directory IDs in ONE query (was an N+1:
+      // one full-table scan per closer). Mirrors the celebrations route pattern.
+      const emailsToResolve = pending
+        .map(({ rawEmail, sfUserId }) => rawEmail || sfEmailMap.get(sfUserId) || "")
+        .filter((e) => e !== "");
+      const snapshots =
+        emailsToResolve.length > 0
+          ? await prisma.directorySnapshot.findMany({
+              where: { mail: { in: emailsToResolve, mode: "insensitive" } },
+              select: { id: true, mail: true },
+            })
+          : [];
+      const idByEmail = new Map(
+        snapshots.map((s) => [s.mail?.toLowerCase() ?? "", s.id])
+      );
+
       for (const { name, rawEmail, sfUserId, rankIdx } of pending) {
         const rank = source.ranks?.[rankIdx] ?? source.ranks?.[0] ?? { awardTitle: "Top Closer", color: "#f59e0b" };
         const email = rawEmail || sfEmailMap.get(sfUserId) || "";
 
         // Resolve email → Entra directory ID so photo proxy works
-        let employeeId: string | null = null;
-        if (email) {
-          const snapshot = await prisma.directorySnapshot.findFirst({
-            where: { mail: { equals: email, mode: "insensitive" } },
-            select: { id: true },
-          });
-          employeeId = snapshot?.id ?? null;
-        }
+        const employeeId = email ? idByEmail.get(email.toLowerCase()) ?? null : null;
 
         newAwards.push({
           employeeId,

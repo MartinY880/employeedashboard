@@ -1001,6 +1001,21 @@ model CelebrationLike {
   @@map("celebration_likes")
 }
 
+// ─── Rebuttal of the Day ─────────────────────────────────
+
+model Rebuttal {
+  id          String    @id @default(cuid())
+  objection   String
+  rebuttal    String
+  isActive    Boolean   @default(true) @map("is_active")
+  lastShownAt DateTime? @map("last_shown_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@index([isActive, createdAt])
+  @@map("rebuttals")
+}
+
 // ─── Hashtag Tracking ─────────────────────────────────────
 
 enum CommentType {

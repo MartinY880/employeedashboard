@@ -5,6 +5,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { SoundProvider } from "@/components/shared/SoundProvider";
 import { DynamicFavicon } from "@/components/shared/DynamicFavicon";
 import { ThemeProvider } from "@/components/shared/ThemeProvider";
+import { ITHelpDeskChat } from "@/components/ITHelpDeskChat";
+import { getAuthUser } from "@/lib/logto";
+import { prisma } from "@/lib/prisma";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -23,11 +26,27 @@ export const metadata: Metadata = {
     "Secure, unified internal employee portal for MortgagePros — directory, props, alerts, calendar & more.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const { isAuthenticated, user } = await getAuthUser();
+
+  // AI bot is enabled unless an admin has explicitly turned it off in Site Branding.
+  let aiBotEnabled = true;
+  try {
+    const aiBotSetting = await prisma.calendarSetting.findUnique({
+      where: { id: "ai_bot_settings" },
+    });
+    if (aiBotSetting?.data) {
+      const parsed = JSON.parse(aiBotSetting.data) as { enabled?: boolean };
+      aiBotEnabled = parsed.enabled !== false;
+    }
+  } catch {
+    // DB unavailable — default to enabled
+  }
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -47,6 +66,9 @@ export default function RootLayout({
               <DynamicFavicon />
               {children}
               <Toaster position="bottom-right" richColors />
+              {isAuthenticated && user && aiBotEnabled && (
+                <ITHelpDeskChat userName={user.name} userEmail={user.email} />
+              )}
             </SoundProvider>
           </TooltipProvider>
         </ThemeProvider>

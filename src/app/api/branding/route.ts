@@ -38,6 +38,10 @@ interface WeatherSettings {
   city: string;
 }
 
+interface AiBotSettings {
+  enabled: boolean;
+}
+
 const DEFAULT_SMTP: SmtpSettings = {
   host: "",
   port: "587",
@@ -68,6 +72,10 @@ const DEFAULT_WEATHER_SETTINGS: WeatherSettings = {
   city: "",
 };
 
+const DEFAULT_AI_BOT_SETTINGS: AiBotSettings = {
+  enabled: true,
+};
+
 // In-memory branding for demo mode
 const demoBranding = {
   id: "singleton",
@@ -80,11 +88,12 @@ const demoBranding = {
 
 export async function GET() {
   try {
-    const [branding, topNavSetting, dashboardVisibilitySetting, weatherSetting] = await Promise.all([
+    const [branding, topNavSetting, dashboardVisibilitySetting, weatherSetting, aiBotSetting] = await Promise.all([
       prisma.siteBranding.findUnique({ where: { id: "singleton" } }),
       prisma.calendarSetting.findUnique({ where: { id: "topnav_menu" } }),
       prisma.calendarSetting.findUnique({ where: { id: "dashboard_visibility" } }),
       prisma.calendarSetting.findUnique({ where: { id: "weather_settings" } }),
+      prisma.calendarSetting.findUnique({ where: { id: "ai_bot_settings" } }),
     ]);
 
     // SMTP credentials are stored in environment variables only, never in DB
@@ -156,17 +165,27 @@ export async function GET() {
       }
     }
 
+    let aiBotSettings = DEFAULT_AI_BOT_SETTINGS;
+    if (aiBotSetting?.data) {
+      try {
+        const parsed = JSON.parse(aiBotSetting.data) as Partial<AiBotSettings>;
+        aiBotSettings = { enabled: parsed.enabled !== false };
+      } catch {
+        aiBotSettings = DEFAULT_AI_BOT_SETTINGS;
+      }
+    }
+
     // NOTE: dashboardSlider is intentionally excluded from the GET response.
     // It contains base64 media blobs (10+ MB) and is only managed via /api/dashboard-settings.
     // Including it here caused 18+ MB responses that crippled page loads.
     if (branding) {
-      return NextResponse.json({ ...branding, smtpSettings, topNavMenu, dashboardVisibility, weatherSettings });
+      return NextResponse.json({ ...branding, smtpSettings, topNavMenu, dashboardVisibility, weatherSettings, aiBotSettings });
     }
     // No DB record yet — return defaults
-    return NextResponse.json({ ...demoBranding, smtpSettings, topNavMenu, dashboardVisibility, weatherSettings });
+    return NextResponse.json({ ...demoBranding, smtpSettings, topNavMenu, dashboardVisibility, weatherSettings, aiBotSettings });
   } catch {
     // DB unavailable — return demo branding
-    return NextResponse.json({ ...demoBranding, smtpSettings: DEFAULT_SMTP, topNavMenu: DEFAULT_TOPNAV_MENU, dashboardVisibility: DEFAULT_DASHBOARD_VISIBILITY, weatherSettings: DEFAULT_WEATHER_SETTINGS });
+    return NextResponse.json({ ...demoBranding, smtpSettings: DEFAULT_SMTP, topNavMenu: DEFAULT_TOPNAV_MENU, dashboardVisibility: DEFAULT_DASHBOARD_VISIBILITY, weatherSettings: DEFAULT_WEATHER_SETTINGS, aiBotSettings: DEFAULT_AI_BOT_SETTINGS });
   }
 }
 
@@ -190,6 +209,8 @@ export async function POST(request: Request) {
     const weatherSettings: WeatherSettings = { city: weatherCity };
     const topNavRaw = (formData.get("topNavMenu") as string | null) || "";
     const dashboardVisibilityRaw = (formData.get("dashboardVisibility") as string | null) || "";
+    const aiBotEnabledRaw = formData.get("aiBotEnabled") as string | null;
+    const aiBotSettings: AiBotSettings = { enabled: aiBotEnabledRaw !== "false" };
 
     let topNavMenu = DEFAULT_TOPNAV_MENU;
     if (topNavRaw) {
@@ -301,10 +322,15 @@ export async function POST(request: Request) {
           update: { data: weatherCity },
           create: { id: "weather_settings", data: weatherCity },
         }),
+        prisma.calendarSetting.upsert({
+          where: { id: "ai_bot_settings" },
+          update: { data: JSON.stringify(aiBotSettings) },
+          create: { id: "ai_bot_settings", data: JSON.stringify(aiBotSettings) },
+        }),
         // NOTE: dashboard_slider is NOT written here — it's managed by /api/dashboard-settings
       ]);
 
-      return NextResponse.json({ ...branding, smtpSettings: DEFAULT_SMTP, topNavMenu, dashboardVisibility, weatherSettings });
+      return NextResponse.json({ ...branding, smtpSettings: DEFAULT_SMTP, topNavMenu, dashboardVisibility, weatherSettings, aiBotSettings });
     } catch {
       // DB unavailable — update demo branding
       if (companyName) demoBranding.companyName = companyName;
@@ -313,7 +339,7 @@ export async function POST(request: Request) {
       if (faviconData !== undefined) demoBranding.faviconData = faviconData;
       demoBranding.updatedAt = new Date().toISOString();
 
-      return NextResponse.json({ ...demoBranding, smtpSettings: DEFAULT_SMTP, topNavMenu, dashboardVisibility, weatherSettings });
+      return NextResponse.json({ ...demoBranding, smtpSettings: DEFAULT_SMTP, topNavMenu, dashboardVisibility, weatherSettings, aiBotSettings });
     }
   } catch (err) {
     console.error("Branding POST error:", err);

@@ -29,6 +29,7 @@ import { TimeZoneWidget } from "@/components/widgets/TimeZoneWidget";
 import { FlyerWidget } from "@/components/widgets/FlyerWidget";
 import { UnifiedReportsWidget } from "@/components/widgets/UnifiedReportsWidget";
 import { CelebrationsBanner } from "@/components/widgets/CelebrationsBanner";
+import { RebuttalOfTheDayWidget } from "@/components/widgets/RebuttalOfTheDayWidget";
 import Link from "next/link";
 import {
   Trophy,
@@ -297,6 +298,13 @@ export default function DashboardClient({
       <ErrorBoundary label="Closers Table" compact>
         <ClosersTableBanner />
       </ErrorBoundary>
+
+      {/* Rebuttal of the Day */}
+      <section className="mb-5 mt-5">
+        <ErrorBoundary label="Rebuttal of the Day" compact>
+          <RebuttalOfTheDayWidget />
+        </ErrorBoundary>
+      </section>
 
       {/* Spotlight + Employee Highlight + Upcoming Dates + Timezone (4-col) */}
       <section className="mb-5">

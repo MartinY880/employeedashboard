@@ -835,9 +835,14 @@ ensure_index() {
   local idx_name="$1" tbl="$2" cols="$3"
   local has=$(run_sql "SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND indexname = '${idx_name}';")
   if [ "$has" != "1" ]; then
-    run_sql "CREATE INDEX \"${idx_name}\" ON \"${tbl}\" (${cols});" > /dev/null
-    echo "  ✅ Created index: ${idx_name}"
-    CREATED_INDEXES=$((CREATED_INDEXES + 1))
+    # Non-fatal: if the table/column doesn't exist (e.g. a renamed column), warn
+    # and continue instead of aborting the whole script under `set -e`.
+    if run_sql "CREATE INDEX IF NOT EXISTS \"${idx_name}\" ON \"${tbl}\" (${cols});" > /dev/null 2>&1; then
+      echo "  ✅ Created index: ${idx_name}"
+      CREATED_INDEXES=$((CREATED_INDEXES + 1))
+    else
+      echo "  ⚠️  Skipped index ${idx_name} (table/column not present)"
+    fi
   fi
 }
 
@@ -859,15 +864,15 @@ ensure_index "alerts_expiresAt_idx"       "alerts" 'expires_at'
 ensure_index "ideas_status_votes_idx"  "ideas" 'status, votes'
 ensure_index "ideas_createdAt_idx"     "ideas" '"createdAt"'
 
-# idea_votes
-ensure_index "idea_votes_voterLogtoId_idx" "idea_votes" '"voterLogtoId"'
+# idea_votes (column renamed voterLogtoId → user_id)
+ensure_index "idea_votes_user_id_idx" "idea_votes" '"user_id"'
 
 # idea_comments
 ensure_index "idea_comments_ideaId_createdAt_idx" "idea_comments" '"ideaId", "createdAt"'
 ensure_index "idea_comments_parentId_idx"         "idea_comments" '"parentId"'
 
-# idea_comment_likes
-ensure_index "idea_comment_likes_voterLogtoId_idx" "idea_comment_likes" '"voterLogtoId"'
+# idea_comment_likes (column renamed voterLogtoId → user_id)
+ensure_index "idea_comment_likes_user_id_idx" "idea_comment_likes" '"user_id"'
 
 # quick_links
 ensure_index "quick_links_active_sortOrder_idx" "quick_links" 'active, "sortOrder"'
@@ -878,6 +883,28 @@ ensure_index "employee_highlights_active_startDate_idx" "employee_highlights" 'a
 # directory_snapshots
 ensure_index "directory_snapshots_managerId_idx"   "directory_snapshots" 'manager_id'
 ensure_index "directory_snapshots_displayName_idx" "directory_snapshots" 'display_name'
+
+# directory_snapshots — trigram (GIN) indexes so case-insensitive ILIKE lookups
+# on mail / UPN / display_name use an index instead of a full table scan.
+if run_sql "CREATE EXTENSION IF NOT EXISTS pg_trgm;" > /dev/null 2>&1; then
+  for spec in \
+    "directory_snapshots_mail_trgm_idx:mail" \
+    "directory_snapshots_upn_trgm_idx:user_principal_name" \
+    "directory_snapshots_display_name_trgm_idx:display_name"; do
+    idx="${spec%%:*}"; col="${spec##*:}"
+    has=$(run_sql "SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND indexname = '${idx}';")
+    if [ "$has" != "1" ]; then
+      if run_sql "CREATE INDEX IF NOT EXISTS \"${idx}\" ON \"directory_snapshots\" USING gin (${col} gin_trgm_ops);" > /dev/null 2>&1; then
+        echo "  ✅ Created trigram index: ${idx}"
+        CREATED_INDEXES=$((CREATED_INDEXES + 1))
+      else
+        echo "  ⚠️  Skipped trigram index ${idx}"
+      fi
+    fi
+  done
+else
+  echo "  ⚠️  Could not enable pg_trgm extension — skipping trigram indexes"
+fi
 
 # notifications
 ensure_index "notifications_userId_read_createdAt_idx" "notifications" '"userId", read, "createdAt"'
@@ -960,8 +987,8 @@ ensure_index "vs_reactions_videoId_idx" "video_spotlight_reactions" '"videoId"'
 ensure_index "vs_comments_videoId_createdAt_idx" "video_spotlight_comments" '"videoId", "createdAt"'
 ensure_index "vs_comments_parentId_idx"          "video_spotlight_comments" '"parentId"'
 
-# video_spotlight_comment_likes
-ensure_index "vs_comment_likes_voterLogtoId_idx" "video_spotlight_comment_likes" '"voterLogtoId"'
+# video_spotlight_comment_likes (column renamed voterLogtoId → user_id)
+ensure_index "vs_comment_likes_user_id_idx" "video_spotlight_comment_likes" '"user_id"'
 
 # important_dates
 ensure_index "important_dates_active_date_idx"  "important_dates" 'active, date'
@@ -974,8 +1001,8 @@ ensure_index "props_comments_parentId_idx"          "props_comments" '"parentId"
 # closers_table_awards
 ensure_index "closers_table_awards_active_sort_order_idx" "closers_table_awards" 'active, sort_order'
 
-# props_comment_likes
-ensure_index "props_comment_likes_voterLogtoId_idx" "props_comment_likes" '"voterLogtoId"'
+# props_comment_likes (column renamed voterLogtoId → user_id)
+ensure_index "props_comment_likes_user_id_idx" "props_comment_likes" '"user_id"'
 
 # salesforce_directory
 ensure_index "salesforce_directory_email_idx"                 "salesforce_directory" 'email'

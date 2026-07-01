@@ -31,7 +31,6 @@ function getInitials(name: string): string {
 export function ClosersTableBanner() {
   const [awards, setAwards] = useState<CloserAward[]>([]);
   const [isFetching, setIsFetching] = useState(true);
-  const [frozen, setFrozen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<DirectoryNode | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
@@ -41,7 +40,6 @@ export function ClosersTableBanner() {
       .then((r) => r.json())
       .then((d) => {
         if (d?.awards?.length) setAwards(d.awards);
-        if (d?.freezeInfo) setFrozen(d.freezeInfo.frozen ?? false);
       })
       .catch(() => {})
       .finally(() => setIsFetching(false));
@@ -74,7 +72,7 @@ export function ClosersTableBanner() {
         <div className="px-3.5 py-2 bg-gradient-to-r from-slate-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 border-t-[3px] border-t-brand-blue flex items-center justify-center gap-2">
           <Trophy className="h-4 w-4 text-brand-blue" />
           <h3 className="text-sm font-bold text-brand-blue tracking-wide uppercase">
-            {frozen ? "Closers Table - Final" : "Closers Table - Current Standings"}
+            Closers Table
           </h3>
           <Trophy className="h-4 w-4 text-brand-blue" />
         </div>

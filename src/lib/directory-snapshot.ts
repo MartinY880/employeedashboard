@@ -705,13 +705,20 @@ export async function getSnapshotTreeUsers(): Promise<GraphUser[]> {
     // pruned along with their subtree (they never enter the CTE).
     const rows = await prisma.$queryRaw<SnapshotRow[]>`
       WITH RECURSIVE org_tree AS (
-        SELECT * FROM directory_snapshots
+        SELECT *, ARRAY[id] AS "_path", 1 AS "_depth"
+        FROM directory_snapshots
         WHERE id = ${rootUserId}
           AND UPPER(TRIM(COALESCE(office_location, ''))) <> 'EXCLUDE'
         UNION ALL
-        SELECT ds.* FROM directory_snapshots ds
+        SELECT ds.*, ot."_path" || ds.id, ot."_depth" + 1
+        FROM directory_snapshots ds
         INNER JOIN org_tree ot ON ds.manager_id = ot.id
         WHERE UPPER(TRIM(COALESCE(ds.office_location, ''))) <> 'EXCLUDE'
+          -- Cycle guard: never revisit a node already on the current path
+          -- (bad manager_id data must not cause infinite recursion).
+          AND ds.id <> ALL(ot."_path")
+          -- Depth safety cap: org charts are never this deep.
+          AND ot."_depth" < 100
       )
       SELECT
         id,
